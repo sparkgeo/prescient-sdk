@@ -6,8 +6,8 @@ readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
     "boto3>=1.35.19",
-    "dynaconf>=3.2.6",
     "msal>=1.31.0",
+    "pydantic-settings>=2.5.2",
 ]
 
 [tool.uv]

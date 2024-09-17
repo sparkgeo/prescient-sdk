@@ -24,7 +24,7 @@ launch_buttons:
 repository:
   url: https://github.com/sparkgeo/prescient-sdk  # Online location of your book
   path_to_book: docs  # Optional path to your book, relative to the repository root
-  branch: 1-sdk-creation  # Which branch of the repository should be used when creating links (optional)
+  branch: main  # Which branch of the repository should be used when creating links (optional)
 
 # Add GitHub buttons to your book
 # See https://jupyterbook.org/customize/config.html#add-a-link-to-your-repository
@@ -33,14 +33,12 @@ html:
   use_repository_button: true
 
 sphinx:
-  config:
-    html_show_copyright: false
   extra_extensions:
   - 'sphinx.ext.autodoc'
   # - 'sphinx.ext.napoleon'
   # - 'sphinx.ext.viewcode'
-  - 'sphinx.ext.autosummary'
+  # - 'sphinx.ext.autosummary'
   config:
     # add_module_names: False
-    autosummary_generate: True
+    # autosummary_generate: True
     suppress_warnings: ["etoc.toctree"]

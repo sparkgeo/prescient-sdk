@@ -6,6 +6,7 @@ import boto3
 from botocore.stub import Stubber
 
 from prescient_sdk.client import PrescientClient
+from prescient_sdk.config import Settings
 
 @pytest.fixture
 def mock_azure_creds(mocker: MockerFixture):
@@ -21,15 +22,23 @@ def mock_azure_creds(mocker: MockerFixture):
 def test_prescient_client_initialization():
     """Test that the client is initialized correctly"""
     client = PrescientClient()
-    assert client._endpoint_url is not None
+    assert client.settings.endpoint_url is not None
 
 
 def test_prescient_client_custom_url():
     """Test that the stac url is returned correctly"""
     custom_url = "https://custom.url/"
-    client = PrescientClient(endpoint_url=custom_url)
-    assert client._endpoint_url == custom_url
+    settings = Settings(endpoint_url=custom_url)
+    client = PrescientClient(settings=settings)
+    assert client.settings.endpoint_url == custom_url
     assert client.catalog_url == custom_url + "stac"
+
+def test_custom_url_formatting():
+    """Test that the custom url is formatted correctly"""
+    custom_url = "https://custom.url"
+    settings = Settings(endpoint_url=custom_url)
+    client = PrescientClient(settings=settings)
+    assert client.catalog_url == custom_url + "/stac"
 
 
 def test_prescient_client_headers(monkeypatch: pytest.MonkeyPatch):

@@ -1,33 +1,10 @@
 # prescient-sdk
-An SDK for integrating with Prescient services
+A Python SDK for integrating with Prescient services
 
 
 ## Quickstart
 
-### Installation
-
-To use the PrescientSDK, you first need to install it and its dependencies
-
-1. Install or update Python
-
-TODO: check earliest compatible python version
-The PrescientClient supports Python 3.8 or later.
-
-For information about how to get the latest version of Python, see the official [Python documentation](https://www.python.org/downloads/).
-
-1. Install PrescientSDK
-
-TODO: update to the correct PyPI name
-```
-pip install prescientsdk
-```
-
-### Configuration
-
-
-
-
-## Local Development
+### Local Development
 
 The project is set up using [uv](https://docs.astral.sh/uv/) for package management. To develop locally:
 
@@ -46,3 +23,71 @@ The project is set up using [uv](https://docs.astral.sh/uv/) for package managem
     ```
     uv run pytest
     ```
+
+    or 
+
+    ```
+    make run-tests
+    ```
+
+### Configuration
+
+Configuration methods are discussed in the Jupyter Notebook [configuration.ipynb](./docs/examples/configuration.ipynb)
+
+### Code Formatting/Linting
+
+Code format is set using the [Ruff](https://docs.astral.sh/ruff/) formatter. To run this formatter:
+
+```
+make format
+```
+
+### Adding or removing dependencies
+
+Add or remove dependencies using [UV](https://docs.astral.sh/uv/concepts/dependencies/).
+
+In the simplest case, you can add a new dependency like this:
+
+```
+uv add <some-dependency>
+```
+
+To add a dev dependency:
+
+```
+uv add <some-dependency> --dev
+```
+
+To remove a dependency:
+
+```
+uv remove <some-dependency>
+```
+
+For more complex features, see the [uv documentation](https://docs.astral.sh/uv/)
+
+[!CAUTION]
+If you change any project dependencies, in order for the example notebooks to continue to run on binder, you must update the requirements file
+
+To update the binder requirements after any dependency change:
+```
+make update-binder-reqs
+```
+
+## Build the documentation
+
+Public facing documentation is built using [jupyter-books](https://jupyterbook.org/en/stable/intro.html).
+
+The [docs](./docs) folder contains the layout for the public facing documentation.
+
+You can build the documentation locally, and access the built html pages in a local browser:
+
+1. Build the docs:
+
+    ```
+    make build-docs
+    ```
+
+1. Open the html in a browser:
+
+    After building the docs, the path to the index.html file will be logged, and should look something like `docs/_build/html/index.html`

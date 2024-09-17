@@ -6,11 +6,13 @@ root: index
 parts:
 - caption: Getting Started
   chapters:
-  - file: getting-started
+  - file: installation
+  - file: examples/configuration
 - caption: Examples
   chapters:
   - title: STAC Search
     file: examples/stac_search
 - caption: API Reference
   chapters:
-  - file: api-reference
+  - file: client-api
+  - file: config-api

@@ -5,7 +5,7 @@ import urllib.parse
 import msal
 import boto3
 
-from prescient_sdk.config import config as default_config
+from prescient_sdk.config import Settings
 
 logger = logging.getLogger("prescient_sdk")
 
@@ -26,17 +26,7 @@ class PrescientClient:
     These can be overridden by setting values explicitly when initializing the client.
 
     Args:
-        endpoint_url (str, optional): URL for the Prescient API.
-        aws_region (str, optional): AWS region.
-        aws_profile (str, optional): AWS profile.
-        stac_api_url (str, optional): URL for the STAC API.
-        azure_tenant_id (str, optional): Azure tenant ID.
-        azure_client_id (str, optional): Azure client ID.
-        azure_client_secret (str, optional): Azure client secret.
-        azure_auth_url (str, optional): Azure auth URL
-        azure_auth_token_path (str, optional): Azure auth token path.
-        azure_client_scope (str, optional): Azure client scope.
-        destination_bucket_name (str, optional): Destination bucket name for uploading files.
+        settings (Settings, optional): Configuration settings for the client. Defaults to None.
 
     Attributes:
         catalog_url (str): The STAC URL used for searching available data in the bucket.
@@ -48,40 +38,12 @@ class PrescientClient:
 
     def __init__(
         self,
-        endpoint_url: str | None = None,
-        aws_region: str | None = None,
-        aws_profile: str | None = None,
-        aws_role: str | None = None,
-        azure_tenant_id: str | None = None,
-        azure_client_id: str | None = None,
-        azure_client_secret: str | None = None,
-        azure_auth_url: str | None = None,
-        azure_auth_token_path: str | None = None,
-        azure_client_scope: str | None = None,
-        destination_bucket_name: str | None = None,
+        settings: Settings | None = None,
     ):
-        # default configuration is from prescient_sdk.config, which uses Dynaconf to set the configuration
-        # if a custom configuration values are passed to this init, they will override the default configuration
-
-        self._endpoint_url = endpoint_url or default_config.endpoint_url
-        self._aws_region = aws_region or default_config.aws_region
-        self._aws_profile = aws_profile or default_config.aws_profile
-        self._aws_role = aws_role or default_config.aws_role
-        self._azure_tenant_id = azure_tenant_id or default_config.azure_tenant_id
-        self._azure_client_id = azure_client_id or default_config.azure_client_id
-        self._azure_client_secret = (
-            azure_client_secret or default_config.azure_client_secret
-        )
-        self._azure_auth_url = azure_auth_url or default_config.azure_auth_url
-        self._azure_auth_token_path = (
-            azure_auth_token_path or default_config.azure_auth_token_path
-        )
-        self._azure_client_scope = (
-            azure_client_scope or default_config.azure_client_scope
-        )
-        self._destination_bucket_name = (
-            destination_bucket_name or default_config.destination_bucket_name
-        )
+        # default configuration values are set in the Settings class (prescient_sdk.config)
+        if settings is None:
+            settings = Settings()
+        self.settings: Settings = settings
 
         # initialize empty credentials
         self._azure_credentials: dict = {}
@@ -95,7 +57,7 @@ class PrescientClient:
         Returns:
             str: The STAC URL.
         """
-        return urllib.parse.urljoin(self._endpoint_url, "stac")
+        return urllib.parse.urljoin(self.settings.endpoint_url, "stac")
 
     @property
     def azure_credentials(self) -> dict:
@@ -103,37 +65,37 @@ class PrescientClient:
         Get the Azure credentials for the client.
 
         Returns:
-            dict: Azure access token
+            dict: Azure access token::
 
-            {
-                "token_type": "Bearer",
-                "scope": "",
-                "expires_in": 5021,
-                "ext_expires_in": 5021,
-                "access_token": "",
-                "refresh_token": "",
-                "id_token": "",
-                "client_info": "",
-                "id_token_claims": {
-                    "aud": "",
-                    "iss": "",
-                    "iat": 1726515801,
-                    "nbf": 1726515801,
-                    "exp": 1726519701,
-                    "aio": "",
-                    "name": "",
-                    "nonce": "",
-                    "oid": "",
-                    "preferred_username": "",
-                    "rh": "",
-                    "roles": [""],
-                    "sub": "",
-                    "tid": "",
-                    "uti": "",
-                    "ver": "",
-                },
-                "token_source": "",
-            }
+                {
+                    "token_type": "string",
+                    "scope": "string",
+                    "expires_in": "int",
+                    "ext_expires_in": "int",
+                    "access_token": "string",
+                    "refresh_token": "string",
+                    "id_token": "string",
+                    "client_info": "string",
+                    "id_token_claims": {
+                        "aud": "string",
+                        "iss": "string",
+                        "iat": "int",
+                        "nbf": "int",
+                        "exp": "int",
+                        "aio": "string",
+                        "name": "string",
+                        "nonce": "string",
+                        "oid": "string",
+                        "preferred_username": "string",
+                        "rh": "string",
+                        "roles": ["string"],
+                        "sub": "string",
+                        "tid": "string",
+                        "uti": "string",
+                        "ver": "string",
+                    },
+                    "token_source": "string",
+                }
         Raises:
             ValueError: If the response status code is not 200, or if the access token is not in the response.
         """
@@ -144,10 +106,14 @@ class PrescientClient:
         ):
             return self._azure_credentials
 
-        authority_url = f"https://login.microsoftonline.com/{self._azure_tenant_id}"
-        scopes = [f"api://{self._azure_client_id}/{self._azure_client_scope}"]
+        authority_url = (
+            f"https://login.microsoftonline.com/{self.settings.azure_tenant_id}"
+        )
+        scopes = [
+            f"api://{self.settings.azure_client_id}/{self.settings.azure_client_scope}"
+        ]
         app = msal.PublicClientApplication(
-            client_id=self._azure_client_id, authority=authority_url
+            client_id=self.settings.azure_client_id, authority=authority_url
         )
 
         # trigger auth or auth refresh flow
@@ -192,13 +158,15 @@ class PrescientClient:
         """Get AWS credentials using Azure AD access token
 
         Returns:
-            dict: AWS temporary credentials
+            dict: AWS temporary credentials::
+
                 {
-                    'AccessKeyId': 'string',
-                    'SecretAccessKey': 'string',
-                    'SessionToken': 'string',
-                    'Expiration': datetime(2015, 1, 1)
+                    "AccessKeyId": "string",
+                    "SecretAccessKey": "string",
+                    "SessionToken": "string",
+                    "Expiration": datetime(2015, 1, 1)
                 }
+
         Raises:
             ValueError: If the AWS credentials response is empty
         """
@@ -210,12 +178,12 @@ class PrescientClient:
             return self._aws_credentials
 
         access_token = self.azure_credentials.get("access_token")
-        sts_client = boto3.client("sts", region_name=self._aws_region)
+        sts_client = boto3.client("sts", region_name=self.settings.aws_region)
 
         # exchange token with aws temp creds
         response: dict = sts_client.assume_role_with_web_identity(
             DurationSeconds=3600,  # 1 hour
-            RoleArn=self._aws_role,
+            RoleArn=self.settings.aws_role,
             RoleSessionName="prescient-s3-access",
             WebIdentityToken=access_token,
         )

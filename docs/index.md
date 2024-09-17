@@ -1,6 +1,6 @@
 # Prescient SDK
 
-Simple Python SDK for accessing data cataloged by a Prescient API
+Python SDK for accessing Prescient services
 
 ```{tableofcontents}
 ```
