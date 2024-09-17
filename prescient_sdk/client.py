@@ -1,6 +1,6 @@
 import logging
 import datetime
-import os
+import urllib.parse
 
 import msal
 import boto3
@@ -13,6 +13,14 @@ logger = logging.getLogger("prescient_sdk")
 class PrescientClient:
     """
     Client for interacting with the Prescient API.
+
+    This client is used to authenticate using Azure AD, and for obtaining AWS
+    credentials using the Azure AD access token. The client also provides helpers such as
+    provding the STAC URL for the Prescient API, and authentication headers for making
+    requests to the STAC API.
+
+    Token expiration (both AWS and Azure) is handled automatically for long running instances
+    of the client (in a notebook for example).
 
     Default configuration is set using the default values from prescient_sdk.config.
     These can be overridden by setting values explicitly when initializing the client.
@@ -33,7 +41,7 @@ class PrescientClient:
     Attributes:
         catalog_url (str): The STAC URL used for searching available data in the bucket.
         azure_credentials (dict): Azure credentials used for all authentication.
-        headers (dict): Headers for a request to the stac API.
+        headers (dict): Headers for making and authorizing a request to the stac API.
         aws_credentials (dict): AWS credentials for connecting to the S3 bucket containing the data.
 
     """
@@ -87,7 +95,7 @@ class PrescientClient:
         Returns:
             str: The STAC URL.
         """
-        return os.path.join(self._endpoint_url, "stac")
+        return urllib.parse.urljoin(self._endpoint_url, "stac")
 
     @property
     def azure_credentials(self) -> dict:
@@ -148,7 +156,7 @@ class PrescientClient:
             # aquire creds interactively if none have been fetched yet
             self._azure_credentials = app.acquire_token_interactive(scopes=scopes)
         else:
-            # refresh creds if they have been fetched before
+            # refresh creds if they have been fetched before and are expired
             self._azure_credentials = app.acquire_token_by_refresh_token(
                 refresh_token=self._azure_credentials["refresh_token"], scopes=scopes
             )
@@ -225,6 +233,7 @@ class PrescientClient:
 
 
 if __name__ == "__main__":
+    # TODO: remove this test code
     logging.basicConfig(level=logging.DEBUG)
     client = PrescientClient()
     print(client.aws_credentials)

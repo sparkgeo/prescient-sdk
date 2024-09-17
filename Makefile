@@ -1,4 +1,4 @@
-run-format:
+format:
 	uv run ruff check
 
 run-tests:
