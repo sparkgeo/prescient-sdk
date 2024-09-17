@@ -2,9 +2,9 @@
 A Python SDK for integrating with Prescient services
 
 
-## Quickstart
+# Quickstart
 
-### Local Development
+## Local Development
 
 The project is set up using [uv](https://docs.astral.sh/uv/) for package management. To develop locally:
 
@@ -30,11 +30,11 @@ The project is set up using [uv](https://docs.astral.sh/uv/) for package managem
     make run-tests
     ```
 
-### Configuration
+## Configuration
 
 Configuration methods are discussed in the Jupyter Notebook [configuration.ipynb](./docs/examples/configuration.ipynb)
 
-### Code Formatting/Linting
+## Code Formatting/Linting
 
 Code format is set using the [Ruff](https://docs.astral.sh/ruff/) formatter. To run this formatter:
 
@@ -42,7 +42,7 @@ Code format is set using the [Ruff](https://docs.astral.sh/ruff/) formatter. To 
 make format
 ```
 
-### Adding or removing dependencies
+## Adding or removing dependencies
 
 Add or remove dependencies using [UV](https://docs.astral.sh/uv/concepts/dependencies/).
 
