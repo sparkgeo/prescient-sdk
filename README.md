@@ -66,8 +66,8 @@ uv remove <some-dependency>
 
 For more complex features, see the [uv documentation](https://docs.astral.sh/uv/)
 
-[!CAUTION]
-If you change any project dependencies, in order for the example notebooks to continue to run on binder, you must update the requirements file
+> [!CAUTION]
+> If you change any project dependencies, in order for the example notebooks to continue to run on binder, you must update the requirements file.
 
 To update the binder requirements after any dependency change:
 ```
