@@ -28,12 +28,6 @@ class PrescientClient:
     Args:
         settings (Settings, optional): Configuration settings for the client. Defaults to None.
 
-    Attributes:
-        catalog_url (str): The STAC URL used for searching available data in the bucket.
-        azure_credentials (dict): Azure credentials used for all authentication.
-        headers (dict): Headers for making and authorizing a request to the stac API.
-        aws_credentials (dict): AWS credentials for connecting to the S3 bucket containing the data.
-
     """
 
     def __init__(

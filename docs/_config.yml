@@ -35,10 +35,8 @@ html:
 sphinx:
   extra_extensions:
   - 'sphinx.ext.autodoc'
-  # - 'sphinx.ext.napoleon'
-  # - 'sphinx.ext.viewcode'
-  # - 'sphinx.ext.autosummary'
+  - 'sphinx.ext.napoleon'
+  - 'sphinx.ext.viewcode'
   config:
-    # add_module_names: False
-    # autosummary_generate: True
+    add_module_names: False
     suppress_warnings: ["etoc.toctree"]

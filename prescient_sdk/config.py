@@ -30,5 +30,4 @@ class Settings(BaseSettings):
     azure_auth_token_path: str = "/oauth2/v2.0/token"
     azure_client_scope: str | None = None
 
-    destination_bucket_name: str | None = None
     request_timeout: int = 15  # seconds
