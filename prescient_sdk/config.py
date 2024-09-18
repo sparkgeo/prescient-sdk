@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
 
 
 class Settings(BaseSettings):
@@ -19,7 +20,9 @@ class Settings(BaseSettings):
 
     endpoint_url: str = "https://enexus.server-uat.prescient.earth"
     aws_region: str = "us-west-2"
-    aws_role: str = ""
+    aws_role: str = Field(
+        min_length=20, default="00000000000000000000"
+    )  # default role so that tests can run
 
     azure_tenant_id: str | None = None
     azure_client_id: str | None = None
