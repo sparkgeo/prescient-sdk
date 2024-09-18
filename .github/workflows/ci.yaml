@@ -3,7 +3,7 @@ name: ci
 on:
   push:
     branches:
-    - 1-sdk-creation  # TODO: change this to main
+    - main
   pull_request:
     types: [opened, reopened]
 
