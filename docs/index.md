@@ -1,6 +1,11 @@
 # Prescient SDK
 
-Python SDK for accessing Prescient services
+Python SDK for accessing Prescient services.
+
+<br>
+<br>
+
+# Contents
 
 ```{tableofcontents}
 ```

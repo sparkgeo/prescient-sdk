@@ -12,7 +12,6 @@ parts:
   chapters:
   - title: STAC Search
     file: examples/stac_search
-- caption: API Reference
+- caption: SDK Reference
   chapters:
-  - file: client-api
-  - file: config-api
+  - file: client-sdk
