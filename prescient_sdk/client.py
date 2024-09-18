@@ -103,9 +103,12 @@ class PrescientClient:
         authority_url = (
             f"https://login.microsoftonline.com/{self.settings.azure_tenant_id}"
         )
-        scopes = [
-            f"api://{self.settings.azure_client_id}/{self.settings.azure_client_scope}"
-        ]
+        scopes = (
+            [self.settings.azure_client_scope]
+            if self.settings.azure_client_scope
+            else []
+        )
+        scopes = []
         app = msal.PublicClientApplication(
             client_id=self.settings.azure_client_id, authority=authority_url
         )
