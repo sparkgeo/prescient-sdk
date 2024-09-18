@@ -36,7 +36,7 @@ class PrescientClient:
     ):
         # default configuration values are set in the Settings class (prescient_sdk.config)
         if settings is None:
-            settings = Settings()
+            settings = Settings()  # type: ignore
         self.settings: Settings = settings
 
         # initialize empty credentials
@@ -44,7 +44,7 @@ class PrescientClient:
         self._aws_credentials: dict = {}
 
     @property
-    def catalog_url(self) -> str:
+    def stac_catalog_url(self) -> str:
         """
         Get the STAC URL.
 
@@ -100,15 +100,9 @@ class PrescientClient:
         ):
             return self._azure_credentials
 
-        authority_url = (
-            f"https://login.microsoftonline.com/{self.settings.azure_tenant_id}"
+        authority_url = urllib.parse.urljoin(
+            self.settings.azure_auth_url, self.settings.azure_tenant_id
         )
-        scopes = (
-            [self.settings.azure_client_scope]
-            if self.settings.azure_client_scope
-            else []
-        )
-        scopes = []
         app = msal.PublicClientApplication(
             client_id=self.settings.azure_client_id, authority=authority_url
         )
@@ -117,15 +111,15 @@ class PrescientClient:
         time_zero = datetime.datetime.now(datetime.timezone.utc)
         if not self._azure_credentials:
             # aquire creds interactively if none have been fetched yet
-            self._azure_credentials = app.acquire_token_interactive(scopes=scopes)
+            self._azure_credentials = app.acquire_token_interactive(scopes=[])
         else:
             # refresh creds if they have been fetched before and are expired
             self._azure_credentials = app.acquire_token_by_refresh_token(
-                refresh_token=self._azure_credentials["refresh_token"], scopes=scopes
+                refresh_token=self._azure_credentials["refresh_token"], scopes=[]
             )
 
         # check that a nonzero length token has been obtained
-        token: str = self._azure_credentials.get("access_token", "")
+        token: str = self._azure_credentials.get("id_token", "")
         if token == "":
             raise ValueError(f"Failed to obtain Azure token: {self._azure_credentials}")
 
@@ -147,7 +141,7 @@ class PrescientClient:
         return {
             "Content-Type": "application/json",
             "Accept": "application/json",
-            "Authorization": f"Bearer {self.azure_credentials['access_token']}",
+            "Authorization": f"Bearer {self.azure_credentials['id_token']}",
         }
 
     @property
@@ -174,7 +168,7 @@ class PrescientClient:
         ):
             return self._aws_credentials
 
-        access_token = self.azure_credentials.get("access_token")
+        access_token = self.azure_credentials.get("id_token")
         sts_client = boto3.client("sts", region_name=self.settings.aws_region)
 
         # exchange token with aws temp creds
@@ -195,10 +189,3 @@ class PrescientClient:
         ].astimezone(datetime.timezone.utc)
 
         return self._aws_credentials
-
-
-if __name__ == "__main__":
-    # TODO: remove this test code
-    logging.basicConfig(level=logging.DEBUG)
-    client = PrescientClient()
-    print(client.aws_credentials)

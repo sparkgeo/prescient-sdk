@@ -1,4 +1,5 @@
 import datetime
+import os
 
 import pytest
 from pytest_mock import MockerFixture, MockType
@@ -8,13 +9,35 @@ from botocore.stub import Stubber
 from prescient_sdk.client import PrescientClient
 from prescient_sdk.config import Settings
 
+@pytest.fixture(autouse=True)
+def set_env_vars():
+    """fixture to set the config settings as env variables"""
+    os.environ["PRESCIENT_ENDPOINT_URL"] = "https://example.server.prescient.earth"
+    os.environ["PRESCIENT_AWS_REGION"] = "some-aws-region"
+    os.environ["PRESCIENT_AWS_ROLE"] = "arn:aws:iam::something"
+    os.environ["PRESCIENT_AZURE_TENANT_ID"] = "some-tenant-id"
+    os.environ["PRESCIENT_AZURE_CLIENT_ID"] = "some-client-id"
+    os.environ["PRESCIENT_AZURE_AUTH_URL"] = "https://login.somewhere.com/"
+    os.environ["PRESCIENT_AZURE_AUTH_TOKEN_PATH"] = "/oauth2/v2.0/token"
+
+    yield
+
+    del os.environ["PRESCIENT_ENDPOINT_URL"]
+    del os.environ["PRESCIENT_AWS_REGION"]
+    del os.environ["PRESCIENT_AWS_ROLE"]
+    del os.environ["PRESCIENT_AZURE_TENANT_ID"]
+    del os.environ["PRESCIENT_AZURE_CLIENT_ID"]
+    del os.environ["PRESCIENT_AZURE_AUTH_URL"]
+    del os.environ["PRESCIENT_AZURE_AUTH_TOKEN_PATH"]
+
+
 @pytest.fixture
 def mock_azure_creds(mocker: MockerFixture):
     """fixture to mock the azure credentials property"""
     mock = mocker.patch(
         "prescient_sdk.client.PrescientClient.azure_credentials",
         new_callable=mocker.PropertyMock,
-        return_value={"access_token": "mock_token"},
+        return_value={"id_token": "mock_token"},
     )
     return mock
 
@@ -28,17 +51,17 @@ def test_prescient_client_initialization():
 def test_prescient_client_custom_url():
     """Test that the stac url is returned correctly"""
     custom_url = "https://custom.url/"
-    settings = Settings(endpoint_url=custom_url)
+    settings = Settings(endpoint_url=custom_url)  # type: ignore
     client = PrescientClient(settings=settings)
     assert client.settings.endpoint_url == custom_url
-    assert client.catalog_url == custom_url + "stac"
+    assert client.stac_catalog_url == custom_url + "stac"
 
 def test_custom_url_formatting():
     """Test that the custom url is formatted correctly"""
     custom_url = "https://custom.url"
-    settings = Settings(endpoint_url=custom_url)
+    settings = Settings(endpoint_url=custom_url)  # type: ignore
     client = PrescientClient(settings=settings)
-    assert client.catalog_url == custom_url + "/stac"
+    assert client.stac_catalog_url == custom_url + "/stac"
 
 
 def test_prescient_client_headers(monkeypatch: pytest.MonkeyPatch):
@@ -47,7 +70,7 @@ def test_prescient_client_headers(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(
         PrescientClient,
         "azure_credentials",
-        {"access_token": "mock_token"},
+        {"id_token": "mock_token"},
         raising=True,
     )
 
@@ -63,7 +86,7 @@ def test_prescient_client_cached_azure_credentials():
     """test that cached azure credentials are used"""
     client = PrescientClient()
     client._azure_credentials = {
-        "access_token": "cached_token",
+        "id_token": "cached_token",
         "expiration": datetime.datetime.now(datetime.timezone.utc)
         + datetime.timedelta(hours=1),
     }
@@ -127,7 +150,7 @@ def test_azure_creds_refreshed(mocker: MockerFixture):
         def acquire_token_by_refresh_token(self, refresh_token, scopes):
             return {
                 "expires_in": 5021,
-                "access_token": "refreshed_token",
+                "id_token": "refreshed_token",
             }
 
         def acquire_token_interactive(self, scopes):
@@ -142,14 +165,14 @@ def test_azure_creds_refreshed(mocker: MockerFixture):
 
     # initialize azure creds as expired
     client._azure_credentials = {
-        "access_token": "expired_token",
+        "id_token": "expired_token",
         "expiration": datetime.datetime.now(datetime.timezone.utc)
         - datetime.timedelta(hours=1),
         "refresh_token": "refresh",
     }
 
     # check that when the azure_creds are used they get refreshed from the mock fixture
-    assert client.azure_credentials["access_token"] == "refreshed_token"
+    assert client.azure_credentials["id_token"] == "refreshed_token"
     assert client.azure_credentials["expiration"] > datetime.datetime.now(
         datetime.timezone.utc
     )
