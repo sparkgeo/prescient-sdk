@@ -19,7 +19,7 @@ class Settings(BaseSettings):
 
     endpoint_url: str = "https://enexus.server-uat.prescient.earth"
     aws_region: str = "us-west-2"
-    aws_role: str | None = None
+    aws_role: str = ""
 
     azure_tenant_id: str | None = None
     azure_client_id: str | None = None
