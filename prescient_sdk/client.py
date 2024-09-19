@@ -4,6 +4,7 @@ import urllib.parse
 
 import msal
 import boto3
+from rasterio.session import AWSSession
 
 from prescient_sdk.config import Settings
 
@@ -189,3 +190,17 @@ class PrescientClient:
         ].astimezone(datetime.timezone.utc)
 
         return self._aws_credentials
+    
+    @property
+    def session(self) -> AWSSession:
+        """
+        Get an AWS session to be used when authenticating rasterio
+
+        Returns:
+            AWSSession: Rasterio AWS session
+        """
+        return AWSSession(
+            aws_access_key_id=self.aws_credentials["AccessKeyId"], 
+            aws_secret_access_key=self.aws_credentials["SecretAccessKey"], 
+            aws_session_token=self.aws_credentials["SessionToken"]
+        )
