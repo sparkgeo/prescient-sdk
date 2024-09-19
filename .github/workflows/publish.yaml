@@ -10,7 +10,7 @@ env:
 
 
 jobs:
-  deploy-book:
+  publish:
     runs-on: ubuntu-latest
     permissions:
       pages: write
