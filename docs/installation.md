@@ -11,5 +11,5 @@ To use the Prescient SDK, you first need to install it and its dependencies
 1. Install Prescient SDK
 
 ```
-pip install prescientsdk
+pip install prescient-sdk
 ```
