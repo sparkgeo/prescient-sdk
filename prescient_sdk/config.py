@@ -1,4 +1,3 @@
-
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 
@@ -12,11 +11,11 @@ class Settings(BaseSettings):
     Order of precedence for configuration values:
 
     1. Environment variables are always highest precedence and will override any other configuration values
-    2. `.env` file: if a `.env` file is present in the root of the project, it will be used
+    2. `config.env` file: if a `config.env` file is present in the root of the project, it will be used
     """
 
     endpoint_url: str = Field()
-    
+
     aws_region: str = Field()
     aws_role: str = Field(min_length=20)
 

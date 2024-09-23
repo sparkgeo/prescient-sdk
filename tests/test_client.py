@@ -1,5 +1,6 @@
 import datetime
 import os
+import tempfile
 
 import pytest
 from pytest_mock import MockerFixture, MockType
@@ -9,7 +10,7 @@ from botocore.stub import Stubber
 from prescient_sdk.client import PrescientClient
 from prescient_sdk.config import Settings
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def set_env_vars():
     """fixture to set the config settings as env variables"""
     os.environ["PRESCIENT_ENDPOINT_URL"] = "https://example.server.prescient.earth"
@@ -32,7 +33,7 @@ def set_env_vars():
 
 
 @pytest.fixture
-def mock_azure_creds(mocker: MockerFixture):
+def mock_azure_creds(mocker: MockerFixture, set_env_vars):
     """fixture to mock the azure credentials property"""
     mock = mocker.patch(
         "prescient_sdk.client.PrescientClient.azure_credentials",
@@ -42,13 +43,50 @@ def mock_azure_creds(mocker: MockerFixture):
     return mock
 
 
-def test_prescient_client_initialization():
+def test_prescient_client_initialization(set_env_vars):
     """Test that the client is initialized correctly"""
     client = PrescientClient()
     assert client.settings.endpoint_url is not None
 
+def test_env_file_init():
+    """Test that the env file is loaded correctly"""
+    with tempfile.NamedTemporaryFile(delete=False, mode="w") as temp_env_file:
+        temp_env_file.write("ENDPOINT_URL=https://some-test\n")
+        temp_env_file.write("AWS_REGION=some-aws-region\n")
+        temp_env_file.write("AWS_ROLE=arn:aws:iam::something\n")
+        temp_env_file.write("AZURE_TENANT_ID=some-tenant-id\n")
+        temp_env_file.write("AZURE_CLIENT_ID=some-client-id\n")
+        temp_env_file.write("AZURE_AUTH_URL=https://login.somewhere.com/\n")
+        temp_env_file.write("AZURE_AUTH_TOKEN_PATH=/oauth2/v2.0/token\n")
+        temp_env_file_path = temp_env_file.name
 
-def test_prescient_client_custom_url():
+    client = PrescientClient(env_file=temp_env_file_path)
+    assert client.settings.endpoint_url == "https://some-test"
+
+    os.remove(temp_env_file_path)
+
+def test_fail_when_passing_both_env_file_and_settings(set_env_vars):
+    """Test that an error is raised when both env file and settings are passed"""
+    with pytest.raises(ValueError):
+        PrescientClient(env_file="some-file.env", settings=Settings())  # type: ignore
+
+
+def test_settings_loaded_explicitly():
+    """Test that settings are loaded correctly"""
+    settings = Settings(
+        endpoint_url="https://example.server.prescient.earth",
+        aws_region="some-aws-region",
+        aws_role="arn:aws:iam::something",
+        azure_tenant_id="some-tenant-id",
+        azure_client_id="some-client-id",
+        azure_auth_url="https://login.somewhere.com/",
+        azure_auth_token_path="/oauth2/v2.0/token",
+    )
+    client = PrescientClient(settings=settings)
+    assert client.settings.endpoint_url is not None
+
+
+def test_prescient_client_custom_url(set_env_vars):
     """Test that the stac url is returned correctly"""
     custom_url = "https://custom.url/"
     settings = Settings(endpoint_url=custom_url)  # type: ignore
@@ -56,7 +94,7 @@ def test_prescient_client_custom_url():
     assert client.settings.endpoint_url == custom_url
     assert client.stac_catalog_url == custom_url + "stac"
 
-def test_custom_url_formatting():
+def test_custom_url_formatting(set_env_vars):
     """Test that the custom url is formatted correctly"""
     custom_url = "https://custom.url"
     settings = Settings(endpoint_url=custom_url)  # type: ignore
@@ -64,7 +102,7 @@ def test_custom_url_formatting():
     assert client.stac_catalog_url == custom_url + "/stac"
 
 
-def test_prescient_client_headers(monkeypatch: pytest.MonkeyPatch):
+def test_prescient_client_headers(monkeypatch: pytest.MonkeyPatch, set_env_vars):
     """Test that the headers are set correctly"""
     # Mock the azure_credentials property
     monkeypatch.setattr(
@@ -82,7 +120,7 @@ def test_prescient_client_headers(monkeypatch: pytest.MonkeyPatch):
     assert headers["Accept"] == "application/json"
 
 
-def test_prescient_client_cached_azure_credentials():
+def test_prescient_client_cached_azure_credentials(set_env_vars):
     """test that cached azure credentials are used"""
     client = PrescientClient()
     client._azure_credentials = {
@@ -95,7 +133,7 @@ def test_prescient_client_cached_azure_credentials():
     assert headers["Authorization"] == "Bearer cached_token"
 
 
-def test_prescient_client_cached_aws_credentials(mocker: MockerFixture):
+def test_prescient_client_cached_aws_credentials(mocker: MockerFixture, set_env_vars):
     """test that cached aws credentials are used"""
     # ensure that the boto3 client is not called because it should use cached credentials
     Stubber(mocker.patch("boto3.client")).add_client_error(
@@ -113,7 +151,7 @@ def test_prescient_client_cached_aws_credentials(mocker: MockerFixture):
     assert aws_credentials["AccessKeyId"] == "cached_id"
 
 def test_prescient_client_succesful_aws_credentials(
-    mocker: MockerFixture, mock_azure_creds: MockType
+    mocker: MockerFixture, mock_azure_creds: MockType, set_env_vars
 ):
     """Test that aws_credentials are passed through correctly"""
     dummy_creds = {
@@ -140,7 +178,7 @@ def test_prescient_client_succesful_aws_credentials(
         assert client.aws_credentials == dummy_creds["Credentials"]
 
 
-def test_azure_creds_refreshed(mocker: MockerFixture):
+def test_azure_creds_refreshed(mocker: MockerFixture, set_env_vars):
     """Test that azure credentials are refreshed when expired"""
 
     class MockApp:
@@ -178,7 +216,9 @@ def test_azure_creds_refreshed(mocker: MockerFixture):
     )
 
 
-def test_aws_creds_refresh(mocker: MockerFixture, mock_azure_creds: MockType):
+def test_aws_creds_refresh(
+    mocker: MockerFixture, mock_azure_creds: MockType, set_env_vars
+):
     """Test that aws credentials are refreshed when expired"""
     # mock the assume_role_with_web_identity response with a not expired token
     dummy_creds = {
