@@ -1,10 +1,11 @@
+
 import logging
 import datetime
 import urllib.parse
+from pathlib import Path
 
 import msal
 import boto3
-from rasterio.session import AWSSession
 
 from prescient_sdk.config import Settings
 
@@ -23,21 +24,50 @@ class PrescientClient:
     Token expiration is handled automatically for long running instances
     of the client (in a notebook for example).
 
-    Default configuration is set using the default values from prescient_sdk.config.
-    These can be overridden by setting values explicitly when initializing the client.
+    Configuration Options:
+        1. Construct the `prescient_sdk.config.Settings` object directly
+        2. Specify the path to an environment file containing configuration values
+        3. Do neither, and allow the client to build the `Settings` object using default
+           methods (env variables, config.env file location in the working directory)
+
+        Note that you cannot specify the env_file location AND provide a `Settings` object.
 
     Args:
+        env_file (str | Path, optional): Path to a configuration file. Defaults to None.
         settings (Settings, optional): Configuration settings for the client. Defaults to None.
+
+    Raises:
+        ValueError: If both an environment file and a settings object are provided.
+        ValueError: If the provided configuration file is not found.
 
     """
 
     def __init__(
         self,
+        env_file: str | Path | None = None,
         settings: Settings | None = None,
     ):
-        # default configuration values are set in the Settings class (prescient_sdk.config)
+        if env_file and settings:
+            raise ValueError(
+                "Cannot provide both an environment file and a settings object"
+            )
+
+        if env_file:
+            env_file = Path(env_file)
+            if env_file.exists():
+                logger.info(f"Loading configuration variables from {env_file}")
+            else:
+                raise ValueError(f"Configuration file not found: {env_file}")
+
+        # default configuration values are set in the Settings class (prescient_sdk.config.py)
         if settings is None:
-            settings = Settings()  # type: ignore
+            if env_file:
+                settings = Settings(_env_file=env_file)  # type: ignore
+            else:
+                # if no env file is present, we use default settings 
+                # which can be sourced from a config.env file in the working 
+                # directory, or env variables
+                settings = Settings()  # type: ignore
         self.settings: Settings = settings
 
         # initialize empty credentials
@@ -192,14 +222,14 @@ class PrescientClient:
         return self._bucket_credentials
     
     @property
-    def session(self) -> AWSSession:
+    def session(self) -> boto3.Session:
         """
-        Get an AWS session to be used when authenticating rasterio
+        Get an AWS session for authenticating to the bucket
 
         Returns:
-            AWSSession: Rasterio AWS session
+            Session: boto3 Session object
         """
-        return AWSSession(
+        return boto3.Session(
             aws_access_key_id=self.bucket_credentials["AccessKeyId"],
             aws_secret_access_key=self.bucket_credentials["SecretAccessKey"],
             aws_session_token=self.bucket_credentials["SessionToken"],
