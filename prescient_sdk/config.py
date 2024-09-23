@@ -20,14 +20,14 @@ class Settings(BaseSettings):
     aws_region: str = Field()
     aws_role: str = Field(min_length=20)
 
-    azure_tenant_id: str
-    azure_client_id: str
-    azure_auth_url: str
-    azure_auth_token_path: str
+    tenant_id: str
+    client_id: str
+    auth_url: str
+    auth_token_path: str
 
     model_config = SettingsConfigDict(
         env_file="config.env",
         env_file_encoding="utf-8",
-        env_prefix="PRESCIENT_",
+        env_prefix="",
         case_sensitive=False,
     )

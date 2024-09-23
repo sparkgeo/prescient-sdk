@@ -12,30 +12,30 @@ from prescient_sdk.config import Settings
 @pytest.fixture(autouse=True)
 def set_env_vars():
     """fixture to set the config settings as env variables"""
-    os.environ["PRESCIENT_ENDPOINT_URL"] = "https://example.server.prescient.earth"
-    os.environ["PRESCIENT_AWS_REGION"] = "some-aws-region"
-    os.environ["PRESCIENT_AWS_ROLE"] = "arn:aws:iam::something"
-    os.environ["PRESCIENT_AZURE_TENANT_ID"] = "some-tenant-id"
-    os.environ["PRESCIENT_AZURE_CLIENT_ID"] = "some-client-id"
-    os.environ["PRESCIENT_AZURE_AUTH_URL"] = "https://login.somewhere.com/"
-    os.environ["PRESCIENT_AZURE_AUTH_TOKEN_PATH"] = "/oauth2/v2.0/token"
+    os.environ["ENDPOINT_URL"] = "https://example.server.prescient.earth"
+    os.environ["AWS_REGION"] = "some-aws-region"
+    os.environ["AWS_ROLE"] = "arn:aws:iam::something"
+    os.environ["TENANT_ID"] = "some-tenant-id"
+    os.environ["CLIENT_ID"] = "some-client-id"
+    os.environ["AUTH_URL"] = "https://login.somewhere.com/"
+    os.environ["AUTH_TOKEN_PATH"] = "/oauth2/v2.0/token"
 
     yield
 
-    del os.environ["PRESCIENT_ENDPOINT_URL"]
-    del os.environ["PRESCIENT_AWS_REGION"]
-    del os.environ["PRESCIENT_AWS_ROLE"]
-    del os.environ["PRESCIENT_AZURE_TENANT_ID"]
-    del os.environ["PRESCIENT_AZURE_CLIENT_ID"]
-    del os.environ["PRESCIENT_AZURE_AUTH_URL"]
-    del os.environ["PRESCIENT_AZURE_AUTH_TOKEN_PATH"]
+    del os.environ["ENDPOINT_URL"]
+    del os.environ["AWS_REGION"]
+    del os.environ["AWS_ROLE"]
+    del os.environ["TENANT_ID"]
+    del os.environ["CLIENT_ID"]
+    del os.environ["AUTH_URL"]
+    del os.environ["AUTH_TOKEN_PATH"]
 
 
 @pytest.fixture
-def mock_azure_creds(mocker: MockerFixture):
-    """fixture to mock the azure credentials property"""
+def mock_creds(mocker: MockerFixture):
+    """fixture to mock the auth credentials property"""
     mock = mocker.patch(
-        "prescient_sdk.client.PrescientClient.azure_credentials",
+        "prescient_sdk.client.PrescientClient.auth_credentials",
         new_callable=mocker.PropertyMock,
         return_value={"id_token": "mock_token"},
     )
@@ -66,10 +66,10 @@ def test_custom_url_formatting():
 
 def test_prescient_client_headers(monkeypatch: pytest.MonkeyPatch):
     """Test that the headers are set correctly"""
-    # Mock the azure_credentials property
+    # Mock the auth_credentials property
     monkeypatch.setattr(
         PrescientClient,
-        "azure_credentials",
+        "auth_credentials",
         {"id_token": "mock_token"},
         raising=True,
     )
@@ -82,10 +82,10 @@ def test_prescient_client_headers(monkeypatch: pytest.MonkeyPatch):
     assert headers["Accept"] == "application/json"
 
 
-def test_prescient_client_cached_azure_credentials():
-    """test that cached azure credentials are used"""
+def test_prescient_client_cached_auth_credentials():
+    """test that cached credentials are used"""
     client = PrescientClient()
-    client._azure_credentials = {
+    client._auth_credentials = {
         "id_token": "cached_token",
         "expiration": datetime.datetime.now(datetime.timezone.utc)
         + datetime.timedelta(hours=1),
@@ -103,17 +103,17 @@ def test_prescient_client_cached_aws_credentials(mocker: MockerFixture):
     )
 
     client = PrescientClient()
-    client._aws_credentials = {
+    client._bucket_credentials = {
         "AccessKeyId": "cached_id",
         "Expiration": datetime.datetime.now(datetime.timezone.utc)
         + datetime.timedelta(hours=1),
     }
 
-    aws_credentials = client.aws_credentials
+    aws_credentials = client.bucket_credentials
     assert aws_credentials["AccessKeyId"] == "cached_id"
 
 def test_prescient_client_succesful_aws_credentials(
-    mocker: MockerFixture, mock_azure_creds: MockType
+    mocker: MockerFixture, mock_creds: MockType
 ):
     """Test that aws_credentials are passed through correctly"""
     dummy_creds = {
@@ -137,11 +137,11 @@ def test_prescient_client_succesful_aws_credentials(
     with stubber:
         client = PrescientClient()
 
-        assert client.aws_credentials == dummy_creds["Credentials"]
+        assert client.bucket_credentials == dummy_creds["Credentials"]
 
 
-def test_azure_creds_refreshed(mocker: MockerFixture):
-    """Test that azure credentials are refreshed when expired"""
+def test_creds_refreshed(mocker: MockerFixture):
+    """Test that auth credentials are refreshed when expired"""
 
     class MockApp:
         def __init__(self, client_id=None, authority=None):
@@ -163,22 +163,22 @@ def test_azure_creds_refreshed(mocker: MockerFixture):
 
     client = PrescientClient()
 
-    # initialize azure creds as expired
-    client._azure_credentials = {
+    # initialize creds as expired
+    client._auth_credentials = {
         "id_token": "expired_token",
         "expiration": datetime.datetime.now(datetime.timezone.utc)
         - datetime.timedelta(hours=1),
         "refresh_token": "refresh",
     }
 
-    # check that when the azure_creds are used they get refreshed from the mock fixture
-    assert client.azure_credentials["id_token"] == "refreshed_token"
-    assert client.azure_credentials["expiration"] > datetime.datetime.now(
+    # check that when the auth_creds are used they get refreshed from the mock fixture
+    assert client.auth_credentials["id_token"] == "refreshed_token"
+    assert client.auth_credentials["expiration"] > datetime.datetime.now(
         datetime.timezone.utc
     )
 
 
-def test_aws_creds_refresh(mocker: MockerFixture, mock_azure_creds: MockType):
+def test_aws_creds_refresh(mocker: MockerFixture, mock_creds: MockType):
     """Test that aws credentials are refreshed when expired"""
     # mock the assume_role_with_web_identity response with a not expired token
     dummy_creds = {
@@ -201,14 +201,14 @@ def test_aws_creds_refresh(mocker: MockerFixture, mock_azure_creds: MockType):
     with stubber:
         # initialize the client with expired AWS creds
         client = PrescientClient()
-        client._aws_credentials = {
+        client._bucket_credentials = {
             "AccessKeyId": "expired_id",
             "Expiration": datetime.datetime.now(datetime.timezone.utc)
             - datetime.timedelta(hours=1),
         }
 
         # check that when the aws_creds are used they get refreshed from the dummy response
-        assert client.aws_credentials["AccessKeyId"] == "12345678910111213141516"
-        assert client.aws_credentials["Expiration"] > datetime.datetime.now(
+        assert client.bucket_credentials["AccessKeyId"] == "12345678910111213141516"
+        assert client.bucket_credentials["Expiration"] > datetime.datetime.now(
             datetime.timezone.utc
         )
