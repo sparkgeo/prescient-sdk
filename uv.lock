@@ -1868,13 +1868,12 @@ wheels = [
 
 [[package]]
 name = "prescient-sdk"
-version = "0.1.1"
+version = "0.1.3"
 source = { editable = "." }
 dependencies = [
     { name = "boto3" },
     { name = "msal" },
     { name = "pydantic-settings" },
-    { name = "rasterio" },
 ]
 
 [package.dev-dependencies]
@@ -1886,6 +1885,7 @@ dev = [
     { name = "pystac-client" },
     { name = "pytest" },
     { name = "pytest-mock" },
+    { name = "rasterio" },
     { name = "ruff" },
 ]
 
@@ -1894,7 +1894,6 @@ requires-dist = [
     { name = "boto3", specifier = ">=1.35.19" },
     { name = "msal", specifier = ">=1.31.0" },
     { name = "pydantic-settings", specifier = ">=2.5.2" },
-    { name = "rasterio", specifier = ">=1.3.11" },
 ]
 
 [package.metadata.requires-dev]
@@ -1906,6 +1905,7 @@ dev = [
     { name = "pystac-client", specifier = ">=0.7.6" },
     { name = "pytest", specifier = ">=8.3.3" },
     { name = "pytest-mock", specifier = ">=3.14.0" },
+    { name = "rasterio", specifier = ">=1.3.11" },
     { name = "ruff", specifier = ">=0.6.5" },
 ]
 
