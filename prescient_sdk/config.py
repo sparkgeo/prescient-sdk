@@ -14,19 +14,19 @@ class Settings(BaseSettings):
     2. `config.env` file: if a `config.env` file is present in the root of the project, it will be used
     """
 
-    endpoint_url: str = Field()
+    prescient_endpoint_url: str = Field()
 
-    aws_region: str = Field()
-    aws_role: str = Field(min_length=20)
+    prescient_aws_region: str = Field()
+    prescient_aws_role: str = Field(min_length=20)
 
-    azure_tenant_id: str
-    azure_client_id: str
-    azure_auth_url: str
-    azure_auth_token_path: str
+    prescient_tenant_id: str
+    prescient_client_id: str
+    prescient_auth_url: str
+    prescient_auth_token_path: str
 
     model_config = SettingsConfigDict(
         env_file="config.env",
         env_file_encoding="utf-8",
-        env_prefix="PRESCIENT_",
+        env_prefix="",
         case_sensitive=False,
     )
