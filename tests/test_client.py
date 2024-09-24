@@ -13,23 +13,23 @@ from prescient_sdk.config import Settings
 @pytest.fixture
 def set_env_vars():
     """fixture to set the config settings as env variables"""
-    os.environ["ENDPOINT_URL"] = "https://example.server.prescient.earth"
-    os.environ["AWS_REGION"] = "some-aws-region"
-    os.environ["AWS_ROLE"] = "arn:aws:iam::something"
-    os.environ["TENANT_ID"] = "some-tenant-id"
-    os.environ["CLIENT_ID"] = "some-client-id"
-    os.environ["AUTH_URL"] = "https://login.somewhere.com/"
-    os.environ["AUTH_TOKEN_PATH"] = "/oauth2/v2.0/token"
+    os.environ["PRESCIENT_ENDPOINT_URL"] = "https://example.server.prescient.earth"
+    os.environ["PRESCIENT_AWS_REGION"] = "some-aws-region"
+    os.environ["PRESCIENT_AWS_ROLE"] = "arn:aws:iam::something"
+    os.environ["PRESCIENT_TENANT_ID"] = "some-tenant-id"
+    os.environ["PRESCIENT_CLIENT_ID"] = "some-client-id"
+    os.environ["PRESCIENT_AUTH_URL"] = "https://login.somewhere.com/"
+    os.environ["PRESCIENT_AUTH_TOKEN_PATH"] = "/oauth2/v2.0/token"
 
     yield
 
-    del os.environ["ENDPOINT_URL"]
-    del os.environ["AWS_REGION"]
-    del os.environ["AWS_ROLE"]
-    del os.environ["TENANT_ID"]
-    del os.environ["CLIENT_ID"]
-    del os.environ["AUTH_URL"]
-    del os.environ["AUTH_TOKEN_PATH"]
+    del os.environ["PRESCIENT_ENDPOINT_URL"]
+    del os.environ["PRESCIENT_AWS_REGION"]
+    del os.environ["PRESCIENT_AWS_ROLE"]
+    del os.environ["PRESCIENT_TENANT_ID"]
+    del os.environ["PRESCIENT_CLIENT_ID"]
+    del os.environ["PRESCIENT_AUTH_URL"]
+    del os.environ["PRESCIENT_AUTH_TOKEN_PATH"]
 
 
 @pytest.fixture
@@ -46,22 +46,22 @@ def mock_creds(mocker: MockerFixture, set_env_vars):
 def test_prescient_client_initialization(set_env_vars):
     """Test that the client is initialized correctly"""
     client = PrescientClient()
-    assert client.settings.endpoint_url is not None
+    assert client.settings.prescient_endpoint_url is not None
 
 def test_env_file_init():
     """Test that the env file is loaded correctly"""
     with tempfile.NamedTemporaryFile(delete=False, mode="w") as temp_env_file:
-        temp_env_file.write("ENDPOINT_URL=https://some-test\n")
-        temp_env_file.write("AWS_REGION=some-aws-region\n")
-        temp_env_file.write("AWS_ROLE=arn:aws:iam::something\n")
-        temp_env_file.write("TENANT_ID=some-tenant-id\n")
-        temp_env_file.write("CLIENT_ID=some-client-id\n")
-        temp_env_file.write("AUTH_URL=https://login.somewhere.com/\n")
-        temp_env_file.write("AUTH_TOKEN_PATH=/oauth2/v2.0/token\n")
+        temp_env_file.write("PRESCIENT_ENDPOINT_URL=https://some-test\n")
+        temp_env_file.write("PRESCIENT_AWS_REGION=some-aws-region\n")
+        temp_env_file.write("PRESCIENT_AWS_ROLE=arn:aws:iam::something\n")
+        temp_env_file.write("PRESCIENT_TENANT_ID=some-tenant-id\n")
+        temp_env_file.write("PRESCIENT_CLIENT_ID=some-client-id\n")
+        temp_env_file.write("PRESCIENT_AUTH_URL=https://login.somewhere.com/\n")
+        temp_env_file.write("PRESCIENT_AUTH_TOKEN_PATH=/oauth2/v2.0/token\n")
         temp_env_file_path = temp_env_file.name
 
     client = PrescientClient(env_file=temp_env_file_path)
-    assert client.settings.endpoint_url == "https://some-test"
+    assert client.settings.prescient_endpoint_url == "https://some-test"
 
     os.remove(temp_env_file_path)
 
@@ -74,30 +74,30 @@ def test_fail_when_passing_both_env_file_and_settings(set_env_vars):
 def test_settings_loaded_explicitly():
     """Test that settings are loaded correctly"""
     settings = Settings(
-        endpoint_url="https://example.server.prescient.earth",
-        aws_region="some-aws-region",
-        aws_role="arn:aws:iam::something",
-        tenant_id="some-tenant-id",
-        client_id="some-client-id",
-        auth_url="https://login.somewhere.com/",
-        auth_token_path="/oauth2/v2.0/token",
+        prescient_endpoint_url="https://example.server.prescient.earth",
+        prescient_aws_region="some-aws-region",
+        prescient_aws_role="arn:aws:iam::something",
+        prescient_tenant_id="some-tenant-id",
+        prescient_client_id="some-client-id",
+        prescient_auth_url="https://login.somewhere.com/",
+        prescient_auth_token_path="/oauth2/v2.0/token",
     )
     client = PrescientClient(settings=settings)
-    assert client.settings.endpoint_url is not None
+    assert client.settings.prescient_endpoint_url is not None
 
 
 def test_prescient_client_custom_url(set_env_vars):
     """Test that the stac url is returned correctly"""
     custom_url = "https://custom.url/"
-    settings = Settings(endpoint_url=custom_url)  # type: ignore
+    settings = Settings(prescient_endpoint_url=custom_url)  # type: ignore
     client = PrescientClient(settings=settings)
-    assert client.settings.endpoint_url == custom_url
+    assert client.settings.prescient_endpoint_url == custom_url
     assert client.stac_catalog_url == custom_url + "stac"
 
 def test_custom_url_formatting(set_env_vars):
     """Test that the custom url is formatted correctly"""
     custom_url = "https://custom.url"
-    settings = Settings(endpoint_url=custom_url)  # type: ignore
+    settings = Settings(prescient_endpoint_url=custom_url)  # type: ignore
     client = PrescientClient(settings=settings)
     assert client.stac_catalog_url == custom_url + "/stac"
 

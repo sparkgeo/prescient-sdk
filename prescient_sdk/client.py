@@ -82,7 +82,7 @@ class PrescientClient:
         Returns:
             str: The STAC URL.
         """
-        return urllib.parse.urljoin(self.settings.endpoint_url, "stac")
+        return urllib.parse.urljoin(self.settings.prescient_endpoint_url, "stac")
 
     @property
     def auth_credentials(self) -> dict:
@@ -132,10 +132,10 @@ class PrescientClient:
             return self._auth_credentials
 
         authority_url = urllib.parse.urljoin(
-            self.settings.auth_url, self.settings.tenant_id
+            self.settings.prescient_auth_url, self.settings.prescient_tenant_id
         )
         app = msal.PublicClientApplication(
-            client_id=self.settings.client_id, authority=authority_url
+            client_id=self.settings.prescient_client_id, authority=authority_url
         )
 
         # trigger auth or auth refresh flow
@@ -200,12 +200,12 @@ class PrescientClient:
             return self._bucket_credentials
 
         access_token = self.auth_credentials.get("id_token")
-        sts_client = boto3.client("sts", region_name=self.settings.aws_region)
+        sts_client = boto3.client("sts", region_name=self.settings.prescient_aws_region)
 
         # exchange token with aws temp creds
         response: dict = sts_client.assume_role_with_web_identity(
             DurationSeconds=3600,  # 1 hour
-            RoleArn=self.settings.aws_role,
+            RoleArn=self.settings.prescient_aws_role,
             RoleSessionName="prescient-s3-access",
             WebIdentityToken=access_token,
         )
