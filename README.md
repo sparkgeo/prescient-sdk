@@ -1,5 +1,8 @@
 # prescient-sdk
+
 A Python SDK for integrating with Prescient services
+
+SDK Documentation: https://sparkgeo.github.io/prescient-sdk/
 
 
 # Quickstart
