@@ -140,7 +140,7 @@ class PrescientClient:
 
         # trigger auth or auth refresh flow
         time_zero = datetime.datetime.now(datetime.timezone.utc)
-        if not self._auth_credentials:
+        if not self._auth_credentials or "refresh_token" not in self._auth_credentials.keys():
             # aquire creds interactively if none have been fetched yet
             self._auth_credentials = app.acquire_token_interactive(scopes=[])
         else:
