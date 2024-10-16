@@ -10,6 +10,7 @@ from botocore.stub import Stubber
 from prescient_sdk.client import PrescientClient
 from prescient_sdk.config import Settings
 
+
 @pytest.fixture
 def set_env_vars():
     """fixture to set the config settings as env variables"""
@@ -48,6 +49,7 @@ def test_prescient_client_initialization(set_env_vars):
     client = PrescientClient()
     assert client.settings.prescient_endpoint_url is not None
 
+
 def test_env_file_init():
     """Test that the env file is loaded correctly"""
     with tempfile.NamedTemporaryFile(delete=False, mode="w") as temp_env_file:
@@ -64,6 +66,7 @@ def test_env_file_init():
     assert client.settings.prescient_endpoint_url == "https://some-test"
 
     os.remove(temp_env_file_path)
+
 
 def test_fail_when_passing_both_env_file_and_settings(set_env_vars):
     """Test that an error is raised when both env file and settings are passed"""
@@ -93,6 +96,7 @@ def test_prescient_client_custom_url(set_env_vars):
     client = PrescientClient(settings=settings)
     assert client.settings.prescient_endpoint_url == custom_url
     assert client.stac_catalog_url == custom_url + "stac"
+
 
 def test_custom_url_formatting(set_env_vars):
     """Test that the custom url is formatted correctly"""
@@ -149,6 +153,7 @@ def test_prescient_client_cached_aws_credentials(mocker: MockerFixture, set_env_
 
     aws_credentials = client.bucket_credentials
     assert aws_credentials["AccessKeyId"] == "cached_id"
+
 
 def test_prescient_client_succesful_aws_credentials(
     mocker: MockerFixture, mock_creds: MockType, set_env_vars
@@ -216,9 +221,7 @@ def test_creds_refreshed(mocker: MockerFixture, set_env_vars):
     )
 
 
-def test_aws_creds_refresh(
-    mocker: MockerFixture, mock_creds: MockType, set_env_vars
-):
+def test_aws_creds_refresh(mocker: MockerFixture, mock_creds: MockType, set_env_vars):
     """Test that aws credentials are refreshed when expired"""
     # mock the assume_role_with_web_identity response with a not expired token
     dummy_creds = {

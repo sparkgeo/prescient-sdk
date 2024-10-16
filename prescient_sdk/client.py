@@ -1,4 +1,3 @@
-
 import logging
 import datetime
 import urllib.parse
@@ -64,8 +63,8 @@ class PrescientClient:
             if env_file:
                 settings = Settings(_env_file=env_file)  # type: ignore
             else:
-                # if no env file is present, we use default settings 
-                # which can be sourced from a config.env file in the working 
+                # if no env file is present, we use default settings
+                # which can be sourced from a config.env file in the working
                 # directory, or env variables
                 settings = Settings()  # type: ignore
         self.settings: Settings = settings
@@ -140,7 +139,10 @@ class PrescientClient:
 
         # trigger auth or auth refresh flow
         time_zero = datetime.datetime.now(datetime.timezone.utc)
-        if not self._auth_credentials or "refresh_token" not in self._auth_credentials.keys():
+        if (
+            not self._auth_credentials
+            or "refresh_token" not in self._auth_credentials.keys()
+        ):
             # aquire creds interactively if none have been fetched yet
             self._auth_credentials = app.acquire_token_interactive(scopes=[])
         else:
@@ -220,7 +222,7 @@ class PrescientClient:
         ].astimezone(datetime.timezone.utc)
 
         return self._bucket_credentials
-    
+
     @property
     def session(self) -> boto3.Session:
         """
