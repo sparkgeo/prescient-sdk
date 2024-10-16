@@ -1,4 +1,3 @@
-
 import logging
 import datetime
 import urllib.parse
@@ -64,12 +63,12 @@ class PrescientClient:
             if env_file:
                 settings = Settings(_env_file=env_file)  # type: ignore
             else:
-                # if no env file is present, we use default settings 
-                # which can be sourced from a config.env file in the working 
+                # if no env file is present, we use default settings
+                # which can be sourced from a config.env file in the working
                 # directory, or env variables
                 settings = Settings()  # type: ignore
         self.settings: Settings = settings
-
+        self._expiration_duration = 1*60*60 # Fixed to 1hr
         # initialize empty credentials
         self._auth_credentials: dict = {}
         self._bucket_credentials: dict = {}
@@ -125,10 +124,7 @@ class PrescientClient:
             ValueError: If the response status code is not 200, or if the access token is not in the response.
         """
         # return cached credentials if they exist and are not expired
-        if "expiration" in self._auth_credentials and (
-            datetime.datetime.now(datetime.timezone.utc)
-            < self._auth_credentials["expiration"]
-        ):
+        if not self.credentials_expired:
             return self._auth_credentials
 
         authority_url = urllib.parse.urljoin(
@@ -140,7 +136,10 @@ class PrescientClient:
 
         # trigger auth or auth refresh flow
         time_zero = datetime.datetime.now(datetime.timezone.utc)
-        if not self._auth_credentials or "refresh_token" not in self._auth_credentials.keys():
+        if (
+            not self._auth_credentials
+            or "refresh_token" not in self._auth_credentials.keys()
+        ):
             # aquire creds interactively if none have been fetched yet
             self._auth_credentials = app.acquire_token_interactive(scopes=[])
         else:
@@ -156,7 +155,7 @@ class PrescientClient:
 
         # set expiration time of the token
         self._auth_credentials["expiration"] = time_zero + datetime.timedelta(
-            seconds=self._auth_credentials["expires_in"]
+            seconds=self._expiration_duration
         )
 
         return self._auth_credentials
@@ -192,11 +191,7 @@ class PrescientClient:
         Raises:
             ValueError: If the credentials response is empty
         """
-        if (
-            "Expiration" in self._bucket_credentials
-            and datetime.datetime.now(datetime.timezone.utc)
-            < self._bucket_credentials["Expiration"]
-        ):
+        if self._bucket_credentials and not self.credentials_expired:
             return self._bucket_credentials
 
         access_token = self.auth_credentials.get("id_token")
@@ -204,7 +199,7 @@ class PrescientClient:
 
         # exchange token with aws temp creds
         response: dict = sts_client.assume_role_with_web_identity(
-            DurationSeconds=3600,  # 1 hour
+            DurationSeconds=self._expiration_duration,
             RoleArn=self.settings.prescient_aws_role,
             RoleSessionName="prescient-s3-access",
             WebIdentityToken=access_token,
@@ -220,7 +215,7 @@ class PrescientClient:
         ].astimezone(datetime.timezone.utc)
 
         return self._bucket_credentials
-    
+
     @property
     def session(self) -> boto3.Session:
         """
@@ -234,3 +229,20 @@ class PrescientClient:
             aws_secret_access_key=self.bucket_credentials["SecretAccessKey"],
             aws_session_token=self.bucket_credentials["SessionToken"],
         )
+
+    @property
+    def credentials_expired(self) -> bool:
+        """Checks to see if the client credentials have expired.
+        Note: if auth credentials have expired, all credentials are considered
+        expired as they all depend on auth credentials.
+
+        Returns:
+            bool: True - credentials are expired, False - credentials have NOT expired.
+        """
+        if "expiration" in self._auth_credentials and (
+            datetime.datetime.now(datetime.timezone.utc)
+            < self._auth_credentials["expiration"]
+        ):
+            return False
+        else:
+            return True

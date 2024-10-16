@@ -1,5 +1,6 @@
 format:
 	uv run ruff check
+	uv run ruff format
 
 run-tests:
 	uv run pytest
