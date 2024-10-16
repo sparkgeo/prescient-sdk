@@ -68,7 +68,7 @@ class PrescientClient:
                 # directory, or env variables
                 settings = Settings()  # type: ignore
         self.settings: Settings = settings
-
+        self._expiration_duration = 1*60*60 # Fixed to 1hr
         # initialize empty credentials
         self._auth_credentials: dict = {}
         self._bucket_credentials: dict = {}
@@ -155,7 +155,7 @@ class PrescientClient:
 
         # set expiration time of the token
         self._auth_credentials["expiration"] = time_zero + datetime.timedelta(
-            seconds=self._auth_credentials["expires_in"]
+            seconds=self._expiration_duration
         )
 
         return self._auth_credentials
@@ -191,7 +191,7 @@ class PrescientClient:
         Raises:
             ValueError: If the credentials response is empty
         """
-        if not self.credentials_expired:
+        if self._bucket_credentials and not self.credentials_expired:
             return self._bucket_credentials
 
         access_token = self.auth_credentials.get("id_token")
@@ -199,7 +199,7 @@ class PrescientClient:
 
         # exchange token with aws temp creds
         response: dict = sts_client.assume_role_with_web_identity(
-            DurationSeconds=7200,  # 2 hour
+            DurationSeconds=self._expiration_duration,
             RoleArn=self.settings.prescient_aws_role,
             RoleSessionName="prescient-s3-access",
             WebIdentityToken=access_token,
