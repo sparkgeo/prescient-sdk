@@ -124,10 +124,7 @@ class PrescientClient:
             ValueError: If the response status code is not 200, or if the access token is not in the response.
         """
         # return cached credentials if they exist and are not expired
-        if "expiration" in self._auth_credentials and (
-            datetime.datetime.now(datetime.timezone.utc)
-            < self._auth_credentials["expiration"]
-        ):
+        if not self.credentials_expired:
             return self._auth_credentials
 
         authority_url = urllib.parse.urljoin(
@@ -194,11 +191,7 @@ class PrescientClient:
         Raises:
             ValueError: If the credentials response is empty
         """
-        if (
-            "Expiration" in self._bucket_credentials
-            and datetime.datetime.now(datetime.timezone.utc)
-            < self._bucket_credentials["Expiration"]
-        ):
+        if not self.credentials_expired:
             return self._bucket_credentials
 
         access_token = self.auth_credentials.get("id_token")
@@ -206,7 +199,7 @@ class PrescientClient:
 
         # exchange token with aws temp creds
         response: dict = sts_client.assume_role_with_web_identity(
-            DurationSeconds=3600,  # 1 hour
+            DurationSeconds=7200,  # 2 hour
             RoleArn=self.settings.prescient_aws_role,
             RoleSessionName="prescient-s3-access",
             WebIdentityToken=access_token,
@@ -236,3 +229,20 @@ class PrescientClient:
             aws_secret_access_key=self.bucket_credentials["SecretAccessKey"],
             aws_session_token=self.bucket_credentials["SessionToken"],
         )
+
+    @property
+    def credentials_expired(self) -> bool:
+        """Checks to see if the client credentials have expired.
+        Note: if auth credentials have expired, all credentials are considered
+        expired as they all depend on auth credentials.
+
+        Returns:
+            bool: True - credentials are expired, False - credentials have NOT expired.
+        """
+        if "expiration" in self._auth_credentials and (
+            datetime.datetime.now(datetime.timezone.utc)
+            < self._auth_credentials["expiration"]
+        ):
+            return False
+        else:
+            return True

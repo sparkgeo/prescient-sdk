@@ -44,6 +44,45 @@ def mock_creds(mocker: MockerFixture, set_env_vars):
     return mock
 
 
+@pytest.fixture
+def auth_client_mock(mocker: MockerFixture):
+    """Fixture for mocking msal library"""
+
+    class MockApp:
+        def __init__(self, client_id=None, authority=None):
+            pass
+
+        def acquire_token_by_refresh_token(self, refresh_token, scopes):
+            return {
+                "expires_in": 5021,
+                "id_token": "refreshed_token",
+            }
+
+        def acquire_token_interactive(self, scopes):
+            raise ValueError("This should not be called")
+
+    return MockApp()
+
+
+@pytest.fixture
+def expired_auth_credentials_mock():
+    return {
+        "id_token": "expired_token",
+        "expiration": datetime.datetime.now(datetime.timezone.utc)
+        - datetime.timedelta(hours=1),
+        "refresh_token": "refresh",
+    }
+
+
+@pytest.fixture
+def unexpired_auth_credentials_mock():
+    return {
+        "id_token": "cached_token",
+        "expiration": datetime.datetime.now(datetime.timezone.utc)
+        + datetime.timedelta(hours=1),
+    }
+
+
 def test_prescient_client_initialization(set_env_vars):
     """Test that the client is initialized correctly"""
     client = PrescientClient()
@@ -124,20 +163,33 @@ def test_prescient_client_headers(monkeypatch: pytest.MonkeyPatch, set_env_vars)
     assert headers["Accept"] == "application/json"
 
 
-def test_prescient_client_cached_auth_credentials(set_env_vars):
+def test_credentials_expired(
+    set_env_vars, expired_auth_credentials_mock, unexpired_auth_credentials_mock
+):
+    """Test the credentials_expired property"""
+    client_expired = PrescientClient()
+    client_expired._auth_credentials = expired_auth_credentials_mock
+    assert client_expired.credentials_expired
+
+    client_unexpired = PrescientClient()
+    client_unexpired._auth_credentials = unexpired_auth_credentials_mock
+    assert not client_unexpired.credentials_expired
+
+
+def test_prescient_client_cached_auth_credentials(
+    set_env_vars, unexpired_auth_credentials_mock
+):
     """test that cached credentials are used"""
     client = PrescientClient()
-    client._auth_credentials = {
-        "id_token": "cached_token",
-        "expiration": datetime.datetime.now(datetime.timezone.utc)
-        + datetime.timedelta(hours=1),
-    }
+    client._auth_credentials = unexpired_auth_credentials_mock
 
     headers = client.headers
     assert headers["Authorization"] == "Bearer cached_token"
 
 
-def test_prescient_client_cached_aws_credentials(mocker: MockerFixture, set_env_vars):
+def test_prescient_client_cached_aws_credentials(
+    mocker: MockerFixture, set_env_vars, unexpired_auth_credentials_mock
+):
     """test that cached aws credentials are used"""
     # ensure that the boto3 client is not called because it should use cached credentials
     Stubber(mocker.patch("boto3.client")).add_client_error(
@@ -145,6 +197,7 @@ def test_prescient_client_cached_aws_credentials(mocker: MockerFixture, set_env_
     )
 
     client = PrescientClient()
+    client._auth_credentials = unexpired_auth_credentials_mock
     client._bucket_credentials = {
         "AccessKeyId": "cached_id",
         "Expiration": datetime.datetime.now(datetime.timezone.utc)
@@ -183,36 +236,20 @@ def test_prescient_client_succesful_aws_credentials(
         assert client.bucket_credentials == dummy_creds["Credentials"]
 
 
-def test_creds_refreshed(mocker: MockerFixture, set_env_vars):
+def test_creds_refreshed(
+    mocker: MockerFixture, set_env_vars, auth_client_mock, expired_auth_credentials_mock
+):
     """Test that auth credentials are refreshed when expired"""
-
-    class MockApp:
-        def __init__(self, client_id=None, authority=None):
-            pass
-
-        def acquire_token_by_refresh_token(self, refresh_token, scopes):
-            return {
-                "expires_in": 5021,
-                "id_token": "refreshed_token",
-            }
-
-        def acquire_token_interactive(self, scopes):
-            raise ValueError("This should not be called")
 
     mocker.patch(
         "msal.PublicClientApplication",
-        return_value=MockApp(),
+        return_value=auth_client_mock,
     )
 
     client = PrescientClient()
 
     # initialize creds as expired
-    client._auth_credentials = {
-        "id_token": "expired_token",
-        "expiration": datetime.datetime.now(datetime.timezone.utc)
-        - datetime.timedelta(hours=1),
-        "refresh_token": "refresh",
-    }
+    client._auth_credentials = expired_auth_credentials_mock
 
     # check that when the auth_creds are used they get refreshed from the mock fixture
     assert client.auth_credentials["id_token"] == "refreshed_token"
@@ -221,7 +258,9 @@ def test_creds_refreshed(mocker: MockerFixture, set_env_vars):
     )
 
 
-def test_aws_creds_refresh(mocker: MockerFixture, mock_creds: MockType, set_env_vars):
+def test_aws_creds_refresh(
+    mocker: MockerFixture, auth_client_mock, set_env_vars, expired_auth_credentials_mock
+):
     """Test that aws credentials are refreshed when expired"""
     # mock the assume_role_with_web_identity response with a not expired token
     dummy_creds = {
@@ -240,15 +279,15 @@ def test_aws_creds_refresh(mocker: MockerFixture, mock_creds: MockType, set_env_
         dummy_creds,
     )
     mocker.patch("boto3.client", return_value=client)
+    mocker.patch(
+        "msal.PublicClientApplication",
+        return_value=auth_client_mock,
+    )
 
     with stubber:
-        # initialize the client with expired AWS creds
+        # initialize the client with expired creds
         client = PrescientClient()
-        client._bucket_credentials = {
-            "AccessKeyId": "expired_id",
-            "Expiration": datetime.datetime.now(datetime.timezone.utc)
-            - datetime.timedelta(hours=1),
-        }
+        client._auth_credentials = expired_auth_credentials_mock
 
         # check that when the aws_creds are used they get refreshed from the dummy response
         assert client.bucket_credentials["AccessKeyId"] == "12345678910111213141516"
