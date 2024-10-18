@@ -68,7 +68,7 @@ class PrescientClient:
                 # directory, or env variables
                 settings = Settings()  # type: ignore
         self.settings: Settings = settings
-        self._expiration_duration = 1*60*60 # Fixed to 1hr
+        self._expiration_duration = 1 * 60 * 60  # Fixed to 1hr
         # initialize empty credentials
         self._auth_credentials: dict = {}
         self._bucket_credentials: dict = {}
@@ -141,11 +141,14 @@ class PrescientClient:
             or "refresh_token" not in self._auth_credentials.keys()
         ):
             # aquire creds interactively if none have been fetched yet
-            self._auth_credentials = app.acquire_token_interactive(scopes=[])
+            self._auth_credentials = app.acquire_token_interactive(
+                scopes=["https://graph.microsoft.com/.default"]
+            )
         else:
             # refresh creds if they have been fetched before and are expired
             self._auth_credentials = app.acquire_token_by_refresh_token(
-                refresh_token=self._auth_credentials["refresh_token"], scopes=[]
+                refresh_token=self._auth_credentials["refresh_token"],
+                scopes=["https://graph.microsoft.com/.default"],
             )
 
         # check that a nonzero length token has been obtained
