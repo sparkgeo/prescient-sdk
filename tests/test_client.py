@@ -278,8 +278,8 @@ def test_creds_refreshed(
         datetime.timezone.utc
     )
 
-def test_refresh_creds_func(
-    mocker: MockerFixture, set_env_vars, auth_client_mock, unexpired_auth_credentials_mock, expired_auth_credentials_mock, aws_stubber
+def test_refresh_creds_func_unexpired(
+    mocker: MockerFixture, set_env_vars, auth_client_mock, unexpired_auth_credentials_mock, aws_stubber
 ):
     """Test that auth credentials are refreshed when expired"""
 
@@ -304,8 +304,32 @@ def test_refresh_creds_func(
     assert client.auth_credentials["id_token"] == "cached_token"
     assert not client.credentials_expired
 
+def test_refresh_creds_func_expired(
+    mocker: MockerFixture, set_env_vars, auth_client_mock, expired_auth_credentials_mock, aws_stubber
+):
+    """Test that auth credentials are refreshed when expired"""
+
+    # mocker.patch("boto3.client", return_value=client)
+    mocker.patch(
+        "msal.PublicClientApplication",
+        return_value=auth_client_mock,
+    )
+
+    client = PrescientClient()
+
+    client._auth_credentials = expired_auth_credentials_mock
+
+    assert client.credentials_expired
+
+    with aws_stubber:
+        client.refresh_credentials()
+    
+    assert not client.credentials_expired
+
+    assert client.auth_credentials["id_token"] == "refreshed_token"
+
 def test_force_creds_refreshed(
-    mocker: MockerFixture, set_env_vars, auth_client_mock, unexpired_auth_credentials_mock, expired_auth_credentials_mock, aws_stubber
+    mocker: MockerFixture, set_env_vars, auth_client_mock, unexpired_auth_credentials_mock, aws_stubber
 ):
     """Test that auth credentials are refreshed when expired"""
 
