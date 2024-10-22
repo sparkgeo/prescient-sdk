@@ -249,3 +249,17 @@ class PrescientClient:
             return False
         else:
             return True
+    
+    def refresh_credentials(self, force=False):
+        """
+        Will refresh all the client credentials.
+
+        param force: If True will force the creds to be refreshed.
+
+        Returns:
+            None
+        """
+        if force:
+            self._auth_credentials.pop("expiration")
+        
+        _ = self.bucket_credentials # Will call self.auth_credentials
