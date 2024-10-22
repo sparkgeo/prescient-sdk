@@ -83,10 +83,11 @@ class PrescientClient:
         """
         return urllib.parse.urljoin(self.settings.prescient_endpoint_url, "stac")
 
-    @property
-    def auth_credentials(self) -> dict:
+    def auth_credentials(self, force_refresh: bool = False) -> dict:
         """
         Get the authorization credentials for the client.
+
+        param force_refresh:  If True then new auth credentials will be created.
 
         Returns:
             dict: access token::
@@ -124,7 +125,8 @@ class PrescientClient:
             ValueError: If the response status code is not 200, or if the access token is not in the response.
         """
         # return cached credentials if they exist and are not expired
-        if not self.credentials_expired:
+        if not force_refresh and not self.credentials_expired:
+            print(f"{force_refresh} - {not self.credentials_expired}")
             return self._auth_credentials
 
         authority_url = urllib.parse.urljoin(
@@ -174,12 +176,13 @@ class PrescientClient:
         return {
             "Content-Type": "application/json",
             "Accept": "application/json",
-            "Authorization": f"Bearer {self.auth_credentials['id_token']}",
+            "Authorization": f"Bearer {self.auth_credentials()['id_token']}",
         }
 
-    @property
-    def bucket_credentials(self):
+    def bucket_credentials(self, force_refresh: bool = False):
         """Get bucket credentials using an auth access token
+
+        param force_refresh:  If True then new bucket credentials will be created.
 
         Returns:
             dict: bucket temporary credentials::
@@ -194,10 +197,12 @@ class PrescientClient:
         Raises:
             ValueError: If the credentials response is empty
         """
-        if self._bucket_credentials and not self.credentials_expired:
+        if not force_refresh and (
+            self._bucket_credentials and not self.credentials_expired
+        ):
             return self._bucket_credentials
 
-        access_token = self.auth_credentials.get("id_token")
+        access_token = self.auth_credentials(force_refresh=force_refresh).get("id_token")
         sts_client = boto3.client("sts", region_name=self.settings.prescient_aws_region)
 
         # exchange token with aws temp creds
@@ -228,9 +233,9 @@ class PrescientClient:
             Session: boto3 Session object
         """
         return boto3.Session(
-            aws_access_key_id=self.bucket_credentials["AccessKeyId"],
-            aws_secret_access_key=self.bucket_credentials["SecretAccessKey"],
-            aws_session_token=self.bucket_credentials["SessionToken"],
+            aws_access_key_id=self.bucket_credentials()["AccessKeyId"],
+            aws_secret_access_key=self.bucket_credentials()["SecretAccessKey"],
+            aws_session_token=self.bucket_credentials()["SessionToken"],
         )
 
     @property
