@@ -1,4 +1,12 @@
 import logging
+
+logging.basicConfig(level=logging.DEBUG)
+rasterio_logger = logging.getLogger("rasterio")
+rasterio_logger.setLevel(logging.DEBUG)
+pystac_client_logger = logging.getLogger("pystac_client")
+pystac_client_logger.setLevel(logging.DEBUG)
+logger = logging.getLogger(__name__)
+
 from prescient_sdk.client import PrescientClient
 
 
@@ -6,10 +14,7 @@ import rasterio
 from rasterio.session import AWSSession
 import pystac_client
 
-logging.basicConfig(level=logging.DEBUG)
-rasterio_logger = logging.getLogger("rasterio")
-rasterio_logger.setLevel(logging.DEBUG)
-logger = logging.getLogger(__name__)
+
 
 
 def main():
