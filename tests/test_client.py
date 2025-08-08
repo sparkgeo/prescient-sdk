@@ -120,6 +120,8 @@ def test_env_file_init():
         temp_env_file.write("PRESCIENT_CLIENT_ID=some-client-id\n")
         temp_env_file.write("PRESCIENT_AUTH_URL=https://login.somewhere.com/\n")
         temp_env_file.write("PRESCIENT_AUTH_TOKEN_PATH=/oauth2/v2.0/token\n")
+        temp_env_file.write("PRESCIENT_UPLOAD_ROLE=arn:aws:iam::abc/def\n")
+        temp_env_file.write("PRESCIENT_UPLOAD_BUCKET=bucket")
         temp_env_file_path = temp_env_file.name
 
     client = PrescientClient(env_file=temp_env_file_path)
