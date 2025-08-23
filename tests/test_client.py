@@ -80,6 +80,10 @@ def aws_stubber(mocker: MockerFixture):
         "assume_role_with_web_identity",
         dummy_creds,
     )
+    stubber.add_response(
+        "assume_role_with_web_identity",
+        dummy_creds,
+    )
     mocker.patch("boto3.client", return_value=client)
     return stubber
 
