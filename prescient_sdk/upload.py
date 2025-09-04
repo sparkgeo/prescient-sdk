@@ -39,7 +39,7 @@ def _upload(
 
     if not overwrite:
         try:
-            response = s3.head_object(Bucket=bucket, Key=key)
+            _ = s3.head_object(Bucket=bucket, Key=key)
             logger.info(
                 "skipping file %s as it already exists at s3://%s%s", file, bucket, key
             )

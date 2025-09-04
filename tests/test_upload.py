@@ -1,4 +1,3 @@
-import datetime
 import os
 import time
 from pathlib import Path
@@ -6,14 +5,6 @@ from pathlib import Path
 import boto3
 import pytest
 from moto import mock_aws
-from pytest_mock import MockerFixture
-from test_client import (
-    auth_client_mock,
-    aws_stubber,
-    mock_creds,
-    set_env_vars,
-    unexpired_auth_credentials_mock,
-)
 
 from prescient_sdk.client import PrescientClient
 from prescient_sdk.upload import iter_files, upload
