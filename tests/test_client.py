@@ -21,6 +21,8 @@ def set_env_vars():
     os.environ["PRESCIENT_CLIENT_ID"] = "some-client-id"
     os.environ["PRESCIENT_AUTH_URL"] = "https://login.somewhere.com/"
     os.environ["PRESCIENT_AUTH_TOKEN_PATH"] = "/oauth2/v2.0/token"
+    os.environ["PRESCIENT_UPLOAD_ROLE"] = "arn:aws:iam::test-upload"
+    os.environ["PRESCIENT_UPLOAD_BUCKET"] = "test-bucket"
 
     yield
 
@@ -31,6 +33,8 @@ def set_env_vars():
     del os.environ["PRESCIENT_CLIENT_ID"]
     del os.environ["PRESCIENT_AUTH_URL"]
     del os.environ["PRESCIENT_AUTH_TOKEN_PATH"]
+    del os.environ["PRESCIENT_UPLOAD_ROLE"]
+    del os.environ["PRESCIENT_UPLOAD_BUCKET"]
 
 
 @pytest.fixture
