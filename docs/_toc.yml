@@ -12,8 +12,7 @@ parts:
   chapters:
   - title: STAC Search
     file: examples/stac_search
-  - title: Upload
-    file: examples/upload
+  - file: examples/upload
 - caption: SDK Reference
   chapters:
   - file: client-sdk
