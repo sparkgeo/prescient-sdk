@@ -1,116 +1,14 @@
-import datetime
 import os
+import datetime
 import tempfile
 
 import pytest
-from pytest_mock import MockerFixture, MockType
+from pytest_mock import MockType, MockerFixture
 import boto3
 from botocore.stub import Stubber
 
 from prescient_sdk.client import PrescientClient
 from prescient_sdk.config import Settings
-
-
-@pytest.fixture
-def set_env_vars():
-    """fixture to set the config settings as env variables"""
-    os.environ["PRESCIENT_ENDPOINT_URL"] = "https://example.server.prescient.earth"
-    os.environ["PRESCIENT_AWS_REGION"] = "some-aws-region"
-    os.environ["PRESCIENT_AWS_ROLE"] = "arn:aws:iam::something"
-    os.environ["PRESCIENT_TENANT_ID"] = "some-tenant-id"
-    os.environ["PRESCIENT_CLIENT_ID"] = "some-client-id"
-    os.environ["PRESCIENT_AUTH_URL"] = "https://login.somewhere.com/"
-    os.environ["PRESCIENT_AUTH_TOKEN_PATH"] = "/oauth2/v2.0/token"
-    os.environ["PRESCIENT_UPLOAD_ROLE"] = "arn:aws:iam::test-upload"
-    os.environ["PRESCIENT_UPLOAD_BUCKET"] = "test-bucket"
-
-    yield
-
-    del os.environ["PRESCIENT_ENDPOINT_URL"]
-    del os.environ["PRESCIENT_AWS_REGION"]
-    del os.environ["PRESCIENT_AWS_ROLE"]
-    del os.environ["PRESCIENT_TENANT_ID"]
-    del os.environ["PRESCIENT_CLIENT_ID"]
-    del os.environ["PRESCIENT_AUTH_URL"]
-    del os.environ["PRESCIENT_AUTH_TOKEN_PATH"]
-    del os.environ["PRESCIENT_UPLOAD_ROLE"]
-    del os.environ["PRESCIENT_UPLOAD_BUCKET"]
-
-
-@pytest.fixture
-def mock_creds(mocker: MockerFixture, set_env_vars):
-    """fixture to mock the auth credentials property"""
-    mock = mocker.patch(
-        "prescient_sdk.client.PrescientClient.auth_credentials",
-        new_callable=mocker.PropertyMock,
-        return_value={"id_token": "mock_token"},
-    )
-    return mock
-
-
-@pytest.fixture
-def auth_client_mock(mocker: MockerFixture):
-    """Fixture for mocking msal library"""
-
-    class MockApp:
-        def __init__(self, client_id=None, authority=None):
-            pass
-
-        def acquire_token_by_refresh_token(self, refresh_token, scopes):
-            return {
-                "expires_in": 5021,
-                "id_token": "refreshed_token",
-            }
-
-        def acquire_token_interactive(self, scopes):
-            raise ValueError("This should not be called")
-
-    return MockApp()
-
-
-@pytest.fixture
-def aws_stubber(mocker: MockerFixture):
-    dummy_creds = {
-        "Credentials": {
-            "AccessKeyId": "12345678910111213141516",
-            "SecretAccessKey": "",
-            "SessionToken": "",
-            "Expiration": datetime.datetime.now(datetime.timezone.utc)
-            + datetime.timedelta(hours=1),
-        }
-    }
-    client = boto3.client("sts")
-    stubber = Stubber(client)
-    stubber.add_response(
-        "assume_role_with_web_identity",
-        dummy_creds,
-    )
-    stubber.add_response(
-        "assume_role_with_web_identity",
-        dummy_creds,
-    )
-    mocker.patch("boto3.client", return_value=client)
-    return stubber
-
-
-@pytest.fixture
-def expired_auth_credentials_mock():
-    return {
-        "id_token": "expired_token",
-        "expiration": datetime.datetime.now(datetime.timezone.utc)
-        - datetime.timedelta(hours=1),
-        "refresh_token": "refresh",
-    }
-
-
-@pytest.fixture
-def unexpired_auth_credentials_mock():
-    return {
-        "id_token": "cached_token",
-        "expiration": datetime.datetime.now(datetime.timezone.utc)
-        + datetime.timedelta(hours=1),
-        "refresh_token": "refresh",
-    }
 
 
 def test_prescient_client_initialization(set_env_vars):
@@ -155,6 +53,8 @@ def test_settings_loaded_explicitly():
         prescient_client_id="some-client-id",
         prescient_auth_url="https://login.somewhere.com/",
         prescient_auth_token_path="/oauth2/v2.0/token",
+        prescient_upload_bucket="test-bucket",
+        prescient_upload_role="arn:aws:iam::upload-role",
     )
     client = PrescientClient(settings=settings)
     assert client.settings.prescient_endpoint_url is not None
