@@ -80,7 +80,7 @@ def upload(
         raise FileNotFoundError(input_dir)
 
     prescient_client = prescient_client or PrescientClient()
-    
+
     for file in iter_files(input_path, exclude=exclude):
         _upload(
             file=str(file),
