@@ -75,13 +75,17 @@ def upload(
         overwrite (bool): Whether to overwrite objects if they already exist. If False, upload
             is skipped. Useful for continuing an upload that was started previously. Defaults to True.
     """
+    if overwrite:
+        logger.info("overwrite=%s, thus will overwrite any existing objects", overwrite)
     input_path = Path(input_dir)
     if not input_path.exists():
         raise FileNotFoundError(input_dir)
 
     prescient_client = prescient_client or PrescientClient()
 
-    for file in iter_files(input_path, exclude=exclude):
+    files = list(iter_files(input_path, exclude=exclude))
+    logger.info("found %s files to upload", len(files))
+    for file in files:
         _upload(
             file=str(file),
             bucket=prescient_client.settings.prescient_upload_bucket,

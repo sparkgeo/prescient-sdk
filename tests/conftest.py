@@ -108,6 +108,7 @@ def unexpired_auth_credentials_mock():
         "refresh_token": "refresh",
     }
 
+
 @pytest.fixture
 def aws_credentials():
     """Mocked AWS Credentials for moto."""
