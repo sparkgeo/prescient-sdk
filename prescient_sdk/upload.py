@@ -67,16 +67,20 @@ def upload(
     Args:
         input_dir (str | os.PathLike): Input directory containing file(s) to be uploaded.
             By default will upload all files contained in input directory.
-        exclude (Optional[list[str]], optional): A list of glob patterns to exclude from uploading.
+        exclude (Optional[list[str]]): A list of glob patterns to exclude from uploading.
             For example `exclude=["*.txt", "*.csv"] would skip any matched files that end with a .txt or
             .csv suffix. If not provided by default all files will be uploaded.
-        prescient_client (Optional[PrescientClient], optional): A PrescientClient instance. If not provided
+        prescient_client (Optional[PrescientClient]): A PrescientClient instance. If not provided
             a default PrescientClient instance will be created.
-        overwrite (bool, optional): Whether to overwrite objects if they already exist. If False, upload
+        overwrite (bool): Whether to overwrite objects if they already exist. If False, upload
             is skipped. Useful for continuing an upload that was started previously. Defaults to True.
     """
-    prescient_client = prescient_client or PrescientClient()
     input_path = Path(input_dir)
+    if not input_path.exists():
+        raise FileNotFoundError(input_dir)
+
+    prescient_client = prescient_client or PrescientClient()
+    
     for file in iter_files(input_path, exclude=exclude):
         _upload(
             file=str(file),

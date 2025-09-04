@@ -119,3 +119,8 @@ def test_upload(
     for record in caplog.records:
         assert "skipping file" in record.message
     caplog.clear()
+
+def test_upload_invalid_dir(tmp_path):
+    tmp_dir = tmp_path.joinpath("some-dir")
+    with pytest.raises(FileNotFoundError):
+        upload(str(tmp_dir))
