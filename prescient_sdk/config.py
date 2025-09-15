@@ -18,6 +18,10 @@ class Settings(BaseSettings):
 
     prescient_aws_region: str = Field()
     prescient_aws_role: str = Field(min_length=20)
+    prescient_upload_role: str = Field(
+        min_length=20, description="AWS ARN role upload bucket"
+    )
+    prescient_upload_bucket: str = Field(description="AWS S3 upload bucket name")
 
     prescient_tenant_id: str
     prescient_client_id: str

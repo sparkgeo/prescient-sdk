@@ -72,6 +72,7 @@ class PrescientClient:
         # initialize empty credentials
         self._auth_credentials: dict = {}
         self._bucket_credentials: dict = {}
+        self._upload_bucket_credentials: dict = {}
 
     @property
     def stac_catalog_url(self) -> str:
@@ -177,6 +178,36 @@ class PrescientClient:
             "Authorization": f"Bearer {self.auth_credentials['id_token']}",
         }
 
+    def _get_bucket_credentials(self, role: str):
+        access_token = self.auth_credentials.get("id_token")
+        sts_client = boto3.client("sts", region_name=self.settings.prescient_aws_region)
+
+        # assume arn string, otherwise last 10 characters of role string
+        try:
+            role_name_stub = role.split("/")[1]
+        except IndexError:
+            role_name_stub = role[-10:]
+        role_session_name = f"prescient-s3-access-{role_name_stub}"
+
+        # exchange token with aws temp creds
+        response: dict = sts_client.assume_role_with_web_identity(
+            DurationSeconds=self._expiration_duration,
+            RoleArn=role,
+            RoleSessionName=role_session_name,
+            WebIdentityToken=access_token,
+        )
+        credentials = response.get("Credentials", {})
+
+        if not credentials:
+            raise ValueError(f"Failed to obtain creds: {response}")
+
+        # convert datetime to UTC for later comparison
+        credentials["Expiration"] = credentials["Expiration"].astimezone(
+            datetime.timezone.utc
+        )
+
+        return credentials
+
     @property
     def bucket_credentials(self):
         """Get bucket credentials using an auth access token
@@ -197,27 +228,37 @@ class PrescientClient:
         if self._bucket_credentials and not self.credentials_expired:
             return self._bucket_credentials
 
-        access_token = self.auth_credentials.get("id_token")
-        sts_client = boto3.client("sts", region_name=self.settings.prescient_aws_region)
-
-        # exchange token with aws temp creds
-        response: dict = sts_client.assume_role_with_web_identity(
-            DurationSeconds=self._expiration_duration,
-            RoleArn=self.settings.prescient_aws_role,
-            RoleSessionName="prescient-s3-access",
-            WebIdentityToken=access_token,
+        self._bucket_credentials = self._get_bucket_credentials(
+            role=self.settings.prescient_aws_role
         )
-        self._bucket_credentials = response.get("Credentials", {})
-
-        if not self._bucket_credentials:
-            raise ValueError(f"Failed to obtain creds: {response}")
-
-        # convert datetime to UTC for later comparison
-        self._bucket_credentials["Expiration"] = self._bucket_credentials[
-            "Expiration"
-        ].astimezone(datetime.timezone.utc)
 
         return self._bucket_credentials
+
+    @property
+    def upload_bucket_credentials(self):
+        """Get upload bucket credentials using an auth access token
+
+        Returns:
+            dict: bucket temporary credentials::
+
+                {
+                    "AccessKeyId": "string",
+                    "SecretAccessKey": "string",
+                    "SessionToken": "string",
+                    "Expiration": datetime(2015, 1, 1)
+                }
+
+        Raises:
+            ValueError: If the credentials response is empty
+        """
+        if self._upload_bucket_credentials and not self.credentials_expired:
+            return self._upload_bucket_credentials
+
+        self._upload_bucket_credentials = self._get_bucket_credentials(
+            role=self.settings.prescient_upload_role
+        )
+
+        return self._upload_bucket_credentials
 
     @property
     def session(self) -> boto3.Session:
@@ -231,6 +272,21 @@ class PrescientClient:
             aws_access_key_id=self.bucket_credentials["AccessKeyId"],
             aws_secret_access_key=self.bucket_credentials["SecretAccessKey"],
             aws_session_token=self.bucket_credentials["SessionToken"],
+        )
+
+    @property
+    def upload_session(self) -> boto3.Session:
+        """
+        Get an AWS session for authenticating to the upload bucket
+
+        Returns:
+            Session: boto3 Session object
+        """
+        return boto3.Session(
+            aws_access_key_id=self.upload_bucket_credentials["AccessKeyId"],
+            aws_secret_access_key=self.upload_bucket_credentials["SecretAccessKey"],
+            aws_session_token=self.upload_bucket_credentials["SessionToken"],
+            region_name=self.settings.prescient_aws_region,
         )
 
     @property
@@ -249,7 +305,7 @@ class PrescientClient:
             return False
         else:
             return True
-    
+
     def refresh_credentials(self, force=False):
         """
         Will refresh all the client credentials.
@@ -261,5 +317,6 @@ class PrescientClient:
         """
         if force:
             self._auth_credentials.pop("expiration")
-        
-        _ = self.bucket_credentials # Will call self.auth_credentials
+
+        _ = self.bucket_credentials  # Will call self.auth_credentials
+        _ = self.upload_bucket_credentials
