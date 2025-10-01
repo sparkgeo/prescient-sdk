@@ -1,6 +1,4 @@
 import time
-from pathlib import Path, PureWindowsPath
-import platform
 import pytest
 from moto import mock_aws
 
