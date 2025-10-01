@@ -138,17 +138,12 @@ def test_upload_key_normalization_real_paths(
 
 
 def test_relative_key_normalization_windows_style(tmp_path):
-    # simulate a Windows-style absolute path
     input_dir = tmp_path.resolve()
     file_path = input_dir / "nested" / "test.txt"
     file_path.parent.mkdir()
     file_path.write_text("test")
-
-    # Pretend we are on Windows by forcing backslashes into the string
     win_file_str = str(file_path).replace("/", "\\")
     win_input_str = str(input_dir).replace("/", "\\")
-
-    # When computing relative key
     rel_key = Path(win_file_str).relative_to(Path(win_input_str)).as_posix()
 
     assert rel_key == "nested/test.txt"
