@@ -1,5 +1,5 @@
 import time
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 import platform
 import pytest
 from moto import mock_aws
@@ -122,7 +122,7 @@ def test_upload_key_normalization_real_paths(
     test_file.write_text("hello")
 
     if style == "relative":
-        input_dir = str(tmp_path.relative_to(tmp_path.parent))
+        input_dir = str(tmp_path.relative_to(Path.cwd()))
     elif style == "absolute":
         input_dir = str(tmp_path.resolve())
     elif style == "posix":
@@ -141,10 +141,13 @@ def test_relative_key_normalization_windows_style(tmp_path):
     input_dir = tmp_path.resolve()
     file_path = input_dir / "nested" / "test.txt"
     file_path.parent.mkdir()
-    file_path.write_text("test")
-    win_file_str = str(file_path).replace("/", "\\")
-    win_input_str = str(input_dir).replace("/", "\\")
-    rel_key = Path(win_file_str).relative_to(Path(win_input_str)).as_posix()
+    file_path.touch()
+
+    # Simulate Windows-style absolute paths
+    win_file = PureWindowsPath("C:/data/project/nested/test.txt")
+    win_input = PureWindowsPath("C:/data/project")
+
+    rel_key = win_file.relative_to(win_input).as_posix()
 
     assert rel_key == "nested/test.txt"
 
