@@ -123,58 +123,6 @@ def test_make_s3_key_windows_style():
     assert file.relative_to(root).as_posix() == "nested/file.txt"
 
 
-# @mock_aws
-# @pytest.mark.parametrize("style", ["relative", "absolute", "posix"])
-# def test_upload_key_normalization_real_paths(
-#     tmp_path,
-#     set_env_vars,
-#     mock_creds,
-#     unexpired_auth_credentials_mock,
-#     create_test_bucket,
-#     aws_credentials,
-#     s3,
-#     style,
-# ):
-#     client = PrescientClient()
-#     client._auth_credentials = unexpired_auth_credentials_mock
-#     client.settings.prescient_aws_region = "us-east-1"
-#
-#     subdir = tmp_path / "nested"
-#     subdir.mkdir()
-#     test_file = subdir / "test.txt"
-#     test_file.write_text("hello")
-#
-#     if style == "relative":
-#         input_dir = str(tmp_path.relative_to(Path.cwd()))
-#     elif style == "absolute":
-#         input_dir = str(tmp_path.resolve())
-#     elif style == "posix":
-#         input_dir = tmp_path.as_posix()
-#
-#     upload(input_dir, prescient_client=client)
-#
-#     results = s3.list_objects_v2(Bucket="test-bucket")
-#     keys = [obj["Key"] for obj in results.get("Contents", [])]
-#
-#     assert "nested/test.txt" in keys
-#     assert not any("tmp" in key or ":" in key for key in keys)
-#
-#
-# def test_relative_key_normalization_windows_style(tmp_path):
-#     input_dir = tmp_path.resolve()
-#     file_path = input_dir / "nested" / "test.txt"
-#     file_path.parent.mkdir()
-#     file_path.touch()
-#
-#     # Simulate Windows-style absolute paths
-#     win_file = PureWindowsPath("C:/data/project/nested/test.txt")
-#     win_input = PureWindowsPath("C:/data/project")
-#
-#     rel_key = win_file.relative_to(win_input).as_posix()
-#
-#     assert rel_key == "nested/test.txt"
-
-
 def test_upload_invalid_dir(tmp_path):
     tmp_dir = tmp_path.joinpath("some-dir")
     with pytest.raises(FileNotFoundError):
