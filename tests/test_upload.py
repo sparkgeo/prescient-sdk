@@ -1,6 +1,7 @@
 from prescient_sdk.client import PrescientClient
-from prescient_sdk.upload import iter_files, upload
+from prescient_sdk.upload import iter_files, upload, _make_s3_key
 from moto import mock_aws
+from pathlib import Path, PureWindowsPath
 import time
 import pytest
 
@@ -95,10 +96,6 @@ def test_upload(
     for record in caplog.records:
         assert "skipping file" in record.message
     caplog.clear()
-
-
-from pathlib import Path, PureWindowsPath
-from prescient_sdk.upload import _make_s3_key
 
 
 def test_make_s3_key_posix_absolute(tmp_path):
