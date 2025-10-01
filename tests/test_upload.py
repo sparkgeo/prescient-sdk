@@ -1,9 +1,8 @@
-import time
-import pytest
-from moto import mock_aws
-
 from prescient_sdk.client import PrescientClient
 from prescient_sdk.upload import iter_files, upload
+from moto import mock_aws
+import time
+import pytest
 
 
 @pytest.fixture
