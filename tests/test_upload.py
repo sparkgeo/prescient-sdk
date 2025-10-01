@@ -1,6 +1,6 @@
 import time
 from pathlib import Path
-
+import platform
 import pytest
 from moto import mock_aws
 
@@ -98,6 +98,49 @@ def test_upload(
     for record in caplog.records:
         assert "skipping file" in record.message
     caplog.clear()
+
+
+@mock_aws
+@pytest.mark.parametrize("style", ["relative", "absolute", "posix", "windows"])
+def test_upload_key_normalization(
+    tmp_path,
+    set_env_vars,
+    mock_creds,
+    unexpired_auth_credentials_mock,
+    create_test_bucket,
+    aws_credentials,
+    s3,
+    style,
+):
+    client = PrescientClient()
+    client._auth_credentials = unexpired_auth_credentials_mock
+    client.settings.prescient_aws_region = "us-east-1"
+
+    # make a subdirectory and a file
+    subdir = tmp_path / "nested"
+    subdir.mkdir()
+    test_file = subdir / "test.txt"
+    test_file.write_text("hello")
+
+    if style == "relative":
+        input_dir = str(tmp_path.relative_to(tmp_path.parent))
+    elif style == "absolute":
+        input_dir = str(tmp_path.resolve())
+    elif style == "posix":
+        input_dir = tmp_path.as_posix()
+    elif style == "windows":
+        drive = "C:" if platform.system() != "Windows" else Path(tmp_path).drive
+        input_dir = f"{drive}\\{tmp_path.relative_to(tmp_path.anchor)}"
+    else:
+        raise ValueError(style)
+
+    upload(input_dir, prescient_client=client)
+
+    results = s3.list_objects_v2(Bucket="test-bucket")
+    keys = [obj["Key"] for obj in results.get("Contents", [])]
+
+    assert "nested/test.txt" in keys
+    assert not any("tmp" in key or ":" in key for key in keys)
 
 
 def test_upload_invalid_dir(tmp_path):
