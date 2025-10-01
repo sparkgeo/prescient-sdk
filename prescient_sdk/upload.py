@@ -86,10 +86,13 @@ def upload(
     files = list(iter_files(input_path, exclude=exclude))
     logger.info("found %s files to upload", len(files))
     for file in files:
+        # Get key relative to path
+        relative_key = file.relative_to(input_path).as_posix() # as_posix handles windows paths
+
         _upload(
             file=str(file),
             bucket=prescient_client.settings.prescient_upload_bucket,
-            key=file.as_posix(),
+            key=relative_key,
             session=prescient_client.upload_session,
             overwrite=overwrite,
         )
