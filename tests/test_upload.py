@@ -67,6 +67,7 @@ def test_upload(
     assert "Contents" in results
     assert len(results["Contents"]) == 1
     assert results["Contents"][0]["Key"].endswith("test.txt")
+    assert test_path.parent.name in results["Contents"][0]["Key"]
     for record in caplog.records:
         assert "uploading file" in record.message
     caplog.clear()
@@ -122,6 +123,11 @@ def test_make_s3_key_windows_style():
 
     assert file.relative_to(root).as_posix() == "nested/file.txt"
 
+def test_make_s3_key_relative_root(tmp_path):
+    root = Path("../data")
+    file = root / "a.txt"
+
+    assert _make_s3_key(file, root) == "data/a.txt"
 
 def test_upload_invalid_dir(tmp_path):
     tmp_dir = tmp_path.joinpath("some-dir")
