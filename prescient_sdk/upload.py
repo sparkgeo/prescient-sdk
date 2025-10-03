@@ -54,6 +54,23 @@ def _upload(
     s3.upload_file(Filename=file, Bucket=bucket, Key=key)
 
 
+def _make_s3_key(file: Path, root: Path) -> str:
+    """
+    Compute an S3 key for `file` relative to the `root` directory.
+
+    Ensures the key is normalized with forward slashes (POSIX style),
+    so it works consistently across Windows and POSIX systems.
+
+    Args:
+        file (Path): The full path to the file being uploaded.
+        root (Path): The root input directory passed to `upload`.
+
+    Returns:
+        str: The normalized S3 key.
+    """
+    return file.relative_to(root).as_posix()
+
+
 def upload(
     input_dir: str | os.PathLike,
     exclude: Optional[list[str]] = None,
@@ -86,10 +103,12 @@ def upload(
     files = list(iter_files(input_path, exclude=exclude))
     logger.info("found %s files to upload", len(files))
     for file in files:
+        relative_key = _make_s3_key(file, input_path)
+
         _upload(
             file=str(file),
             bucket=prescient_client.settings.prescient_upload_bucket,
-            key=file.as_posix(),
+            key=relative_key,
             session=prescient_client.upload_session,
             overwrite=overwrite,
         )
