@@ -50,7 +50,7 @@ def _upload(
             else:
                 raise e
 
-    logger.info("uploading file %s to s3://%s%s", file, bucket, key)
+    logger.info("uploading file %s to s3://%s/%s", file, bucket, key)
     s3.upload_file(Filename=file, Bucket=bucket, Key=key)
 
 
