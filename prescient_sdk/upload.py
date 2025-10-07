@@ -41,7 +41,7 @@ def _upload(
         try:
             _ = s3.head_object(Bucket=bucket, Key=key)
             logger.info(
-                "skipping file %s as it already exists at s3://%s%s", file, bucket, key
+                "skipping file %s as it already exists at s3://%s/%s", file, bucket, key
             )
             return
         except botocore.exceptions.ClientError as e:
