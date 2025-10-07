@@ -56,10 +56,8 @@ def _upload(
 
 def _make_s3_key(file: Path, root: Path) -> str:
     """
-    Compute an S3 key for `file` relative to the `root` directory.
-
-    Ensures the key is normalized with forward slashes (POSIX style),
-    so it works consistently across Windows and POSIX systems.
+    Compute an S3 key for `file` relative to the `root` directory, including
+    the root directory name itself as the top-level folder.
 
     Args:
         file (Path): The full path to the file being uploaded.
@@ -68,7 +66,9 @@ def _make_s3_key(file: Path, root: Path) -> str:
     Returns:
         str: The normalized S3 key.
     """
-    return file.relative_to(root).as_posix()
+    root_name = root.name or root.resolve().name
+    relative_part = file.relative_to(root).as_posix()
+    return f"{root_name}/{relative_part}"
 
 
 def upload(
