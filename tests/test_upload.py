@@ -105,7 +105,8 @@ def test_make_s3_key_posix_absolute(tmp_path):
     file.parent.mkdir()
     file.touch()
 
-    assert _make_s3_key(file, root) == "a/b.txt"
+    expected = f"{root.name}/a/b.txt"
+    assert _make_s3_key(file, root) == expected
 
 
 def test_make_s3_key_posix_relative(tmp_path):
@@ -113,8 +114,8 @@ def test_make_s3_key_posix_relative(tmp_path):
     file = tmp_path / "c.txt"
     file.touch()
 
-    # root and file are the same tmp_path base
-    assert _make_s3_key(file, root) == "c.txt"
+    expected = f"{root.name}/c.txt"
+    assert _make_s3_key(file, root) == expected
 
 
 def test_make_s3_key_windows_style():
@@ -123,11 +124,13 @@ def test_make_s3_key_windows_style():
 
     assert file.relative_to(root).as_posix() == "nested/file.txt"
 
+
 def test_make_s3_key_relative_root(tmp_path):
     root = Path("../data")
     file = root / "a.txt"
 
     assert _make_s3_key(file, root) == "data/a.txt"
+
 
 def test_upload_invalid_dir(tmp_path):
     tmp_dir = tmp_path.joinpath("some-dir")
