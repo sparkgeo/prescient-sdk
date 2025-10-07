@@ -83,7 +83,11 @@ def upload(
 
     Args:
         input_dir (str | os.PathLike): Input directory containing file(s) to be uploaded.
-            By default will upload all files contained in input directory.
+            By default will upload all files contained in input directory. This can be an
+            absolute or relative path, the final path component will be included as part
+            of the object key e.g. /path/to/data_dir -> s3://bucket/data_dir/file.txt. 
+            When input_dir is a relative path, this should be relative to the current working
+            directory used to execute this function.
         exclude (Optional[list[str]]): A list of glob patterns to exclude from uploading.
             For example `exclude=["*.txt", "*.csv"] would skip any matched files that end with a .txt or
             .csv suffix. If not provided by default all files will be uploaded.
