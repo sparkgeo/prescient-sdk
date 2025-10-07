@@ -41,7 +41,7 @@ def _upload(
         try:
             _ = s3.head_object(Bucket=bucket, Key=key)
             logger.info(
-                "skipping file %s as it already exists at s3://%s%s", file, bucket, key
+                "skipping file %s as it already exists at s3://%s/%s", file, bucket, key
             )
             return
         except botocore.exceptions.ClientError as e:
@@ -50,8 +50,25 @@ def _upload(
             else:
                 raise e
 
-    logger.info("uploading file %s to s3://%s%s", file, bucket, key)
+    logger.info("uploading file %s to s3://%s/%s", file, bucket, key)
     s3.upload_file(Filename=file, Bucket=bucket, Key=key)
+
+
+def _make_s3_key(file: Path, root: Path) -> str:
+    """
+    Compute an S3 key for `file` relative to the `root` directory, including
+    the root directory name itself as the top-level folder.
+
+    Args:
+        file (Path): The full path to the file being uploaded.
+        root (Path): The root input directory passed to `upload`.
+
+    Returns:
+        str: The normalized S3 key.
+    """
+    root_name = root.name or root.resolve().name
+    relative_part = file.relative_to(root).as_posix()
+    return f"{root_name}/{relative_part}"
 
 
 def upload(
@@ -66,7 +83,11 @@ def upload(
 
     Args:
         input_dir (str | os.PathLike): Input directory containing file(s) to be uploaded.
-            By default will upload all files contained in input directory.
+            By default will upload all files contained in input directory. This can be an
+            absolute or relative path, the final path component will be included as part
+            of the object key e.g. /path/to/data_dir -> s3://bucket/data_dir/file.txt.
+            When input_dir is a relative path, this should be relative to the current working
+            directory used to execute this function.
         exclude (Optional[list[str]]): A list of glob patterns to exclude from uploading.
             For example `exclude=["*.txt", "*.csv"] would skip any matched files that end with a .txt or
             .csv suffix. If not provided by default all files will be uploaded.
@@ -86,10 +107,12 @@ def upload(
     files = list(iter_files(input_path, exclude=exclude))
     logger.info("found %s files to upload", len(files))
     for file in files:
+        relative_key = _make_s3_key(file, input_path)
+
         _upload(
             file=str(file),
             bucket=prescient_client.settings.prescient_upload_bucket,
-            key=file.as_posix(),
+            key=relative_key,
             session=prescient_client.upload_session,
             overwrite=overwrite,
         )
