@@ -1,6 +1,5 @@
 import datetime
 import os
-import tempfile
 from unittest.mock import MagicMock
 
 import pytest
@@ -13,25 +12,23 @@ from prescient_sdk.config import Settings
 
 
 @pytest.fixture
-def set_env_vars():
+def clear_prescient_env(monkeypatch: pytest.MonkeyPatch):
+    """Remove every PRESCIENT_* env var so tests aren't polluted by the host shell."""
+    for key in list(os.environ):
+        if key.startswith("PRESCIENT_"):
+            monkeypatch.delenv(key)
+
+
+@pytest.fixture
+def set_env_vars(monkeypatch: pytest.MonkeyPatch, clear_prescient_env):
     """fixture to set the config settings as env variables"""
-    os.environ["PRESCIENT_ENDPOINT_URL"] = "https://example.server.prescient.earth"
-    os.environ["PRESCIENT_AWS_REGION"] = "some-aws-region"
-    os.environ["PRESCIENT_AWS_ROLE"] = "arn:aws:iam::something"
-    os.environ["PRESCIENT_TENANT_ID"] = "some-tenant-id"
-    os.environ["PRESCIENT_CLIENT_ID"] = "some-client-id"
-    os.environ["PRESCIENT_AUTH_URL"] = "https://login.somewhere.com/"
-    os.environ["PRESCIENT_AUTH_TOKEN_PATH"] = "/oauth2/v2.0/token"
-
-    yield
-
-    del os.environ["PRESCIENT_ENDPOINT_URL"]
-    del os.environ["PRESCIENT_AWS_REGION"]
-    del os.environ["PRESCIENT_AWS_ROLE"]
-    del os.environ["PRESCIENT_TENANT_ID"]
-    del os.environ["PRESCIENT_CLIENT_ID"]
-    del os.environ["PRESCIENT_AUTH_URL"]
-    del os.environ["PRESCIENT_AUTH_TOKEN_PATH"]
+    monkeypatch.setenv("PRESCIENT_ENDPOINT_URL", "https://example.server.prescient.earth")
+    monkeypatch.setenv("PRESCIENT_AWS_REGION", "some-aws-region")
+    monkeypatch.setenv("PRESCIENT_AWS_ROLE", "arn:aws:iam::something")
+    monkeypatch.setenv("PRESCIENT_TENANT_ID", "some-tenant-id")
+    monkeypatch.setenv("PRESCIENT_CLIENT_ID", "some-client-id")
+    monkeypatch.setenv("PRESCIENT_AUTH_URL", "https://login.somewhere.com/")
+    monkeypatch.setenv("PRESCIENT_AUTH_TOKEN_PATH", "/oauth2/v2.0/token")
 
 
 @pytest.fixture
@@ -111,22 +108,21 @@ def test_prescient_client_initialization(set_env_vars):
     assert client.settings.prescient_endpoint_url is not None
 
 
-def test_env_file_init():
+def test_env_file_init(clear_prescient_env, tmp_path):
     """Test that the env file is loaded correctly"""
-    with tempfile.NamedTemporaryFile(delete=False, mode="w") as temp_env_file:
-        temp_env_file.write("PRESCIENT_ENDPOINT_URL=https://some-test\n")
-        temp_env_file.write("PRESCIENT_AWS_REGION=some-aws-region\n")
-        temp_env_file.write("PRESCIENT_AWS_ROLE=arn:aws:iam::something\n")
-        temp_env_file.write("PRESCIENT_TENANT_ID=some-tenant-id\n")
-        temp_env_file.write("PRESCIENT_CLIENT_ID=some-client-id\n")
-        temp_env_file.write("PRESCIENT_AUTH_URL=https://login.somewhere.com/\n")
-        temp_env_file.write("PRESCIENT_AUTH_TOKEN_PATH=/oauth2/v2.0/token\n")
-        temp_env_file_path = temp_env_file.name
+    env_file = tmp_path / "config.env"
+    env_file.write_text(
+        "PRESCIENT_ENDPOINT_URL=https://some-test\n"
+        "PRESCIENT_AWS_REGION=some-aws-region\n"
+        "PRESCIENT_AWS_ROLE=arn:aws:iam::something\n"
+        "PRESCIENT_TENANT_ID=some-tenant-id\n"
+        "PRESCIENT_CLIENT_ID=some-client-id\n"
+        "PRESCIENT_AUTH_URL=https://login.somewhere.com/\n"
+        "PRESCIENT_AUTH_TOKEN_PATH=/oauth2/v2.0/token\n"
+    )
 
-    client = PrescientClient(env_file=temp_env_file_path)
+    client = PrescientClient(env_file=str(env_file))
     assert client.settings.prescient_endpoint_url == "https://some-test"
-
-    os.remove(temp_env_file_path)
 
 
 def test_fail_when_passing_both_env_file_and_settings(set_env_vars):
@@ -282,7 +278,7 @@ def test_creds_refreshed(
 def test_refresh_creds_func_unexpired(
     mocker: MockerFixture, set_env_vars, auth_client_mock, unexpired_auth_credentials_mock, aws_stubber
 ):
-    """Test that auth credentials are refreshed when expired"""
+    """Test that refresh_credentials() is a no-op when credentials are unexpired"""
 
     # mocker.patch("boto3.client", return_value=client)
     mocker.patch(
@@ -332,7 +328,7 @@ def test_refresh_creds_func_expired(
 def test_force_creds_refreshed(
     mocker: MockerFixture, set_env_vars, auth_client_mock, unexpired_auth_credentials_mock, aws_stubber
 ):
-    """Test that auth credentials are refreshed when expired"""
+    """Test that refresh_credentials(force=True) refreshes even when credentials are unexpired"""
 
     # mocker.patch("boto3.client", return_value=client)
     mocker.patch(
@@ -386,27 +382,16 @@ def test_aws_creds_refresh(
 
 
 @pytest.fixture
-def set_env_vars_google():
+def set_env_vars_google(monkeypatch: pytest.MonkeyPatch, clear_prescient_env):
     """Fixture to set config env vars for Google auth provider."""
-    os.environ["PRESCIENT_ENDPOINT_URL"] = "https://example.server.prescient.earth"
-    os.environ["PRESCIENT_AWS_REGION"] = "some-aws-region"
-    os.environ["PRESCIENT_AWS_ROLE"] = "arn:aws:iam::something"
-    os.environ["PRESCIENT_AUTH_PROVIDER"] = "google"
-    os.environ["PRESCIENT_CLIENT_ID"] = "some-google-client-id"
-    os.environ["PRESCIENT_AUTH_URL"] = "https://accounts.google.com"
-    os.environ["PRESCIENT_AUTH_TOKEN_PATH"] = "/o/oauth2/token"
-    os.environ["PRESCIENT_GOOGLE_CLIENT_SECRET"] = "some-google-client-secret"
-
-    yield
-
-    del os.environ["PRESCIENT_ENDPOINT_URL"]
-    del os.environ["PRESCIENT_AWS_REGION"]
-    del os.environ["PRESCIENT_AWS_ROLE"]
-    del os.environ["PRESCIENT_AUTH_PROVIDER"]
-    del os.environ["PRESCIENT_CLIENT_ID"]
-    del os.environ["PRESCIENT_AUTH_URL"]
-    del os.environ["PRESCIENT_AUTH_TOKEN_PATH"]
-    del os.environ["PRESCIENT_GOOGLE_CLIENT_SECRET"]
+    monkeypatch.setenv("PRESCIENT_ENDPOINT_URL", "https://example.server.prescient.earth")
+    monkeypatch.setenv("PRESCIENT_AWS_REGION", "some-aws-region")
+    monkeypatch.setenv("PRESCIENT_AWS_ROLE", "arn:aws:iam::something")
+    monkeypatch.setenv("PRESCIENT_AUTH_PROVIDER", "google")
+    monkeypatch.setenv("PRESCIENT_CLIENT_ID", "some-google-client-id")
+    monkeypatch.setenv("PRESCIENT_AUTH_URL", "https://accounts.google.com")
+    monkeypatch.setenv("PRESCIENT_AUTH_TOKEN_PATH", "/o/oauth2/token")
+    monkeypatch.setenv("PRESCIENT_GOOGLE_CLIENT_SECRET", "some-google-client-secret")
 
 
 def _make_google_credentials_mock(id_token: str, refresh_token: str = "google_refresh"):
@@ -477,7 +462,7 @@ def test_google_config_initialization(set_env_vars_google):
     assert client.settings.prescient_google_client_secret == "some-google-client-secret"
 
 
-def test_config_validator_microsoft_missing_tenant():
+def test_config_validator_microsoft_missing_tenant(clear_prescient_env):
     """Settings should raise when provider is microsoft but tenant_id is absent."""
     with pytest.raises(ValueError, match="prescient_tenant_id"):
         Settings(
@@ -492,7 +477,7 @@ def test_config_validator_microsoft_missing_tenant():
         )
 
 
-def test_config_validator_google_missing_secret():
+def test_config_validator_google_missing_secret(clear_prescient_env):
     """Settings should raise when provider is google but client_secret is absent."""
     with pytest.raises(ValueError, match="prescient_google_client_secret"):
         Settings(
