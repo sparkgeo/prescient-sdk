@@ -1,6 +1,7 @@
 import os
 import datetime
 import tempfile
+from unittest.mock import MagicMock
 
 import pytest
 from pytest_mock import MockType, MockerFixture
@@ -308,3 +309,187 @@ def test_aws_creds_refresh(
         assert client.bucket_credentials["Expiration"] > datetime.datetime.now(
             datetime.timezone.utc
         )
+
+
+# ---------------------------------------------------------------------------
+# Google auth fixtures
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def set_env_vars_google():
+    """Fixture to set config env vars for Google auth provider."""
+    os.environ["PRESCIENT_ENDPOINT_URL"] = "https://example.server.prescient.earth"
+    os.environ["PRESCIENT_AWS_REGION"] = "some-aws-region"
+    os.environ["PRESCIENT_AWS_ROLE"] = "arn:aws:iam::something"
+    os.environ["PRESCIENT_AUTH_PROVIDER"] = "google"
+    os.environ["PRESCIENT_CLIENT_ID"] = "some-google-client-id"
+    os.environ["PRESCIENT_AUTH_URL"] = "https://accounts.google.com"
+    os.environ["PRESCIENT_AUTH_TOKEN_PATH"] = "/o/oauth2/token"
+    os.environ["PRESCIENT_GOOGLE_CLIENT_SECRET"] = "some-google-client-secret"
+
+    yield
+
+    del os.environ["PRESCIENT_ENDPOINT_URL"]
+    del os.environ["PRESCIENT_AWS_REGION"]
+    del os.environ["PRESCIENT_AWS_ROLE"]
+    del os.environ["PRESCIENT_AUTH_PROVIDER"]
+    del os.environ["PRESCIENT_CLIENT_ID"]
+    del os.environ["PRESCIENT_AUTH_URL"]
+    del os.environ["PRESCIENT_AUTH_TOKEN_PATH"]
+    del os.environ["PRESCIENT_GOOGLE_CLIENT_SECRET"]
+
+
+def _make_google_credentials_mock(id_token: str, refresh_token: str = "google_refresh"):
+    """Build a mock object shaped like google.oauth2.credentials.Credentials."""
+    mock = MagicMock()
+    mock.id_token = id_token
+    mock.refresh_token = refresh_token
+    mock.token = "google_access_token"
+    return mock
+
+
+@pytest.fixture
+def google_flow_mock(mocker: MockerFixture):
+    """Mock InstalledAppFlow so run_local_server returns a fake Credentials object."""
+    creds = _make_google_credentials_mock("interactive_google_token")
+    mock_flow = MagicMock()
+    mock_flow.run_local_server.return_value = creds
+    mocker.patch(
+        "google_auth_oauthlib.flow.InstalledAppFlow.from_client_config",
+        return_value=mock_flow,
+    )
+    return mock_flow
+
+
+@pytest.fixture
+def google_refresh_mock(mocker: MockerFixture):
+    """Mock google.oauth2.credentials.Credentials so .refresh() populates id_token."""
+    creds = _make_google_credentials_mock("refreshed_google_token")
+    mocker.patch(
+        "google.oauth2.credentials.Credentials",
+        return_value=creds,
+    )
+    mocker.patch("google.auth.transport.requests.Request", return_value=MagicMock())
+    return creds
+
+
+@pytest.fixture
+def expired_google_credentials_mock():
+    return {
+        "id_token": "expired_google_token",
+        "expiration": datetime.datetime.now(datetime.timezone.utc)
+        - datetime.timedelta(hours=1),
+        "refresh_token": "google_refresh",
+        "access_token": "google_access",
+    }
+
+
+@pytest.fixture
+def unexpired_google_credentials_mock():
+    return {
+        "id_token": "cached_google_token",
+        "expiration": datetime.datetime.now(datetime.timezone.utc)
+        + datetime.timedelta(hours=1),
+        "refresh_token": "google_refresh",
+        "access_token": "google_access",
+    }
+
+
+# ---------------------------------------------------------------------------
+# Google auth tests
+# ---------------------------------------------------------------------------
+
+
+def test_google_config_initialization(set_env_vars_google):
+    """Test that a Google-provider client initializes correctly from env vars."""
+    client = PrescientClient()
+    assert client.settings.prescient_auth_provider == "google"
+    assert client.settings.prescient_google_client_secret == "some-google-client-secret"
+
+
+def test_config_validator_microsoft_missing_tenant():
+    """Settings should raise when provider is microsoft but tenant_id is absent."""
+    with pytest.raises(ValueError, match="prescient_tenant_id"):
+        Settings(
+            prescient_endpoint_url="https://example.com",
+            prescient_aws_region="us-west-2",
+            prescient_aws_role="arn:aws:iam::something",
+            prescient_auth_provider="microsoft",
+            prescient_client_id="some-client",
+            prescient_auth_url="https://login.microsoft.com",
+            prescient_auth_token_path="/oauth2/v2.0/token",
+            # prescient_tenant_id intentionally omitted
+        )
+
+
+def test_config_validator_google_missing_secret():
+    """Settings should raise when provider is google but client_secret is absent."""
+    with pytest.raises(ValueError, match="prescient_google_client_secret"):
+        Settings(
+            prescient_endpoint_url="https://example.com",
+            prescient_aws_region="us-west-2",
+            prescient_aws_role="arn:aws:iam::something",
+            prescient_auth_provider="google",
+            prescient_client_id="some-client",
+            prescient_auth_url="https://accounts.google.com",
+            prescient_auth_token_path="/o/oauth2/token",
+            # prescient_google_client_secret intentionally omitted
+        )
+
+
+def test_google_creds_interactive(set_env_vars_google, google_flow_mock):
+    """First-login path: InstalledAppFlow.run_local_server is called and id_token stored."""
+    client = PrescientClient()
+    # No prior credentials — should trigger interactive flow
+    creds = client.auth_credentials
+    assert creds["id_token"] == "interactive_google_token"
+    google_flow_mock.run_local_server.assert_called_once_with(port=0)
+
+
+def test_google_creds_refreshed(
+    set_env_vars_google,
+    google_refresh_mock,
+    expired_google_credentials_mock,
+):
+    """Expired Google creds should trigger a silent refresh via Credentials.refresh()."""
+    client = PrescientClient()
+    client._auth_credentials = expired_google_credentials_mock
+
+    creds = client.auth_credentials
+    assert creds["id_token"] == "refreshed_google_token"
+    google_refresh_mock.refresh.assert_called_once()
+
+
+def test_google_cached_credentials(set_env_vars_google, unexpired_google_credentials_mock):
+    """Unexpired Google creds should be returned from cache without any provider call."""
+    client = PrescientClient()
+    client._auth_credentials = unexpired_google_credentials_mock
+
+    creds = client.auth_credentials
+    assert creds["id_token"] == "cached_google_token"
+
+
+def test_google_headers(set_env_vars_google, unexpired_google_credentials_mock):
+    """Headers should use the Google id_token as the Bearer token."""
+    client = PrescientClient()
+    client._auth_credentials = unexpired_google_credentials_mock
+
+    assert client.headers["Authorization"] == "Bearer cached_google_token"
+
+
+def test_google_aws_creds_refresh(
+    mocker: MockerFixture,
+    set_env_vars_google,
+    google_refresh_mock,
+    expired_google_credentials_mock,
+    aws_stubber,
+):
+    """End-to-end: expired Google auth → refresh → new STS credentials."""
+    with aws_stubber:
+        client = PrescientClient()
+        client._auth_credentials = expired_google_credentials_mock
+
+        bucket_creds = client.bucket_credentials
+        assert bucket_creds["AccessKeyId"] == "12345678910111213141516"
+        assert bucket_creds["Expiration"] > datetime.datetime.now(datetime.timezone.utc)

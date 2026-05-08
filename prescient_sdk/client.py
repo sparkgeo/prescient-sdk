@@ -3,6 +3,9 @@ import datetime
 import urllib.parse
 from pathlib import Path
 
+import google.auth.transport.requests
+import google.oauth2.credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
 import msal
 import boto3
 
@@ -84,50 +87,12 @@ class PrescientClient:
         """
         return urllib.parse.urljoin(self.settings.prescient_endpoint_url, "stac")
 
-    @property
-    def auth_credentials(self) -> dict:
-        """
-        Get the authorization credentials for the client.
+    def _fetch_microsoft_credentials(self) -> dict:
+        """Acquire or refresh credentials using Microsoft MSAL.
 
         Returns:
-            dict: access token::
-
-                {
-                    "token_type": "string",
-                    "scope": "string",
-                    "expires_in": "int",
-                    "ext_expires_in": "int",
-                    "access_token": "string",
-                    "refresh_token": "string",
-                    "id_token": "string",
-                    "client_info": "string",
-                    "id_token_claims": {
-                        "aud": "string",
-                        "iss": "string",
-                        "iat": "int",
-                        "nbf": "int",
-                        "exp": "int",
-                        "aio": "string",
-                        "name": "string",
-                        "nonce": "string",
-                        "oid": "string",
-                        "preferred_username": "string",
-                        "rh": "string",
-                        "roles": ["string"],
-                        "sub": "string",
-                        "tid": "string",
-                        "uti": "string",
-                        "ver": "string",
-                    },
-                    "token_source": "string",
-                }
-        Raises:
-            ValueError: If the response status code is not 200, or if the access token is not in the response.
+            dict: Raw MSAL token response containing ``id_token`` and ``refresh_token``.
         """
-        # return cached credentials if they exist and are not expired
-        if not self.credentials_expired:
-            return self._auth_credentials
-
         authority_url = urllib.parse.urljoin(
             self.settings.prescient_auth_url, self.settings.prescient_tenant_id
         )
@@ -135,29 +100,100 @@ class PrescientClient:
             client_id=self.settings.prescient_client_id, authority=authority_url
         )
 
-        # trigger auth or auth refresh flow
-        time_zero = datetime.datetime.now(datetime.timezone.utc)
         if (
             not self._auth_credentials
             or "refresh_token" not in self._auth_credentials.keys()
         ):
-            # aquire creds interactively if none have been fetched yet
-            self._auth_credentials = app.acquire_token_interactive(
+            return app.acquire_token_interactive(
                 scopes=["https://graph.microsoft.com/.default"]
             )
         else:
-            # refresh creds if they have been fetched before and are expired
-            self._auth_credentials = app.acquire_token_by_refresh_token(
+            return app.acquire_token_by_refresh_token(
                 refresh_token=self._auth_credentials["refresh_token"],
                 scopes=["https://graph.microsoft.com/.default"],
             )
 
-        # check that a nonzero length token has been obtained
+    def _fetch_google_credentials(self) -> dict:
+        """Acquire or refresh credentials using Google OAuth2.
+
+        Uses ``google-auth-oauthlib`` for the interactive browser flow and
+        ``google-auth`` for silent token refresh. The returned dict is
+        normalized to include the same ``id_token`` and ``refresh_token`` keys
+        used by the Microsoft flow so that all downstream code is unaffected.
+
+        Returns:
+            dict: Normalized credential dict containing ``id_token``, ``refresh_token``,
+                and ``access_token``.
+
+        """
+        token_uri = urllib.parse.urljoin(self.settings.prescient_auth_url, "/o/oauth2/token")
+        scopes = ["openid", "https://www.googleapis.com/auth/userinfo.email"]
+
+        if (
+            not self._auth_credentials
+            or "refresh_token" not in self._auth_credentials
+        ):
+            flow = InstalledAppFlow.from_client_config(
+                client_config={
+                    "installed": {
+                        "client_id": self.settings.prescient_client_id,
+                        "client_secret": self.settings.prescient_google_client_secret,
+                        "auth_uri": urllib.parse.urljoin(
+                            self.settings.prescient_auth_url, "/o/oauth2/auth"
+                        ),
+                        "token_uri": token_uri,
+                    }
+                },
+                scopes=scopes,
+            )
+            credentials = flow.run_local_server(port=0)
+        else:
+            credentials = google.oauth2.credentials.Credentials(
+                token=None,
+                refresh_token=self._auth_credentials["refresh_token"],
+                token_uri=token_uri,
+                client_id=self.settings.prescient_client_id,
+                client_secret=self.settings.prescient_google_client_secret,
+            )
+            credentials.refresh(google.auth.transport.requests.Request())
+
+        return {
+            "id_token": credentials.id_token,
+            "refresh_token": credentials.refresh_token,
+            "access_token": credentials.token,
+        }
+
+    @property
+    def auth_credentials(self) -> dict:
+        """
+        Get the authorization credentials for the client.
+
+        Returns:
+            dict: Token response containing at minimum::
+
+                {
+                    "id_token": "string",
+                    "refresh_token": "string",
+                    "access_token": "string",
+                }
+
+        Raises:
+            ValueError: If a valid id_token cannot be obtained.
+        """
+        if not self.credentials_expired:
+            return self._auth_credentials
+
+        time_zero = datetime.datetime.now(datetime.timezone.utc)
+
+        if self.settings.prescient_auth_provider == "google":
+            self._auth_credentials = self._fetch_google_credentials()
+        else:
+            self._auth_credentials = self._fetch_microsoft_credentials()
+
         token: str = self._auth_credentials.get("id_token", "")
         if token == "":
             raise ValueError(f"Failed to obtain Auth token: {self._auth_credentials}")
 
-        # set expiration time of the token
         self._auth_credentials["expiration"] = time_zero + datetime.timedelta(
             seconds=self._expiration_duration
         )
