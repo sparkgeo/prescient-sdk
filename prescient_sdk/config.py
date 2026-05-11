@@ -28,13 +28,20 @@ class Settings(BaseSettings):
     prescient_auth_provider: Literal["microsoft", "google"] = "microsoft"
     prescient_client_id: str
     prescient_auth_url: str
-    prescient_auth_token_path: str
+
+    # Not used, but required for backwards compatibility. TODO Schedule deprecation.
+    prescient_auth_token_path: str | None = None
 
     # Microsoft-specific (required when prescient_auth_provider="microsoft")
     prescient_tenant_id: str | None = None
 
     # Google-specific (required when prescient_auth_provider="google")
     prescient_google_client_secret: str | None = None
+
+    # Google-specific, optional. Set to the registered loopback port when using a
+    # Web-application OAuth client. Leave as None for Desktop-app OAuth clients,
+    # which permit any random local port.
+    prescient_google_redirect_port: int | None = 8765
 
     model_config = SettingsConfigDict(
         env_file="config.env",

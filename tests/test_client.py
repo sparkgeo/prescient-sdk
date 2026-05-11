@@ -417,6 +417,7 @@ def set_env_vars_google(monkeypatch: pytest.MonkeyPatch, clear_prescient_env):
     monkeypatch.setenv("PRESCIENT_AUTH_URL", "https://accounts.google.com")
     monkeypatch.setenv("PRESCIENT_AUTH_TOKEN_PATH", "/o/oauth2/token")
     monkeypatch.setenv("PRESCIENT_GOOGLE_CLIENT_SECRET", "some-google-client-secret")
+    monkeypatch.setenv("PRESCIENT_GOOGLE_REDIRECT_PORT", "9876")
 
 
 def _make_google_credentials_mock(id_token: str, refresh_token: str = "google_refresh"):
@@ -523,7 +524,7 @@ def test_google_creds_interactive(set_env_vars_google, google_flow_mock):
     # No prior credentials — should trigger interactive flow
     creds = client.auth_credentials
     assert creds["id_token"] == "interactive_google_token"
-    google_flow_mock.run_local_server.assert_called_once_with(port=0)
+    google_flow_mock.run_local_server.assert_called_once_with(port=9876)
 
 
 def test_google_creds_refreshed(

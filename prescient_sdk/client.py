@@ -146,7 +146,9 @@ class PrescientClient:
                 },
                 scopes=scopes,
             )
-            credentials = flow.run_local_server(port=0)
+            credentials = flow.run_local_server(
+                port=self.settings.prescient_google_redirect_port
+            )
         else:
             credentials = google.oauth2.credentials.Credentials(
                 token=None,
