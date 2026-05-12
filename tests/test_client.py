@@ -548,3 +548,81 @@ def test_google_aws_creds_refresh(
         bucket_creds = client.bucket_credentials
         assert bucket_creds["AccessKeyId"] == "12345678910111213141516"
         assert bucket_creds["Expiration"] > datetime.datetime.now(datetime.timezone.utc)
+
+
+# ---------------------------------------------------------------------------
+# Fileproxy credentials (no aws_role) tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def set_env_vars_no_role(monkeypatch: pytest.MonkeyPatch, clear_prescient_env):
+    """Same as set_env_vars but without PRESCIENT_AWS_ROLE or PRESCIENT_AWS_REGION."""
+    monkeypatch.setenv("PRESCIENT_ENDPOINT_URL", "https://example.server.prescient.earth/")
+    monkeypatch.setenv("PRESCIENT_TENANT_ID", "some-tenant-id")
+    monkeypatch.setenv("PRESCIENT_CLIENT_ID", "some-client-id")
+    monkeypatch.setenv("PRESCIENT_AUTH_URL", "https://login.somewhere.com/")
+    monkeypatch.setenv("PRESCIENT_AUTH_TOKEN_PATH", "/oauth2/v2.0/token")
+
+
+def test_aws_role_and_region_optional(set_env_vars_no_role):
+    """Client should initialize without PRESCIENT_AWS_ROLE or PRESCIENT_AWS_REGION set."""
+    client = PrescientClient()
+    assert client.settings.prescient_aws_role is None
+    assert client.settings.prescient_aws_region is None
+
+
+def test_fileproxy_credentials_fetch(
+    mocker: MockerFixture, set_env_vars_no_role, unexpired_auth_credentials_mock
+):
+    """When aws_role is unset, bucket_credentials hits /fileproxy/credentials."""
+    expiration_iso = (
+        datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
+    ).isoformat()
+    fake_response = MagicMock()
+    fake_response.json.return_value = {
+        "access_key_id": "proxy_key",
+        "secret_access_key": "proxy_secret",
+        "session_token": "proxy_session",
+        "expiration": expiration_iso,
+    }
+    fake_response.raise_for_status = MagicMock()
+    get_mock = mocker.patch("prescient_sdk.client.requests.get", return_value=fake_response)
+    boto_mock = mocker.patch("boto3.client")
+
+    client = PrescientClient()
+    client._auth_credentials = unexpired_auth_credentials_mock
+
+    creds = client.bucket_credentials
+    assert creds["AccessKeyId"] == "proxy_key"
+    assert creds["SecretAccessKey"] == "proxy_secret"
+    assert creds["SessionToken"] == "proxy_session"
+    assert creds["Expiration"] > datetime.datetime.now(datetime.timezone.utc)
+    assert creds["Expiration"].tzinfo is datetime.timezone.utc
+
+    # STS should never be called when fetching from fileproxy
+    boto_mock.assert_not_called()
+
+    # GET called against the fileproxy endpoint with the bearer token
+    get_mock.assert_called_once()
+    called_url, called_kwargs = get_mock.call_args[0][0], get_mock.call_args.kwargs
+    assert called_url == "https://example.server.prescient.earth/fileproxy/credentials"
+    assert called_kwargs["headers"]["Authorization"] == "Bearer cached_token"
+
+
+def test_fileproxy_credentials_cached(
+    mocker: MockerFixture, set_env_vars_no_role, unexpired_auth_credentials_mock
+):
+    """Cached bucket creds short-circuit the HTTP call."""
+    get_mock = mocker.patch("prescient_sdk.client.requests.get")
+
+    client = PrescientClient()
+    client._auth_credentials = unexpired_auth_credentials_mock
+    client._bucket_credentials = {
+        "AccessKeyId": "cached_proxy_key",
+        "Expiration": datetime.datetime.now(datetime.timezone.utc)
+        + datetime.timedelta(hours=1),
+    }
+
+    assert client.bucket_credentials["AccessKeyId"] == "cached_proxy_key"
+    get_mock.assert_not_called()

@@ -8,6 +8,7 @@ import google.oauth2.credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 import msal
 import boto3
+import requests
 
 from prescient_sdk.config import Settings
 
@@ -235,27 +236,51 @@ class PrescientClient:
         if self._bucket_credentials and not self.credentials_expired:
             return self._bucket_credentials
 
+        if self.settings.prescient_aws_role:
+            self._bucket_credentials = self._fetch_sts_credentials()
+        else:
+            self._bucket_credentials = self._fetch_fileproxy_credentials()
+
+        expiration = self._bucket_credentials["Expiration"]
+        if isinstance(expiration, str):
+            expiration = datetime.datetime.fromisoformat(expiration.replace("Z", "+00:00"))
+        self._bucket_credentials["Expiration"] = expiration.astimezone(datetime.timezone.utc)
+
+        return self._bucket_credentials
+
+    def _fetch_sts_credentials(self) -> dict:
+        """Exchange the auth id_token for AWS credentials via STS."""
         access_token = self.auth_credentials.get("id_token")
         sts_client = boto3.client("sts", region_name=self.settings.prescient_aws_region)
-
-        # exchange token with aws temp creds
         response: dict = sts_client.assume_role_with_web_identity(
             DurationSeconds=self._expiration_duration,
             RoleArn=self.settings.prescient_aws_role,
             RoleSessionName="prescient-s3-access",
             WebIdentityToken=access_token,
         )
-        self._bucket_credentials = response.get("Credentials", {})
-
-        if not self._bucket_credentials:
+        creds = response.get("Credentials")
+        if not creds:
             raise ValueError(f"Failed to obtain creds: {response}")
+        return creds
 
-        # convert datetime to UTC for later comparison
-        self._bucket_credentials["Expiration"] = self._bucket_credentials[
-            "Expiration"
-        ].astimezone(datetime.timezone.utc)
+    def _fetch_fileproxy_credentials(self) -> dict:
+        """Fetch temporary bucket credentials from the Prescient fileproxy endpoint.
 
-        return self._bucket_credentials
+        The endpoint returns snake_case keys; map them to the PascalCase shape
+        used by the rest of the client (matching the boto3 STS response).
+        """
+        url = urllib.parse.urljoin(
+            self.settings.prescient_endpoint_url, "fileproxy/credentials"
+        )
+        response = requests.get(url, headers=self.headers)
+        response.raise_for_status()
+        payload = response.json()
+        return {
+            "AccessKeyId": payload["access_key_id"],
+            "SecretAccessKey": payload["secret_access_key"],
+            "SessionToken": payload["session_token"],
+            "Expiration": payload["expiration"],
+        }
 
     @property
     def session(self) -> boto3.Session:
