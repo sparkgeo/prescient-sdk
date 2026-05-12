@@ -24,10 +24,14 @@ class Settings(BaseSettings):
     prescient_aws_role: str | None = Field(default=None, min_length=20)
     prescient_aws_region: str | None = Field(default=None)
 
-    prescient_upload_role: str = Field(
-        min_length=20, description="AWS ARN role upload bucket"
+    # Optional. Required only when using the upload helpers (upload_session,
+    # upload_bucket_credentials, prescient_sdk.upload.upload).
+    prescient_upload_role: str | None = Field(
+        default=None, min_length=20, description="AWS ARN role upload bucket"
     )
-    prescient_upload_bucket: str = Field(description="AWS S3 upload bucket name")
+    prescient_upload_bucket: str | None = Field(
+        default=None, description="AWS S3 upload bucket name"
+    )
 
     prescient_auth_provider: Literal["microsoft", "google"] = "microsoft"
     prescient_client_id: str

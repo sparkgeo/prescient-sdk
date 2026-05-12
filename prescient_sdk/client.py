@@ -333,6 +333,12 @@ class PrescientClient:
         if self._upload_bucket_credentials and not self.credentials_expired:
             return self._upload_bucket_credentials
 
+        if not self.settings.prescient_upload_role:
+            raise ValueError(
+                "prescient_upload_role is not configured; set PRESCIENT_UPLOAD_ROLE "
+                "to use the upload bucket."
+            )
+
         self._upload_bucket_credentials = self._get_bucket_credentials(
             role=self.settings.prescient_upload_role
         )
@@ -398,4 +404,5 @@ class PrescientClient:
             self._auth_credentials.pop("expiration")
 
         _ = self.bucket_credentials  # Will call self.auth_credentials
-        _ = self.upload_bucket_credentials
+        if self.settings.prescient_upload_role:
+            _ = self.upload_bucket_credentials

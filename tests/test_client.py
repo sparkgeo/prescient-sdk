@@ -597,6 +597,20 @@ def test_aws_role_and_region_optional(set_env_vars_no_role):
     assert client.settings.prescient_aws_region is None
 
 
+def test_upload_role_and_bucket_optional(set_env_vars):
+    """Client should initialize without PRESCIENT_UPLOAD_ROLE or PRESCIENT_UPLOAD_BUCKET set."""
+    client = PrescientClient()
+    assert client.settings.prescient_upload_role is None
+    assert client.settings.prescient_upload_bucket is None
+
+
+def test_upload_bucket_credentials_requires_role(set_env_vars, mock_creds):
+    """Accessing upload_bucket_credentials should raise when upload_role is unset."""
+    client = PrescientClient()
+    with pytest.raises(ValueError, match="prescient_upload_role"):
+        _ = client.upload_bucket_credentials
+
+
 def test_fileproxy_credentials_fetch(
     mocker: MockerFixture, set_env_vars_no_role, unexpired_auth_credentials_mock
 ):
