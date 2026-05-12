@@ -18,8 +18,12 @@ class Settings(BaseSettings):
 
     prescient_endpoint_url: str = Field()
 
-    prescient_aws_region: str = Field()
-    prescient_aws_role: str = Field(min_length=20)
+    # Optional. When set, the client assumes this role via STS to obtain bucket
+    # credentials. When unset, the client fetches temporary credentials from
+    # the Prescient API's /fileproxy/credentials endpoint instead.
+    prescient_aws_role: str | None = Field(default=None, min_length=20)
+    prescient_aws_region: str | None = Field(default=None)
+
     prescient_upload_role: str = Field(
         min_length=20, description="AWS ARN role upload bucket"
     )
