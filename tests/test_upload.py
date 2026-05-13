@@ -1,9 +1,11 @@
-from prescient_sdk.client import PrescientClient
-from prescient_sdk.upload import iter_files, upload, _make_s3_key
-from moto import mock_aws
-from pathlib import Path, PureWindowsPath
 import time
+from pathlib import Path, PureWindowsPath
+
 import pytest
+from moto import mock_aws
+
+from prescient_sdk.client import PrescientClient
+from prescient_sdk.upload import _make_s3_key, iter_files, upload
 
 
 @pytest.fixture

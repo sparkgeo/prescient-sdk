@@ -1,7 +1,7 @@
 from typing import Literal
 
-from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -64,7 +64,10 @@ class Settings(BaseSettings):
             raise ValueError(
                 "prescient_tenant_id is required when prescient_auth_provider is 'microsoft'"
             )
-        if self.prescient_auth_provider == "google" and not self.prescient_google_client_secret:
+        if (
+            self.prescient_auth_provider == "google"
+            and not self.prescient_google_client_secret
+        ):
             raise ValueError(
                 "prescient_google_client_secret is required when prescient_auth_provider is 'google'"
             )

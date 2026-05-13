@@ -1,14 +1,14 @@
-import logging
 import datetime
+import logging
 import urllib.parse
 from pathlib import Path
 
+import boto3
 import google.auth.transport.requests
 import google.oauth2.credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
 import msal
-import boto3
 import requests
+from google_auth_oauthlib.flow import InstalledAppFlow
 
 from prescient_sdk.config import Settings
 
@@ -127,13 +127,12 @@ class PrescientClient:
                 and ``access_token``.
 
         """
-        token_uri = urllib.parse.urljoin(self.settings.prescient_auth_url, "/o/oauth2/token")
+        token_uri = urllib.parse.urljoin(
+            self.settings.prescient_auth_url, "/o/oauth2/token"
+        )
         scopes = ["openid", "https://www.googleapis.com/auth/userinfo.email"]
 
-        if (
-            not self._auth_credentials
-            or "refresh_token" not in self._auth_credentials
-        ):
+        if not self._auth_credentials or "refresh_token" not in self._auth_credentials:
             flow = InstalledAppFlow.from_client_config(
                 client_config={
                     "installed": {
@@ -274,8 +273,12 @@ class PrescientClient:
 
         expiration = self._bucket_credentials["Expiration"]
         if isinstance(expiration, str):
-            expiration = datetime.datetime.fromisoformat(expiration.replace("Z", "+00:00"))
-        self._bucket_credentials["Expiration"] = expiration.astimezone(datetime.timezone.utc)
+            expiration = datetime.datetime.fromisoformat(
+                expiration.replace("Z", "+00:00")
+            )
+        self._bucket_credentials["Expiration"] = expiration.astimezone(
+            datetime.timezone.utc
+        )
 
         return self._bucket_credentials
 

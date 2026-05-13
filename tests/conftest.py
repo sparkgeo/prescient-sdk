@@ -1,10 +1,11 @@
-import os
 import datetime
-import pytest
-from pytest_mock import MockerFixture
+import os
+
 import boto3
+import pytest
 from botocore.stub import Stubber
 from moto import mock_aws
+from pytest_mock import MockerFixture
 
 
 @pytest.fixture

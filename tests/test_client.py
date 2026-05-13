@@ -1,11 +1,11 @@
-import os
 import datetime
+import os
 from unittest.mock import MagicMock
 
-import pytest
-from pytest_mock import MockType, MockerFixture
 import boto3
+import pytest
 from botocore.stub import Stubber
+from pytest_mock import MockerFixture, MockType
 
 from prescient_sdk.client import PrescientClient
 from prescient_sdk.config import Settings
@@ -22,7 +22,9 @@ def clear_prescient_env(monkeypatch: pytest.MonkeyPatch):
 @pytest.fixture
 def set_env_vars(monkeypatch: pytest.MonkeyPatch, clear_prescient_env):
     """fixture to set the config settings as env variables"""
-    monkeypatch.setenv("PRESCIENT_ENDPOINT_URL", "https://example.server.prescient.earth")
+    monkeypatch.setenv(
+        "PRESCIENT_ENDPOINT_URL", "https://example.server.prescient.earth"
+    )
     monkeypatch.setenv("PRESCIENT_AWS_REGION", "some-aws-region")
     monkeypatch.setenv("PRESCIENT_AWS_ROLE", "arn:aws:iam::something")
     monkeypatch.setenv("PRESCIENT_TENANT_ID", "some-tenant-id")
@@ -61,6 +63,7 @@ def auth_client_mock(mocker: MockerFixture):
 
     return MockApp()
 
+
 @pytest.fixture
 def aws_stubber(mocker: MockerFixture):
     dummy_creds = {
@@ -98,7 +101,7 @@ def unexpired_auth_credentials_mock():
         "id_token": "cached_token",
         "expiration": datetime.datetime.now(datetime.timezone.utc)
         + datetime.timedelta(hours=1),
-        "refresh_token": "refresh"
+        "refresh_token": "refresh",
     }
 
 
@@ -409,7 +412,9 @@ def test_aws_creds_refresh(
 @pytest.fixture
 def set_env_vars_google(monkeypatch: pytest.MonkeyPatch, clear_prescient_env):
     """Fixture to set config env vars for Google auth provider."""
-    monkeypatch.setenv("PRESCIENT_ENDPOINT_URL", "https://example.server.prescient.earth")
+    monkeypatch.setenv(
+        "PRESCIENT_ENDPOINT_URL", "https://example.server.prescient.earth"
+    )
     monkeypatch.setenv("PRESCIENT_AWS_REGION", "some-aws-region")
     monkeypatch.setenv("PRESCIENT_AWS_ROLE", "arn:aws:iam::something")
     monkeypatch.setenv("PRESCIENT_AUTH_PROVIDER", "google")
@@ -541,7 +546,9 @@ def test_google_creds_refreshed(
     google_refresh_mock.refresh.assert_called_once()
 
 
-def test_google_cached_credentials(set_env_vars_google, unexpired_google_credentials_mock):
+def test_google_cached_credentials(
+    set_env_vars_google, unexpired_google_credentials_mock
+):
     """Unexpired Google creds should be returned from cache without any provider call."""
     client = PrescientClient()
     client._auth_credentials = unexpired_google_credentials_mock
@@ -583,7 +590,9 @@ def test_google_aws_creds_refresh(
 @pytest.fixture
 def set_env_vars_no_role(monkeypatch: pytest.MonkeyPatch, clear_prescient_env):
     """Same as set_env_vars but without PRESCIENT_AWS_ROLE or PRESCIENT_AWS_REGION."""
-    monkeypatch.setenv("PRESCIENT_ENDPOINT_URL", "https://example.server.prescient.earth/")
+    monkeypatch.setenv(
+        "PRESCIENT_ENDPOINT_URL", "https://example.server.prescient.earth/"
+    )
     monkeypatch.setenv("PRESCIENT_TENANT_ID", "some-tenant-id")
     monkeypatch.setenv("PRESCIENT_CLIENT_ID", "some-client-id")
     monkeypatch.setenv("PRESCIENT_AUTH_URL", "https://login.somewhere.com/")
@@ -626,7 +635,9 @@ def test_fileproxy_credentials_fetch(
         "expiration": expiration_iso,
     }
     fake_response.raise_for_status = MagicMock()
-    get_mock = mocker.patch("prescient_sdk.client.requests.get", return_value=fake_response)
+    get_mock = mocker.patch(
+        "prescient_sdk.client.requests.get", return_value=fake_response
+    )
     boto_mock = mocker.patch("boto3.client")
 
     client = PrescientClient()
