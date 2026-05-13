@@ -104,6 +104,13 @@ def upload(
 
     prescient_client = prescient_client or PrescientClient()
 
+    bucket = prescient_client.settings.prescient_upload_bucket
+    if not bucket:
+        raise ValueError(
+            "prescient_upload_bucket is not configured; set PRESCIENT_UPLOAD_BUCKET "
+            "to upload files."
+        )
+
     files = list(iter_files(input_path, exclude=exclude))
     logger.info("found %s files to upload", len(files))
     for file in files:
@@ -111,7 +118,7 @@ def upload(
 
         _upload(
             file=str(file),
-            bucket=prescient_client.settings.prescient_upload_bucket,
+            bucket=bucket,
             key=relative_key,
             session=prescient_client.upload_session,
             overwrite=overwrite,
