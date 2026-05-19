@@ -170,6 +170,10 @@ class PrescientClient:
         """
         Get the authorization credentials for the client.
 
+        When ``prescient_api_key`` is configured, returns a static dict
+        ``{"api_key": "<key>"}`` and the IDP flow is skipped entirely. Otherwise
+        returns the IDP token response, refreshing if expired.
+
         Returns:
             dict: Token response containing at minimum::
 
@@ -179,9 +183,16 @@ class PrescientClient:
                     "access_token": "string",
                 }
 
+            or, in API-key mode::
+
+                {"api_key": "string"}
+
         Raises:
             ValueError: If a valid id_token cannot be obtained.
         """
+        if self.settings.prescient_api_key:
+            return {"api_key": self.settings.prescient_api_key}
+
         if not self.credentials_expired:
             return self._auth_credentials
 
@@ -205,11 +216,20 @@ class PrescientClient:
     @property
     def headers(self) -> dict:
         """
-        Get headers for a request, including the auth header with a bearer token.
+        Get headers for a request.
+
+        In API-key mode the key is sent as an ``http_api_key`` header. Otherwise
+        an ``Authorization: Bearer <id_token>`` header is used.
 
         Returns:
             dict: The headers.
         """
+        if self.settings.prescient_api_key:
+            return {
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "http_api_key": self.settings.prescient_api_key,
+            }
         return {
             "Content-Type": "application/json",
             "Accept": "application/json",
@@ -266,7 +286,7 @@ class PrescientClient:
         if self._bucket_credentials and not self.credentials_expired:
             return self._bucket_credentials
 
-        if self.settings.prescient_aws_role:
+        if self.settings.prescient_aws_role and not self.settings.prescient_api_key:
             self._bucket_credentials = self._fetch_sts_credentials()
         else:
             self._bucket_credentials = self._fetch_fileproxy_credentials()
@@ -319,6 +339,9 @@ class PrescientClient:
     @property
     def upload_bucket_credentials(self):
         """Get upload bucket credentials using an auth access token
+
+        Note: uploads use STS ``assume_role_with_web_identity`` which requires
+        an IDP id_token. Not supported in API-key mode.
 
         Returns:
             dict: bucket temporary credentials::
@@ -381,11 +404,14 @@ class PrescientClient:
     def credentials_expired(self) -> bool:
         """Checks to see if the client credentials have expired.
         Note: if auth credentials have expired, all credentials are considered
-        expired as they all depend on auth credentials.
+        expired as they all depend on auth credentials. In API-key mode the
+        key is static and is treated as never expiring.
 
         Returns:
             bool: True - credentials are expired, False - credentials have NOT expired.
         """
+        if self.settings.prescient_api_key:
+            return False
         if "expiration" in self._auth_credentials and (
             datetime.datetime.now(datetime.timezone.utc)
             < self._auth_credentials["expiration"]
@@ -398,11 +424,16 @@ class PrescientClient:
         """
         Will refresh all the client credentials.
 
+        In API-key mode there is nothing to refresh; the call is a no-op.
+
         param force: If True will force the creds to be refreshed.
 
         Returns:
             None
         """
+        if self.settings.prescient_api_key:
+            return
+
         if force:
             self._auth_credentials.pop("expiration")
 

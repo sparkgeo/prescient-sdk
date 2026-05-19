@@ -676,3 +676,147 @@ def test_fileproxy_credentials_cached(
 
     assert client.bucket_credentials["AccessKeyId"] == "cached_proxy_key"
     get_mock.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# API key auth tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def set_api_key_env_vars(monkeypatch: pytest.MonkeyPatch, clear_prescient_env):
+    """Minimal env for API-key mode: endpoint + api_key only, no IDP fields."""
+    monkeypatch.setenv(
+        "PRESCIENT_ENDPOINT_URL", "https://example.server.prescient.earth/"
+    )
+    monkeypatch.setenv("PRESCIENT_API_KEY", "test-api-key-value")
+
+
+def test_settings_api_key_only(set_api_key_env_vars):
+    """Settings constructs successfully with only endpoint + api_key set."""
+    client = PrescientClient()
+    assert client.settings.prescient_api_key == "test-api-key-value"
+    assert client.settings.prescient_client_id is None
+    assert client.settings.prescient_auth_url is None
+
+
+def test_settings_api_key_warns_on_aws_role(clear_prescient_env, caplog):
+    """Settings should warn (not raise) when both api_key and aws_role are set."""
+    import logging
+
+    with caplog.at_level(logging.WARNING, logger="prescient_sdk"):
+        settings = Settings(
+            prescient_endpoint_url="https://example.com",
+            prescient_api_key="key",
+            prescient_aws_role="arn:aws:iam::something",
+        )
+    assert settings.prescient_api_key == "key"
+    assert settings.prescient_aws_role == "arn:aws:iam::something"
+    assert any(
+        "prescient_aws_role will be ignored" in rec.message for rec in caplog.records
+    )
+
+
+def test_bucket_credentials_api_key_ignores_aws_role(
+    mocker: MockerFixture, monkeypatch: pytest.MonkeyPatch, clear_prescient_env
+):
+    """With both api_key and aws_role set, bucket creds come from fileproxy (STS skipped)."""
+    monkeypatch.setenv("PRESCIENT_ENDPOINT_URL", "https://example.server.prescient.earth/")
+    monkeypatch.setenv("PRESCIENT_API_KEY", "test-api-key-value")
+    monkeypatch.setenv("PRESCIENT_AWS_ROLE", "arn:aws:iam::something")
+
+    expiration_iso = (
+        datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
+    ).isoformat()
+    fake_response = MagicMock()
+    fake_response.json.return_value = {
+        "access_key_id": "proxy_key",
+        "secret_access_key": "proxy_secret",
+        "session_token": "proxy_session",
+        "expiration": expiration_iso,
+    }
+    fake_response.raise_for_status = MagicMock()
+    mocker.patch("prescient_sdk.client.requests.get", return_value=fake_response)
+    boto_mock = mocker.patch("boto3.client")
+
+    client = PrescientClient()
+    creds = client.bucket_credentials
+
+    assert creds["AccessKeyId"] == "proxy_key"
+    boto_mock.assert_not_called()
+
+
+def test_settings_without_api_key_still_requires_idp(clear_prescient_env):
+    """Without api_key, client_id and auth_url remain required."""
+    with pytest.raises(ValueError, match="prescient_client_id"):
+        Settings(
+            prescient_endpoint_url="https://example.com",
+        )
+
+
+def test_auth_credentials_api_key_mode(mocker: MockerFixture, set_api_key_env_vars):
+    """In API-key mode, auth_credentials returns a static dict and never calls IDP."""
+    msal_mock = mocker.patch("msal.PublicClientApplication")
+    google_mock = mocker.patch(
+        "google_auth_oauthlib.flow.InstalledAppFlow.from_client_config"
+    )
+
+    client = PrescientClient()
+    creds = client.auth_credentials
+
+    assert creds == {"api_key": "test-api-key-value"}
+    assert not client.credentials_expired
+    msal_mock.assert_not_called()
+    google_mock.assert_not_called()
+
+
+def test_headers_api_key_mode(set_api_key_env_vars):
+    """Headers carry http_api_key, not Authorization, in API-key mode."""
+    client = PrescientClient()
+    headers = client.headers
+
+    assert headers["http_api_key"] == "test-api-key-value"
+    assert "Authorization" not in headers
+    assert headers["Content-Type"] == "application/json"
+    assert headers["Accept"] == "application/json"
+
+
+def test_bucket_credentials_api_key_uses_fileproxy(
+    mocker: MockerFixture, set_api_key_env_vars
+):
+    """Bucket creds in API-key mode hit /fileproxy/credentials with http_api_key header."""
+    expiration_iso = (
+        datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
+    ).isoformat()
+    fake_response = MagicMock()
+    fake_response.json.return_value = {
+        "access_key_id": "proxy_key",
+        "secret_access_key": "proxy_secret",
+        "session_token": "proxy_session",
+        "expiration": expiration_iso,
+    }
+    fake_response.raise_for_status = MagicMock()
+    get_mock = mocker.patch(
+        "prescient_sdk.client.requests.get", return_value=fake_response
+    )
+    boto_mock = mocker.patch("boto3.client")
+
+    client = PrescientClient()
+    creds = client.bucket_credentials
+
+    assert creds["AccessKeyId"] == "proxy_key"
+    assert creds["SecretAccessKey"] == "proxy_secret"
+    assert creds["SessionToken"] == "proxy_session"
+    boto_mock.assert_not_called()
+
+    called_url, called_kwargs = get_mock.call_args[0][0], get_mock.call_args.kwargs
+    assert called_url == "https://example.server.prescient.earth/fileproxy/credentials"
+    assert called_kwargs["headers"]["http_api_key"] == "test-api-key-value"
+    assert "Authorization" not in called_kwargs["headers"]
+
+
+def test_refresh_credentials_force_api_key_noop(set_api_key_env_vars):
+    """refresh_credentials(force=True) is a no-op in API-key mode and does not raise."""
+    client = PrescientClient()
+    client.refresh_credentials(force=True)
+    assert client.auth_credentials == {"api_key": "test-api-key-value"}
