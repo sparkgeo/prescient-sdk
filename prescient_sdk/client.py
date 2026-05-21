@@ -228,7 +228,7 @@ class PrescientClient:
             return {
                 "Content-Type": "application/json",
                 "Accept": "application/json",
-                "http_api_key": self.settings.prescient_api_key,
+                "api-key": self.settings.prescient_api_key,
             }
         return {
             "Content-Type": "application/json",
