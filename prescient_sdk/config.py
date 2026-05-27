@@ -20,6 +20,14 @@ class Settings(BaseSettings):
         description="Base URL of the Prescient API endpoint."
     )
 
+    prescient_ingest_endpoint_url: str | None = Field(
+        default=None,
+        description=(
+            "Optional override for the Ingest API base URL. When unset, "
+            "IngestClient falls back to $prescient_endpoint_url/ingest."
+        ),
+    )
+
     prescient_auth_provider: Literal["microsoft", "google"] = Field(
         default="microsoft",
         description="OAuth2 authentication provider. Determines which provider-specific fields are required.",
