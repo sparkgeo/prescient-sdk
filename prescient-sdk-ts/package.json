@@ -51,15 +51,13 @@
     "@aws-sdk/client-s3",
     "@aws-sdk/lib-storage",
     "@azure/msal-node",
-    "google-auth-library",
-    "dotenv"
+    "google-auth-library"
   ],
   "dependencies": {
     "@aws-sdk/client-s3": "^3",
     "@aws-sdk/client-sts": "^3",
     "@aws-sdk/lib-storage": "^3",
     "@azure/msal-node": "^2",
-    "dotenv": "^16",
     "google-auth-library": "^9"
   },
   "devDependencies": {
