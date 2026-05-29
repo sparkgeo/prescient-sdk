@@ -66,9 +66,9 @@ describe('AuthCredentials', () => {
 describe('BucketCredentials', () => {
   it('holds AWS temp credential fields', () => {
     const creds: BucketCredentials = {
-      accessKeyId: 'AKIA...',
-      secretAccessKey: 'secret',
-      sessionToken: 'token',
+      accessKeyId: 'AKIAPLACEHOLDER000001',  // gitleaks:allow
+      secretAccessKey: 'FAKE_SECRET_NOT_REAL_DO_NOT_USE',  // gitleaks:allow
+      sessionToken: 'FAKE_SESSION_TOKEN_PLACEHOLDER',  // gitleaks:allow
       expiresAt: '2024-01-01T01:00:00Z',
     };
     expect(creds.accessKeyId).toMatch(/^AKIA/);
@@ -81,7 +81,7 @@ describe('RequestHeaders', () => {
     const headers: RequestHeaders = {
       contentType: 'application/json',
       accept: 'application/json',
-      authorization: 'Bearer token',
+      authorization: 'Bearer PLACEHOLDER_TOKEN',  // gitleaks:allow
     };
     expect(headers.authorization).toMatch(/^Bearer /);
   });
