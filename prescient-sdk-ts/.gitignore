@@ -1,0 +1,7 @@
+node_modules/
+dist/
+targets/
+*.js
+*.d.ts
+*.js.map
+!jest.config.js
