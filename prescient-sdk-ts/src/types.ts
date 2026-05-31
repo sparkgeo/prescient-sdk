@@ -135,8 +135,8 @@ export interface UploadOptions {
    * Path to the local directory to upload.
    * @remarks Callers are responsible for ensuring this path is within their
    * intended upload tree and does not reference sensitive system directories.
-   * The implementation resolves the path to an absolute form and rejects
-   * traversal sequences (`..`) that escape the specified root.
+   * The implementation resolves relative paths to an absolute form.
+   * Symlinks inside the directory are not followed.
    */
   readonly inputDir: string;
 

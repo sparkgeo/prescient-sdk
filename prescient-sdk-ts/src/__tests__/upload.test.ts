@@ -94,6 +94,11 @@ describe('Uploader.upload', () => {
     expect(MockUpload).toHaveBeenCalledTimes(2);
   });
 
+  it('uploads nothing for an empty directory', async () => {
+    await Uploader.upload({ inputDir: tmpDir }, client);
+    expect(MockUpload).not.toHaveBeenCalled();
+  });
+
   it('excludes files matching basename glob pattern', async () => {
     touch(tmpDir, 'keep.csv');
     touch(tmpDir, 'skip.txt');
@@ -110,6 +115,16 @@ describe('Uploader.upload', () => {
     expect(MockUpload).toHaveBeenCalledTimes(1);
     const { params } = MockUpload.mock.calls[0][0];
     expect(params.Key).toContain('keep.txt');
+  });
+
+  it('excludes files matching ** glob across multiple subdirectory levels', async () => {
+    touch(tmpDir, 'keep.csv');
+    touch(tmpDir, 'a', 'debug.log');
+    touch(tmpDir, 'a', 'b', 'deep.log');
+    await Uploader.upload({ inputDir: tmpDir, exclude: ['**/*.log'] }, client);
+    expect(MockUpload).toHaveBeenCalledTimes(1);
+    const { params } = MockUpload.mock.calls[0][0];
+    expect(params.Key).toContain('keep.csv');
   });
 
   it('excludes all files when pattern is *', async () => {
@@ -135,12 +150,37 @@ describe('Uploader.upload', () => {
     expect(MockUpload).toHaveBeenCalledTimes(1);
   });
 
+  it('uploads when overwrite is false and object is absent (NoSuchKey)', async () => {
+    touch(tmpDir, 'new.txt');
+    s3Mock
+      .on(HeadObjectCommand)
+      .rejects({ name: 'NoSuchKey', $metadata: { httpStatusCode: 404 } });
+    await Uploader.upload({ inputDir: tmpDir, overwrite: false }, client);
+    expect(MockUpload).toHaveBeenCalledTimes(1);
+  });
+
+  it('propagates non-404 HeadObject errors when overwrite is false', async () => {
+    touch(tmpDir, 'file.txt');
+    s3Mock
+      .on(HeadObjectCommand)
+      .rejects({ name: 'AccessDenied', $metadata: { httpStatusCode: 403 } });
+    await expect(Uploader.upload({ inputDir: tmpDir, overwrite: false }, client)).rejects.toMatchObject(
+      { name: 'AccessDenied' },
+    );
+  });
+
   it('overwrites by default (overwrite omitted)', async () => {
     touch(tmpDir, 'file.txt');
     // HeadObject not called at all — skip check entirely
     await Uploader.upload({ inputDir: tmpDir }, client);
     expect(s3Mock.calls()).toHaveLength(0);
     expect(MockUpload).toHaveBeenCalledTimes(1);
+  });
+
+  it('throws when inputDir is empty string', async () => {
+    await expect(
+      Uploader.upload({ inputDir: '' }, client),
+    ).rejects.toThrow('inputDir must not be empty');
   });
 
   it('throws when inputDir does not exist', async () => {
@@ -157,7 +197,6 @@ describe('Uploader.upload', () => {
       tenantId: 'tenant-id',
       uploadRole: 'arn:aws:iam::123456789012:role/upload-role',
     });
-    jest.spyOn(noBucketClient, 'uploadBucketCredentials').mockResolvedValue(MOCK_CREDS);
     touch(tmpDir, 'file.txt');
     await expect(Uploader.upload({ inputDir: tmpDir }, noBucketClient)).rejects.toThrow(
       'uploadBucket is not configured',
