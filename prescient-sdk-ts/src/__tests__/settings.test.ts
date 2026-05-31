@@ -1,3 +1,6 @@
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 import { Settings } from '../settings';
 import { AuthProvider } from '../types';
 
@@ -219,6 +222,134 @@ describe('Settings — toJSON', () => {
       expect(json['_googleClientSecret']).toBeUndefined();
       expect(json['endpointUrl']).toBe('https://api.example.com');
     });
+  });
+});
+
+describe('Settings — envFile loading', () => {
+  let tmpFile: string;
+
+  function writeTmpEnvFile(contents: string): string {
+    tmpFile = path.join(os.tmpdir(), `prescient-test-${process.pid}.env`);
+    fs.writeFileSync(tmpFile, contents, 'utf-8');
+    return tmpFile;
+  }
+
+  afterEach(() => {
+    if (tmpFile) {
+      try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
+    }
+  });
+
+  it('loads required fields from envFile', () => {
+    const f = writeTmpEnvFile([
+      'PRESCIENT_ENDPOINT_URL=https://api.example.com',
+      'PRESCIENT_CLIENT_ID=file-client',
+      'PRESCIENT_AUTH_URL=https://auth.example.com',
+      'PRESCIENT_TENANT_ID=file-tenant',
+    ].join('\n'));
+    const s = new Settings({ envFile: f });
+    expect(s.endpointUrl).toBe('https://api.example.com');
+    expect(s.clientId).toBe('file-client');
+    expect(s.tenantId).toBe('file-tenant');
+  });
+
+  it('process env overrides envFile values', () => {
+    const f = writeTmpEnvFile([
+      'PRESCIENT_ENDPOINT_URL=https://file.example.com',
+      'PRESCIENT_CLIENT_ID=file-client',
+      'PRESCIENT_AUTH_URL=https://auth.example.com',
+      'PRESCIENT_TENANT_ID=file-tenant',
+    ].join('\n'));
+    withEnv({ PRESCIENT_ENDPOINT_URL: 'https://env.example.com' }, () => {
+      const s = new Settings({ envFile: f });
+      expect(s.endpointUrl).toBe('https://env.example.com');
+    });
+  });
+
+  it('explicit opts override envFile and process env', () => {
+    const f = writeTmpEnvFile([
+      'PRESCIENT_ENDPOINT_URL=https://file.example.com',
+      'PRESCIENT_CLIENT_ID=file-client',
+      'PRESCIENT_AUTH_URL=https://auth.example.com',
+      'PRESCIENT_TENANT_ID=file-tenant',
+    ].join('\n'));
+    withEnv({ PRESCIENT_ENDPOINT_URL: 'https://env.example.com' }, () => {
+      const s = new Settings({ ...MICROSOFT_OPTS, envFile: f });
+      expect(s.endpointUrl).toBe('https://api.example.com'); // from MICROSOFT_OPTS
+      expect(s.clientId).toBe('client-id');                  // from MICROSOFT_OPTS
+    });
+  });
+
+  it('loads PRESCIENT_GOOGLE_CLIENT_SECRET from envFile into _googleClientSecret', () => {
+    const f = writeTmpEnvFile([
+      'PRESCIENT_ENDPOINT_URL=https://api.example.com',
+      'PRESCIENT_CLIENT_ID=file-client',
+      'PRESCIENT_AUTH_URL=https://auth.example.com',
+      'PRESCIENT_AUTH_PROVIDER=google',
+      'PRESCIENT_GOOGLE_CLIENT_SECRET=file-secret', // gitleaks:allow
+    ].join('\n'));
+    const s = new Settings({ envFile: f });
+    expect(s._googleClientSecret).toBe('file-secret');
+    expect(s.authProvider).toBe(AuthProvider.GOOGLE);
+  });
+
+  it('process env PRESCIENT_GOOGLE_CLIENT_SECRET overrides envFile secret', () => {
+    const f = writeTmpEnvFile([
+      'PRESCIENT_ENDPOINT_URL=https://api.example.com',
+      'PRESCIENT_CLIENT_ID=file-client',
+      'PRESCIENT_AUTH_URL=https://auth.example.com',
+      'PRESCIENT_AUTH_PROVIDER=google',
+      'PRESCIENT_GOOGLE_CLIENT_SECRET=file-secret', // gitleaks:allow
+    ].join('\n'));
+    withEnv({ PRESCIENT_GOOGLE_CLIENT_SECRET: 'env-secret' }, () => { // gitleaks:allow
+      const s = new Settings({ envFile: f });
+      expect(s._googleClientSecret).toBe('env-secret');
+    });
+  });
+
+  it('skips comments and blank lines in envFile', () => {
+    const f = writeTmpEnvFile([
+      '# This is a comment',
+      '',
+      'PRESCIENT_ENDPOINT_URL=https://api.example.com',
+      '  # Indented comment',
+      'PRESCIENT_CLIENT_ID=file-client',
+      'PRESCIENT_AUTH_URL=https://auth.example.com',
+      'PRESCIENT_TENANT_ID=file-tenant',
+    ].join('\n'));
+    const s = new Settings({ envFile: f });
+    expect(s.clientId).toBe('file-client');
+  });
+
+  it('strips surrounding quotes from envFile values', () => {
+    const f = writeTmpEnvFile([
+      'PRESCIENT_ENDPOINT_URL="https://api.example.com"',
+      "PRESCIENT_CLIENT_ID='quoted-client'",
+      'PRESCIENT_AUTH_URL=https://auth.example.com',
+      'PRESCIENT_TENANT_ID=file-tenant',
+    ].join('\n'));
+    const s = new Settings({ envFile: f });
+    expect(s.endpointUrl).toBe('https://api.example.com');
+    expect(s.clientId).toBe('quoted-client');
+  });
+
+  it('throws on nonexistent envFile path', () => {
+    expect(() =>
+      new Settings({ envFile: '/nonexistent/path/config.env' }),
+    ).toThrow('envFile not found or unreadable');
+  });
+
+  it('loads googleRedirectPort from envFile', () => {
+    const f = writeTmpEnvFile([
+      'PRESCIENT_ENDPOINT_URL=https://api.example.com',
+      'PRESCIENT_CLIENT_ID=file-client',
+      'PRESCIENT_AUTH_URL=https://auth.example.com',
+      'PRESCIENT_AUTH_PROVIDER=google',
+      'PRESCIENT_GOOGLE_CLIENT_SECRET=file-secret', // gitleaks:allow
+      'PRESCIENT_GOOGLE_REDIRECT_PORT=9999',
+    ].join('\n'));
+    const s = new Settings({ envFile: f });
+    expect(s.googleRedirectPort).toBe(9999);
   });
 });
 

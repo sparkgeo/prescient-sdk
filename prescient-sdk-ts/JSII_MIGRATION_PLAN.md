@@ -150,21 +150,22 @@ prescient-sdk/
 │   │   ├── settings.ts     ← env var loading + validation
 │   │   ├── client.ts       ← PrescientClient class
 │   │   └── upload.ts       ← upload() function
-│   │   └── __tests__/      ← Jest unit tests (64 tests)
+│   │   └── __tests__/      ← Jest unit tests (80 tests)
+│   ├── smoke-tests/        ← Docker-based multi-language smoke tests
+│   │   ├── docker-compose.yml
+│   │   ├── docker/         ← Dockerfiles (python, go, dotnet, java)
+│   │   ├── config.env      ← fake values for smoke tests
+│   │   ├── js/smoke.js
+│   │   ├── python/smoke.py
+│   │   ├── go/main.go
+│   │   ├── dotnet/smoke.csproj + src/
+│   │   └── java/pom.xml + src/
 │   ├── dist/               ← compiled JS (gitignored)
 │   ├── targets/            ← jsii-pacmak output (gitignored)
-│   ├── justfile            ← docker smoke-test runner
+│   ├── justfile            ← smoke-test runner (just docker)
 │   ├── package.json
 │   ├── pnpm-workspace.yaml ← nodeLinker: hoisted (required for bundling)
 │   └── .gitignore
-├── smoke-tests/            ← Docker-based multi-language smoke tests
-│   ├── docker-compose.yml
-│   ├── docker/             ← Dockerfiles (python, go, dotnet, java)
-│   ├── js/smoke.js
-│   ├── python/smoke.py
-│   ├── go/main.go
-│   ├── dotnet/smoke.csproj + src/
-│   └── java/pom.xml + src/
 └── (original Python SDK files — kept, not deleted)
 ```
 
@@ -223,7 +224,7 @@ prescient-sdk/
 
 ### Phase 3 — Settings ✅
 
-- [x] `src/settings.ts`: read `process.env` + optional `.env` via `dotenv`
+- [x] `src/settings.ts`: read `process.env` + explicit `PrescientClientOptions` (file loading added in Phase 8)
 - [x] `_googleClientSecret` loaded from `PRESCIENT_GOOGLE_CLIENT_SECRET` only (never in Options)
 - [x] Validate: MICROSOFT requires `tenantId`; GOOGLE requires `PRESCIENT_GOOGLE_CLIENT_SECRET`
 - [x] Unit tests: missing required fields throw, env vars override `.env`
@@ -296,68 +297,56 @@ Docker-based multi-language smoke tests. No local toolchain required beyond Dock
 - [x] `src/__tests__/upload.test.ts` — aws-sdk-client-mock for S3, file scan logic
 - [x] 64 tests, 4 suites, all passing
 
-### Phase 7 — CI/CD Pipeline
+### Phase 7 — CI/CD Pipeline ✅
 
-Update `.github/workflows/ci.yaml`:
+Two GitHub Actions workflows:
 
-```yaml
-jobs:
-  build-and-test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: '22' }
-      - uses: pnpm/action-setup@v4
-        with: { version: '11' }
-      - run: pnpm install
-      - run: pnpm run build        # jsii
-      - run: pnpm test             # jest
+**`.github/workflows/ci.yaml`** — extended with `typescript-sdk` job (build + test + package all 5 language targets on every push/PR to `jsii-migration`).
 
-  package:
-    needs: build-and-test
-    runs-on: ubuntu-latest
-    steps:
-      - run: pnpm run package      # jsii-pacmak → targets/
+**`.github/workflows/publish-sdk.yaml`** — NEW. Triggers on `v*.*.*` tags. Five publish jobs, all `needs: build`:
 
-  publish-npm:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: package
-    steps:
-      - run: pnpm publish
+| Job | Tool | Key details |
+|---|---|---|
+| `publish-npm` | `npm publish targets/js/*.tgz` | Pre-built tgz from jsii-pacmak; no source checkout needed |
+| `publish-pypi` | `twine upload targets/python/*` | Uploads wheel + sdist (`*` not `*.whl`) |
+| `publish-nuget` | `dotnet nuget push targets/dotnet/*.nupkg` | API key via `env:` not interpolated into command |
+| `publish-maven` | `publib-maven` | Handles jsii local-repo layout, injects `<distributionManagement>`, GPG-signs, promotes OSSRH staging |
+| `publish-go` | `rsync` + `git tag prescientsdk/vX.Y.Z` | Syncs to `sparkgeo/prescient-sdk-go` repo; guards against duplicate remote tags for idempotent re-runs |
 
-  publish-pypi:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: package
-    steps:
-      - uses: actions/setup-python@v5
-      - run: pip install twine && twine upload targets/python/dist/*
+Security hardening applied: all actions SHA-pinned, `permissions: {}` at top level with per-job minimums, `NUGET_API_KEY` via env var block, per-registry GitHub Actions environments with protection rules.
 
-  publish-nuget:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: package
-    steps:
-      - uses: actions/setup-dotnet@v4
-      - run: dotnet nuget push targets/dotnet/*.nupkg
+> **Infrastructure prerequisites (not yet done):**
+> - Create `sparkgeo/prescient-sdk-go` GitHub repo
+> - Configure GitHub Actions environments: `npm-production`, `pypi-jsii-production`, `nuget-production`, `maven-production`, `go-production`
+> - Add secrets: `NPM_TOKEN`, `PYPI_JSII_API_TOKEN`, `NUGET_API_KEY`, `MAVEN_USERNAME`, `MAVEN_PASSWORD`, `MAVEN_GPG_PRIVATE_KEY`, `MAVEN_GPG_PASSPHRASE`, `MAVEN_STAGING_PROFILE_ID`, `GO_DEPLOY_TOKEN`
+> - Register package namespaces: npm (`prescient-sdk`), PyPI (`prescient-sdk-sparkgeo`), NuGet (`Sparkgeo.PrescientSdk`), OSSRH (`com.sparkgeo`)
 
-  publish-maven:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: package
-    steps:
-      - uses: actions/setup-java@v4
-      - run: mvn deploy -f targets/java/pom.xml
+### Phase 8 — Multi-language Configuration Experience
 
-  publish-go:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: package
-    steps:
-      - run: |
-          cd targets/go
-          git tag && git push  # go modules published via git tags
-          # Requires sparkgeo/prescient-sdk-go repo to exist on GitHub
+**Problem:** The original Python SDK automatically loaded `config.env` from the CWD via `pydantic_settings`. The jsii TypeScript `Settings` class reads only from `process.env` — users of the jsii packages (Python/Java/.NET/Go) have no file-based config loading unless we add it in the TypeScript layer (which all languages funnel through).
+
+**Solution:** Add `envFile?: string` to `PrescientClientOptions`. When provided, Settings parses the file as `KEY=VALUE` pairs (pure TypeScript, no extra dependency) and applies values at lowest priority:
+
+```
+explicit options > process.env > envFile values > built-in defaults
 ```
 
-> **Infrastructure prerequisite:** Create `sparkgeo/prescient-sdk-go` GitHub repo for Go module publishing before running publish-go.
+`PRESCIENT_GOOGLE_CLIENT_SECRET` from the file flows into `_googleClientSecret` only — same as the env-var path. Never exposed in any public struct.
+
+**Language usage after this change:**
+
+| Language | Usage |
+|---|---|
+| TypeScript | `new PrescientClient({ envFile: 'config.env' })` |
+| Python (module: `prescient_sdk`) | `PrescientClient(env_file="config.env")` |
+| .NET | `new PrescientClient(new PrescientClientOptions { EnvFile = "config.env" })` |
+| Java | `new PrescientClient(PrescientClientOptions.builder().envFile("config.env").build())` |
+| Go | `prescientsdk.NewPrescientClient(&prescientsdk.PrescientClientOptions{EnvFile: jsii.String("config.env")})` |
+
+**Files changed:**
+- `src/types.ts` — add `readonly envFile?: string` to `PrescientClientOptions`
+- `src/settings.ts` — `parseEnvFile()` private static + constructor overlay
+- `src/__tests__/settings.test.ts` — new test cases (file loading, override order, secret from file, missing file error)
 
 ---
 
@@ -372,8 +361,9 @@ jobs:
 | 5 — Upload | 1.0 | ✅ Done |
 | 5.5 — Smoke Test Infrastructure | 1.0 | ✅ Done |
 | 6 — Tests | 1.5 | ✅ Done |
-| 7 — CI/CD | 1.0 | Not started |
-| **Total** | **~10 days** | |
+| 7 — CI/CD | 1.0 | ✅ Done (PR #50 open, infrastructure prerequisites pending) |
+| 8 — Multi-language Config Experience | 0.5 | Not started |
+| **Total** | **~10.5 days** | |
 
 ---
 

@@ -1,0 +1,3 @@
+# The root .gitignore excludes config.env (real credentials).
+# This file contains only fake test values and is intentionally tracked.
+!config.env

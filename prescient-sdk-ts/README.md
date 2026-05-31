@@ -12,6 +12,64 @@ Polyglot SDK for integrating with Prescient services. Generated from a single Ty
 | Java | Maven Central |
 | Go | GitHub |
 
+## Configuration
+
+Copy `config.env` from the repo root and fill in your credentials. The SDK reads it at lowest priority — environment variables always win.
+
+```env
+# config.env — see https://sparkgeo.github.io/prescient-sdk/config.html
+PRESCIENT_ENDPOINT_URL=https://sparkgeo.prescient.earth
+PRESCIENT_AUTH_URL=https://sparkgeo.prescient.earth/oauth2/auth
+PRESCIENT_CLIENT_ID=<your-client-id>
+PRESCIENT_AUTH_PROVIDER=microsoft        # or google
+PRESCIENT_TENANT_ID=<your-tenant-id>     # required for microsoft
+# PRESCIENT_GOOGLE_CLIENT_SECRET=...     # required for google (env var only)
+```
+
+Three ways to configure the client — all equivalent at runtime:
+
+### File-based (recommended for local development)
+
+| Language | Code |
+| --- | --- |
+| TypeScript | `new PrescientClient({ envFile: 'config.env' })` |
+| Python (jsii) | `PrescientClient(env_file="config.env")` |
+| C# / .NET | `new PrescientClient(new PrescientClientOptions { EnvFile = "config.env" })` |
+| Java | `new PrescientClient(PrescientClientOptions.builder().envFile("config.env").build())` |
+| Go | `prescientsdk.NewPrescientClient(&prescientsdk.PrescientClientOptions{EnvFile: jsii.String("config.env")})` |
+
+All languages funnel through the Node.js jsii runtime, so the file is always read in the same place — no per-language dotenv library needed.
+
+### Environment variables (recommended for CI / containers)
+
+Set `PRESCIENT_*` variables in the process environment, then call the default constructor:
+
+```typescript
+// TypeScript — same default-constructor pattern in all languages
+const client = new PrescientClient();
+```
+
+### Explicit options (useful for testing / multiple clients)
+
+```typescript
+const client = new PrescientClient({
+  endpointUrl: 'https://sparkgeo.prescient.earth',
+  clientId: 'my-client-id',
+  authUrl: 'https://sparkgeo.prescient.earth/oauth2/auth',
+  tenantId: 'my-tenant-id',
+});
+```
+
+### Priority order
+
+`explicit options` > `environment variables` > `envFile` > built-in defaults.
+
+### Security note — Google client secret
+
+`PRESCIENT_GOOGLE_CLIENT_SECRET` is intentionally absent from `PrescientClientOptions`. It must be supplied via environment variable or `envFile` — never as a constructor argument — to prevent it from appearing in jsii IPC logs when `JSII_DEBUG=1` is set.
+
+---
+
 ## Development
 
 See [JSII_MIGRATION_PLAN.md](JSII_MIGRATION_PLAN.md) for the full migration plan.

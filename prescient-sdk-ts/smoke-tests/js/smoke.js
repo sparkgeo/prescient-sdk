@@ -5,12 +5,7 @@
 // which resolves the full dep tree from the registry.
 const { PrescientClient } = require('../../prescient-sdk-ts/dist/index');
 
-const client = new PrescientClient({
-  endpointUrl: 'https://api.example.com',
-  clientId: 'test-client-id',
-  authUrl: 'https://login.microsoftonline.com',
-  tenantId: 'test-tenant-id',
-});
+const client = new PrescientClient({ envFile: '/workspace/smoke-tests/config.env' });
 
 console.log('endpointUrl    :', client.settings.endpointUrl);
 console.log('stacCatalogUrl :', client.stacCatalogUrl);

@@ -2,10 +2,7 @@ using Sparkgeo.PrescientSdk;
 
 var client = new PrescientClient(new PrescientClientOptions
 {
-    EndpointUrl = "https://api.example.com",
-    ClientId = "test-client-id",
-    AuthUrl = "https://login.microsoftonline.com",
-    TenantId = "test-tenant-id",
+    EnvFile = "/workspace/smoke-tests/config.env",
 });
 
 Console.WriteLine($"EndpointUrl    : {client.Settings.EndpointUrl}");

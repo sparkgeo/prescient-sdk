@@ -7,10 +7,7 @@ public class SmokeTest {
     public static void main(String[] args) {
         PrescientClient client = new PrescientClient(
             PrescientClientOptions.builder()
-                .endpointUrl("https://api.example.com")
-                .clientId("test-client-id")
-                .authUrl("https://login.microsoftonline.com")
-                .tenantId("test-tenant-id")
+                .envFile("/workspace/smoke-tests/config.env")
                 .build()
         );
 

@@ -1,12 +1,18 @@
+import * as fs from 'fs';
 import { AuthProvider, PrescientClientOptions } from './types';
 
 /**
  * Resolved, validated settings for PrescientClient.
  *
- * Constructed either from a {@link PrescientClientOptions} struct or from
- * `PRESCIENT_*` environment variables (falling back to a `config.env` file
- * if `dotenv` is loaded by the consumer). Validation enforces HTTPS on all
- * URL fields and requires provider-specific fields.
+ * Constructed from {@link PrescientClientOptions}, `PRESCIENT_*` environment
+ * variables, and/or a `config.env` file (via `opts.envFile`). Validation
+ * enforces HTTPS on all URL fields and requires provider-specific fields.
+ *
+ * Resolution priority (highest first):
+ * 1. Explicit `PrescientClientOptions` fields
+ * 2. `PRESCIENT_*` environment variables
+ * 3. `envFile` values (if `opts.envFile` is set)
+ * 4. Built-in defaults
  *
  * Environment variable → field mapping:
  * ```
@@ -39,26 +45,70 @@ export class Settings {
 
   constructor(opts?: PrescientClientOptions) {
     const env = process.env;
+    const fileEnv: Record<string, string> = opts?.envFile
+      ? Settings.parseEnvFile(opts.envFile)
+      : {};
 
-    this.endpointUrl = opts?.endpointUrl ?? env['PRESCIENT_ENDPOINT_URL'] ?? '';
+    this.endpointUrl =
+      opts?.endpointUrl ?? env['PRESCIENT_ENDPOINT_URL'] ?? fileEnv['PRESCIENT_ENDPOINT_URL'] ?? '';
     this.authProvider = resolveAuthProvider(
       opts?.authProvider,
       env['PRESCIENT_AUTH_PROVIDER'],
+      fileEnv['PRESCIENT_AUTH_PROVIDER'],
     );
-    this.clientId = opts?.clientId ?? env['PRESCIENT_CLIENT_ID'] ?? '';
-    this.authUrl = opts?.authUrl ?? env['PRESCIENT_AUTH_URL'] ?? '';
-    this.tenantId = opts?.tenantId ?? env['PRESCIENT_TENANT_ID'];
-    this._googleClientSecret = env['PRESCIENT_GOOGLE_CLIENT_SECRET'];
+    this.clientId =
+      opts?.clientId ?? env['PRESCIENT_CLIENT_ID'] ?? fileEnv['PRESCIENT_CLIENT_ID'] ?? '';
+    this.authUrl =
+      opts?.authUrl ?? env['PRESCIENT_AUTH_URL'] ?? fileEnv['PRESCIENT_AUTH_URL'] ?? '';
+    this.tenantId =
+      opts?.tenantId ?? env['PRESCIENT_TENANT_ID'] ?? fileEnv['PRESCIENT_TENANT_ID'];
+    this._googleClientSecret =
+      env['PRESCIENT_GOOGLE_CLIENT_SECRET'] ?? fileEnv['PRESCIENT_GOOGLE_CLIENT_SECRET'];
     this.googleRedirectPort = resolvePort(
       opts?.googleRedirectPort,
       env['PRESCIENT_GOOGLE_REDIRECT_PORT'],
+      fileEnv['PRESCIENT_GOOGLE_REDIRECT_PORT'],
     );
-    this.awsRole = opts?.awsRole ?? env['PRESCIENT_AWS_ROLE'];
-    this.awsRegion = opts?.awsRegion ?? env['PRESCIENT_AWS_REGION'];
-    this.uploadRole = opts?.uploadRole ?? env['PRESCIENT_UPLOAD_ROLE'];
-    this.uploadBucket = opts?.uploadBucket ?? env['PRESCIENT_UPLOAD_BUCKET'];
+    this.awsRole = opts?.awsRole ?? env['PRESCIENT_AWS_ROLE'] ?? fileEnv['PRESCIENT_AWS_ROLE'];
+    this.awsRegion =
+      opts?.awsRegion ?? env['PRESCIENT_AWS_REGION'] ?? fileEnv['PRESCIENT_AWS_REGION'];
+    this.uploadRole =
+      opts?.uploadRole ?? env['PRESCIENT_UPLOAD_ROLE'] ?? fileEnv['PRESCIENT_UPLOAD_ROLE'];
+    this.uploadBucket =
+      opts?.uploadBucket ?? env['PRESCIENT_UPLOAD_BUCKET'] ?? fileEnv['PRESCIENT_UPLOAD_BUCKET'];
 
     this.validate();
+  }
+
+  /**
+   * Parses a `KEY=VALUE` env file. Lines starting with `#` and blank lines
+   * are skipped. Values may optionally be wrapped in single or double quotes.
+   */
+  private static parseEnvFile(filePath: string): Record<string, string> {
+    let content: string;
+    try {
+      content = fs.readFileSync(filePath, 'utf-8');
+    } catch {
+      throw new Error(`envFile not found or unreadable: "${filePath}". Check the path and try again.`);
+    }
+    const result: Record<string, string> = {};
+    for (const line of content.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eqIdx = trimmed.indexOf('=');
+      if (eqIdx === -1) continue;
+      const key = trimmed.slice(0, eqIdx).trim();
+      if (!key) continue;
+      let value = trimmed.slice(eqIdx + 1).trim();
+      if (
+        (value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))
+      ) {
+        value = value.slice(1, -1);
+      }
+      result[key] = value;
+    }
+    return result;
   }
 
   private validate(): void {
@@ -130,29 +180,36 @@ export class Settings {
 function resolveAuthProvider(
   fromOpts: AuthProvider | undefined,
   fromEnv: string | undefined,
+  fromFile: string | undefined,
 ): AuthProvider {
   if (fromOpts !== undefined) return fromOpts;
-  if (fromEnv === undefined) return AuthProvider.MICROSOFT;
-  const lower = fromEnv.toLowerCase();
+  const raw = fromEnv ?? fromFile;
+  if (raw === undefined) return AuthProvider.MICROSOFT;
+  const lower = raw.toLowerCase();
   if (lower === 'google') return AuthProvider.GOOGLE;
   if (lower === 'microsoft') return AuthProvider.MICROSOFT;
   throw new Error(
-    `Invalid PRESCIENT_AUTH_PROVIDER value "${fromEnv}". Must be "microsoft" or "google".`,
+    `Invalid PRESCIENT_AUTH_PROVIDER value "${raw}". Must be "microsoft" or "google".`,
   );
 }
 
-function resolvePort(fromOpts: number | undefined, fromEnv: string | undefined): number {
+function resolvePort(
+  fromOpts: number | undefined,
+  fromEnv: string | undefined,
+  fromFile: string | undefined,
+): number {
   if (fromOpts !== undefined) {
     if (!Number.isInteger(fromOpts) || fromOpts < 1 || fromOpts > 65535) {
       throw new Error(`googleRedirectPort must be an integer 1–65535. Received: ${fromOpts}.`);
     }
     return fromOpts;
   }
-  if (fromEnv === undefined) return 8765;
-  const n = parseInt(fromEnv, 10);
-  if (isNaN(n) || n < 1 || n > 65535 || String(n) !== fromEnv.trim()) {
+  const raw = fromEnv ?? fromFile;
+  if (raw === undefined) return 8765;
+  const n = parseInt(raw, 10);
+  if (isNaN(n) || n < 1 || n > 65535 || String(n) !== raw.trim()) {
     throw new Error(
-      `Invalid PRESCIENT_GOOGLE_REDIRECT_PORT value "${fromEnv}". Must be an integer 1–65535.`,
+      `Invalid PRESCIENT_GOOGLE_REDIRECT_PORT value "${raw}". Must be an integer 1–65535.`,
     );
   }
   return n;
