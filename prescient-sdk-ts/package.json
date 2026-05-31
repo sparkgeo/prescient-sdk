@@ -7,7 +7,7 @@
   "scripts": {
     "build": "jsii",
     "build:watch": "jsii --watch",
-    "package": "jsii-pacmak",
+    "package": "jsii-pacmak --pack-command 'npm pack --ignore-scripts'",
     "test": "jest"
   },
   "author": {
