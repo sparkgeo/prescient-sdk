@@ -71,6 +71,8 @@ export interface AuthCredentials {
    *
    * @remarks **Security:** Do not log this value. For Google OAuth2 it is
    * issued only once at initial consent — if leaked the user must re-authorize.
+   * jsii serialises all public struct fields as JSON across the IPC boundary;
+   * enabling `JSII_DEBUG=1` will expose this token in plaintext logs.
    * Prefer keeping this token in private client state rather than exposing it
    * to consumer code.
    */

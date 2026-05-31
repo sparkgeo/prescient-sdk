@@ -70,7 +70,10 @@
     "ts-jest": "^29",
     "typescript": "~5.9"
   },
-  "packageManager": "pnpm@11.1.2",
+  "engines": {
+    "node": ">=18"
+  },
+  "packageManager": "pnpm@11.5.0",
   "keywords": [
     "prescient",
     "sparkgeo",
