@@ -168,3 +168,17 @@ config.yaml
 
 # vscode
 .vscode/
+
+# Node.js / TypeScript (prescient-sdk-ts)
+node_modules/
+prescient-sdk-ts/targets/
+prescient-sdk-ts/.jsii
+prescient-sdk-ts/tsconfig.json
+
+# Secrets (additional patterns)
+.env.*
+*.env
+
+# Smoke test build artifacts
+smoke-tests/dotnet/obj/
+smoke-tests/dotnet/bin/

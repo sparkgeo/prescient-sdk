@@ -54,6 +54,10 @@ Replace the Python-only SDK with a polyglot SDK that publishes idiomatic package
 - Behavioral interfaces prefixed with `I`; structs must not be
 - All non-jsii dependencies in `bundledDependencies`
 
+### Security decisions
+
+- `googleClientSecret` is **not** in `PrescientClientOptions` and never appears in any jsii struct. It must be supplied via `PRESCIENT_GOOGLE_CLIENT_SECRET` environment variable only. Reason: jsii serialises all public struct fields as JSON across the IPC boundary; a struct field would expose the secret in `JSII_DEBUG=1` logs and in consumer code.
+
 ---
 
 ## Public API
@@ -61,33 +65,37 @@ Replace the Python-only SDK with a polyglot SDK that publishes idiomatic package
 ```typescript
 // types.ts — all public structs (behavior-free, readonly)
 
+export enum AuthProvider {
+  MICROSOFT = 'microsoft',
+  GOOGLE = 'google',
+}
+
 export interface PrescientClientOptions {
-  readonly envFile?: string;
-  readonly endpointUrl?: string;
-  readonly authProvider?: 'microsoft' | 'google';
-  readonly clientId?: string;
-  readonly authUrl?: string;
-  readonly tenantId?: string;
-  readonly googleClientSecret?: string;
-  readonly googleRedirectPort?: number;
+  readonly endpointUrl: string;          // required — HTTPS only
+  readonly clientId: string;             // required
+  readonly authUrl: string;              // required — HTTPS only
+  readonly authProvider?: AuthProvider;  // default MICROSOFT
+  readonly tenantId?: string;            // required for MICROSOFT
+  readonly googleRedirectPort?: number;  // default 8765
   readonly awsRole?: string;
   readonly awsRegion?: string;
   readonly uploadRole?: string;
   readonly uploadBucket?: string;
+  // googleClientSecret intentionally absent — use PRESCIENT_GOOGLE_CLIENT_SECRET env var
 }
 
 export interface AuthCredentials {
   readonly idToken: string;
   readonly refreshToken?: string;
   readonly accessToken?: string;
-  readonly expiration: string; // ISO 8601
+  readonly expiresAt: string; // ISO 8601
 }
 
 export interface BucketCredentials {
   readonly accessKeyId: string;
   readonly secretAccessKey: string;
   readonly sessionToken: string;
-  readonly expiration: string; // ISO 8601
+  readonly expiresAt: string; // ISO 8601
 }
 
 export interface RequestHeaders {
@@ -97,6 +105,7 @@ export interface RequestHeaders {
 }
 
 export interface UploadOptions {
+  readonly inputDir: string;
   readonly exclude?: string[];
   readonly overwrite?: boolean;
 }
@@ -123,8 +132,7 @@ export class PrescientClient {
 // upload.ts
 
 export function upload(
-  inputDir: string,
-  options?: UploadOptions,
+  options: UploadOptions,
   client?: PrescientClient,
 ): void
 ```
@@ -135,21 +143,29 @@ export function upload(
 
 ```
 prescient-sdk/
-├── src/
-│   ├── index.ts        ← re-exports everything public
-│   ├── types.ts        ← all public structs/interfaces
-│   ├── settings.ts     ← env var loading + validation
-│   ├── client.ts       ← PrescientClient class
-│   └── upload.ts       ← upload() function
-├── test/
-│   ├── client.test.ts
-│   ├── settings.test.ts
-│   └── upload.test.ts
-├── dist/               ← compiled JS (gitignored)
-├── targets/            ← jsii-pacmak output (gitignored)
-├── package.json
-├── tsconfig.json       ← jsii-managed (do not edit manually)
-└── .gitignore
+├── prescient-sdk-ts/       ← TypeScript source (jsii)
+│   ├── src/
+│   │   ├── index.ts        ← re-exports everything public
+│   │   ├── types.ts        ← all public structs/interfaces
+│   │   ├── settings.ts     ← env var loading + validation
+│   │   ├── client.ts       ← PrescientClient class
+│   │   └── upload.ts       ← upload() function
+│   │   └── __tests__/      ← Jest unit tests (64 tests)
+│   ├── dist/               ← compiled JS (gitignored)
+│   ├── targets/            ← jsii-pacmak output (gitignored)
+│   ├── justfile            ← docker smoke-test runner
+│   ├── package.json
+│   ├── pnpm-workspace.yaml ← nodeLinker: hoisted (required for bundling)
+│   └── .gitignore
+├── smoke-tests/            ← Docker-based multi-language smoke tests
+│   ├── docker-compose.yml
+│   ├── docker/             ← Dockerfiles (python, go, dotnet, java)
+│   ├── js/smoke.js
+│   ├── python/smoke.py
+│   ├── go/main.go
+│   ├── dotnet/smoke.csproj + src/
+│   └── java/pom.xml + src/
+└── (original Python SDK files — kept, not deleted)
 ```
 
 ---
@@ -160,145 +176,127 @@ prescient-sdk/
 {
   "name": "prescient-sdk",
   "version": "1.0.0",
-  "description": "Polyglot SDK for integrating with Prescient services",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
   "scripts": {
     "build": "jsii",
     "build:watch": "jsii --watch",
     "package": "jsii-pacmak",
     "test": "jest"
   },
-  "stability": "stable",
   "jsii": {
     "outdir": "targets",
     "targets": {
-      "python": {
-        "distName": "prescient-sdk",
-        "module": "prescient_sdk"
-      },
-      "dotnet": {
-        "namespace": "Sparkgeo.PrescientSdk",
-        "packageId": "Sparkgeo.PrescientSdk"
-      },
-      "java": {
-        "package": "com.sparkgeo.prescient",
-        "maven": {
-          "groupId": "com.sparkgeo",
-          "artifactId": "prescient-sdk"
-        }
-      },
-      "go": {
-        "moduleName": "github.com/sparkgeo/prescient-sdk-go"
-      }
-    },
-    "tsc": {
-      "outDir": "dist"
+      "python": { "distName": "prescient-sdk-sparkgeo", "module": "prescient_sdk_sparkgeo" },
+      "dotnet": { "namespace": "Sparkgeo.PrescientSdk", "packageId": "Sparkgeo.PrescientSdk" },
+      "java": { "package": "com.sparkgeo.prescient", "maven": { "groupId": "com.sparkgeo", "artifactId": "prescient-sdk" } },
+      "go": { "moduleName": "github.com/sparkgeo/prescient-sdk-go" }
     }
   },
   "bundledDependencies": [
-    "@aws-sdk/client-sts",
-    "@aws-sdk/client-s3",
-    "@aws-sdk/lib-storage",
-    "@azure/msal-node",
-    "google-auth-library",
-    "dotenv"
-  ],
-  "dependencies": {
-    "@aws-sdk/client-sts": "^3",
-    "@aws-sdk/client-s3": "^3",
-    "@aws-sdk/lib-storage": "^3",
-    "@azure/msal-node": "^2",
-    "google-auth-library": "^9",
-    "dotenv": "^16"
-  },
-  "devDependencies": {
-    "@types/node": "^18",
-    "aws-sdk-client-mock": "^4",
-    "jest": "^29",
-    "jsii": "^5",
-    "jsii-pacmak": "^1",
-    "ts-jest": "^29",
-    "typescript": "~5.4"
-  }
+    "@aws-sdk/client-sts", "@aws-sdk/client-s3", "@aws-sdk/lib-storage",
+    "@azure/msal-node", "google-auth-library"
+  ]
 }
 ```
+
+> **pnpm note:** `pnpm-workspace.yaml` must contain `nodeLinker: hoisted` so that `pnpm install` places all transitive dependencies at the root `node_modules/`, making them visible to `jsii-pacmak` when it builds the tgz. Without this, only direct deps are bundled (~8 packages vs ~54).
 
 ---
 
 ## Implementation Phases
 
-### Phase 1 — Scaffold (0.5 days)
+### Phase 1 — Scaffold ✅
 
-- [ ] Delete existing Python source (`prescient_sdk/`, `tests/`, `pyproject.toml`, `uv.lock`)
-- [ ] `npm init` + install `jsii`, `jsii-pacmak` as devDeps
-- [ ] Run `npx jsii-config` or manually author `package.json` jsii block (see above)
-- [ ] Create `src/index.ts`, `src/types.ts` (empty shells)
-- [ ] Verify `npx jsii` compiles clean on empty project
+- [x] Keep existing Python source at repo root (not deleted — new dir approach)
+- [x] Create `prescient-sdk-ts/` directory
+- [x] Install `jsii`, `jsii-pacmak` as devDeps via pnpm
+- [x] Author `package.json` jsii block
+- [x] Create `src/index.ts`, `src/types.ts` (shells)
+- [x] Verify `jsii` compiles clean
 
-### Phase 2 — Types (0.5 days)
+### Phase 2 — Types ✅
 
-- [ ] Write all structs/interfaces in `src/types.ts`
-- [ ] Export all from `src/index.ts`
-- [ ] Verify jsii accepts every type (no index signatures, no unions as return types)
+- [x] Write all structs/interfaces in `src/types.ts`
+- [x] `AuthProvider` enum
+- [x] Export all from `src/index.ts`
+- [x] `googleClientSecret` absent from `PrescientClientOptions` (env var only)
+- [x] Verify jsii accepts every type
 
-### Phase 3 — Settings (0.5 days)
+### Phase 3 — Settings ✅
 
-- [ ] `src/settings.ts`: read `process.env` + optional `.env` file via `dotenv`
-- [ ] Validate: `microsoft` provider requires `tenantId`; `google` requires `googleClientSecret`
-- [ ] Return validated `PrescientClientOptions` — not a class, internal helper only
-- [ ] Unit tests: missing required fields throw, env vars override `.env`
+- [x] `src/settings.ts`: read `process.env` + optional `.env` via `dotenv`
+- [x] `_googleClientSecret` loaded from `PRESCIENT_GOOGLE_CLIENT_SECRET` only (never in Options)
+- [x] Validate: MICROSOFT requires `tenantId`; GOOGLE requires `PRESCIENT_GOOGLE_CLIENT_SECRET`
+- [x] Unit tests: missing required fields throw, env vars override `.env`
 
-### Phase 4 — PrescientClient (4 days)
+### Phase 4 — PrescientClient ✅
 
-#### 4a — Microsoft auth (1 day)
-- `@azure/msal-node` `PublicClientApplication`
-- `acquireTokenInteractive()` for first login (opens browser)
-- `acquireTokenByRefreshToken()` for cached refresh token
-- Map response → `AuthCredentials` struct
+#### 4a — Microsoft auth ✅
+- [x] `@azure/msal-node` `PublicClientApplication`
+- [x] `acquireTokenInteractive()` for first login
+- [x] `acquireTokenByRefreshToken()` for cached refresh token
+- [x] Map response → `AuthCredentials` struct
 
-#### 4b — Google auth (1.5 days)
-- `google-auth-library` `OAuth2Client`
-- First login: spin up local HTTP server on `googleRedirectPort`, redirect user to consent URL, capture auth code, exchange for tokens
-- Refresh: `credentials.refreshAccessToken()`
-- Map response → `AuthCredentials` struct
+#### 4b — Google auth ✅
+- [x] `google-auth-library` `OAuth2Client`
+- [x] First login: local HTTP server on `googleRedirectPort`, capture auth code, exchange for tokens
+- [x] Refresh: `credentials.refreshAccessToken()`
+- [x] Map response → `AuthCredentials` struct
 
-  > Note: This is more involved than Python's `InstalledAppFlow.run_local_server()`.
-  > Requires a manual `http.createServer` + Promise wrapper for the auth code callback.
+#### 4c — AWS STS + fileproxy ✅
+- [x] `@aws-sdk/client-sts` `STSClient` + `AssumeRoleWithWebIdentityCommand`
+- [x] fileproxy: `fetch(endpointUrl + 'fileproxy/credentials')` → `BucketCredentials`
+- [x] Map STS response → `BucketCredentials`
 
-#### 4c — AWS STS + fileproxy (0.5 days)
-- `@aws-sdk/client-sts` `STSClient` + `AssumeRoleWithWebIdentityCommand`
-- fileproxy: `fetch(endpointUrl + 'fileproxy/credentials')` → map snake_case → `BucketCredentials`
-- Map STS response → `BucketCredentials` (PascalCase → camelCase)
+#### 4d — Credential caching + expiry ✅
+- [x] `credentialsExpired`: compare `Date.now()` against `expiresAt` (parsed ISO string)
+- [x] `authCredentials` property: lazy init, re-fetch on expiry
+- [x] `bucketCredentials` + `uploadBucketCredentials`: same pattern
+- [x] `refreshCredentials(force?)`: clear expiration, re-fetch all
 
-#### 4d — Credential caching + expiry (0.5 days)
-- `credentialsExpired`: compare `Date.now()` against `AuthCredentials.expiration` (parsed ISO string)
-- `authCredentials` property: lazy init, re-fetch on expiry
-- `bucketCredentials` + `uploadBucketCredentials`: same pattern
-- `refreshCredentials(force?)`: clear expiration, re-fetch all
+#### 4e — Helpers ✅
+- [x] `stacCatalogUrl`: `new URL('stac', endpointUrl).href`
+- [x] `headers`: derive from `authCredentials.idToken`
 
-#### 4e — Helpers (0.5 days)
-- `stacCatalogUrl`: `new URL('stac', endpointUrl).href`
-- `headers`: derive from `authCredentials.idToken`
+### Phase 5 — Upload ✅
 
-### Phase 5 — Upload (1 day)
+- [x] Recursive file scan via Node.js `fs` (no extra dep)
+- [x] `_makeS3Key()`: ported from Python logic
+- [x] `overwrite=false`: `HeadObjectCommand` check before upload
+- [x] Upload: `@aws-sdk/lib-storage` `Upload` (multipart)
+- [x] `upload()` function accepts `UploadOptions`, optional `PrescientClient`
+- [x] Unit tests: mock S3 with `aws-sdk-client-mock`
 
-- [ ] Recursive file scan: `fast-glob` (bundled) or Node.js `fs.readdirSync` recursive
-- [ ] `_makeS3Key()`: port Python logic exactly
-- [ ] `overwrite=false`: `HeadObjectCommand` check before upload
-- [ ] Upload: `@aws-sdk/lib-storage` `Upload` (handles multipart automatically)
-- [ ] `upload()` function: accepts `inputDir`, `UploadOptions`, optional `PrescientClient`
-- [ ] Unit tests: mock S3 client with `aws-sdk-client-mock`
+### Phase 5.5 — Smoke Test Infrastructure ✅
 
-### Phase 6 — Tests (1.5 days)
+Docker-based multi-language smoke tests. No local toolchain required beyond Docker.
 
-- [ ] Jest config (`jest.config.js`) with `ts-jest` transform
-- [ ] `client.test.ts`: mock `msal-node` + `google-auth-library` + STS client
-- [ ] `settings.test.ts`: env var loading, validation errors
-- [ ] `upload.test.ts`: `aws-sdk-client-mock` for S3, file scan logic
-- [ ] CI smoke tests: instantiate generated Python client in a separate test job
+- [x] `smoke-tests/docker-compose.yml` — 5 services (js, python, go, dotnet, java)
+- [x] `smoke-tests/docker/Dockerfile.python` — `python:3.12-slim` + node binary from `node:22-slim`
+- [x] `smoke-tests/docker/Dockerfile.go` — `golang:1.25` + node binary from `node:22-slim`
+- [x] `smoke-tests/docker/Dockerfile.dotnet` — `mcr.microsoft.com/dotnet/sdk:10.0` + node binary
+- [x] `smoke-tests/docker/Dockerfile.java` — `maven:3.9-eclipse-temurin-21` + node binary
+- [x] `smoke-tests/js/smoke.js` — JS smoke test
+- [x] `smoke-tests/python/smoke.py` — Python smoke test
+- [x] `smoke-tests/go/main.go` — Go smoke test
+- [x] `smoke-tests/dotnet/` — C# smoke test
+- [x] `smoke-tests/java/` — Java smoke test
+- [x] `prescient-sdk-ts/justfile` — `just docker` runs all 5; `just docker-build` rebuilds images
+- [x] `prescient-sdk-ts/pnpm-workspace.yaml` — `nodeLinker: hoisted` (54 packages bundled)
+- [x] `network_mode: host` on all containers — Docker bridge has no internet routing on this host
+- [x] All 5 language smoke tests passing
 
-### Phase 7 — CI/CD Pipeline (1 day)
+> **jsii runtime note:** All non-JS language runtimes (Python, Go, .NET, Java) spawn a `node` subprocess at runtime. Every container therefore needs Node.js alongside the primary language toolchain. Node binary is copied directly from `node:22-slim` to avoid apt-get/apk DNS failures during build.
+
+### Phase 6 — Tests ✅
+
+- [x] Jest config with `ts-jest` transform
+- [x] `src/__tests__/client.test.ts` — mock msal-node + google-auth-library + STS
+- [x] `src/__tests__/settings.test.ts` — env var loading, validation errors, secret exclusion from JSON
+- [x] `src/__tests__/types.test.ts` — struct shapes, googleClientSecret absence
+- [x] `src/__tests__/upload.test.ts` — aws-sdk-client-mock for S3, file scan logic
+- [x] 64 tests, 4 suites, all passing
+
+### Phase 7 — CI/CD Pipeline
 
 Update `.github/workflows/ci.yaml`:
 
@@ -309,22 +307,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: '20' }
-      - run: npm ci
-      - run: npm run build        # npx jsii
-      - run: npm test             # jest
+        with: { node-version: '22' }
+      - uses: pnpm/action-setup@v4
+        with: { version: '11' }
+      - run: pnpm install
+      - run: pnpm run build        # jsii
+      - run: pnpm test             # jest
 
   package:
     needs: build-and-test
     runs-on: ubuntu-latest
     steps:
-      - run: npm run package      # npx jsii-pacmak → targets/
+      - run: pnpm run package      # jsii-pacmak → targets/
 
   publish-npm:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: package
     steps:
-      - run: npm publish
+      - run: pnpm publish
 
   publish-pypi:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -353,23 +353,27 @@ jobs:
     steps:
       - run: |
           cd targets/go
-          git tag && git push  # go modules are published via git tags
+          git tag && git push  # go modules published via git tags
+          # Requires sparkgeo/prescient-sdk-go repo to exist on GitHub
 ```
+
+> **Infrastructure prerequisite:** Create `sparkgeo/prescient-sdk-go` GitHub repo for Go module publishing before running publish-go.
 
 ---
 
 ## Effort Summary
 
-| Phase | Days |
-|---|---|
-| 1 — Scaffold | 0.5 |
-| 2 — Types | 0.5 |
-| 3 — Settings | 0.5 |
-| 4 — PrescientClient | 4.0 |
-| 5 — Upload | 1.0 |
-| 6 — Tests | 1.5 |
-| 7 — CI/CD | 1.0 |
-| **Total** | **~9 days** |
+| Phase | Days | Status |
+|---|---|---|
+| 1 — Scaffold | 0.5 | ✅ Done |
+| 2 — Types | 0.5 | ✅ Done |
+| 3 — Settings | 0.5 | ✅ Done |
+| 4 — PrescientClient | 4.0 | ✅ Done |
+| 5 — Upload | 1.0 | ✅ Done |
+| 5.5 — Smoke Test Infrastructure | 1.0 | ✅ Done |
+| 6 — Tests | 1.5 | ✅ Done |
+| 7 — CI/CD | 1.0 | Not started |
+| **Total** | **~10 days** | |
 
 ---
 
@@ -378,17 +382,16 @@ jobs:
 - `session` property removed — use `bucketCredentials` + language-native AWS SDK
 - `upload_session` property removed — same
 - `auth_credentials` / `bucket_credentials` return typed structs, not dicts
-- Python import path unchanged (`import prescient_sdk`) but internals differ
+- Python import path: `prescient_sdk_sparkgeo` (was `prescient_sdk`)
 - `Path` objects no longer accepted — use `str` / `string`
+- `googleClientSecret` never accepted as a constructor argument — use env var
 
 ---
 
 ## Prerequisites
 
-Before starting Phase 1, ensure available locally:
+Before starting Phase 7:
 
-- Node.js 18, 20, or 22
-- .NET ≥ 6.0 (for dotnet target)
-- Go ≥ 1.21 (for go target)
-- JDK ≥ 8 + Maven ≥ 3.6 (for java target)
-- Python ≥ 3.9 (for python target smoke tests)
+- Create `sparkgeo/prescient-sdk-go` GitHub repo for Go module publishing
+- Configure npm, PyPI, NuGet, and Maven credentials in GitHub Actions secrets
+- Node.js 22, pnpm 11 available in CI
