@@ -68,6 +68,7 @@ export class Settings {
       );
     }
     assertHttps(this.endpointUrl, 'endpointUrl');
+    assertNotSsrf(this.endpointUrl, 'endpointUrl');
 
     if (!this.clientId) {
       throw new Error(
@@ -81,6 +82,7 @@ export class Settings {
       );
     }
     assertHttps(this.authUrl, 'authUrl');
+    assertNotSsrf(this.authUrl, 'authUrl');
 
     if (this.authProvider === AuthProvider.MICROSOFT && !this.tenantId) {
       throw new Error(
@@ -94,6 +96,34 @@ export class Settings {
         'PRESCIENT_GOOGLE_CLIENT_SECRET env var is required when authProvider is GOOGLE.',
       );
     }
+
+    if (this.awsRole !== undefined) {
+      if (!this.awsRole.startsWith('arn:') || this.awsRole.length > 2048) {
+        throw new Error(
+          `awsRole must be a valid AWS ARN (e.g. arn:aws:iam::123456789012:role/MyRole). ` +
+            `Received: "${this.awsRole}".`,
+        );
+      }
+    }
+  }
+
+  /**
+   * Returns a JSON-safe representation that excludes `_googleClientSecret`.
+   * Called automatically by `JSON.stringify()`.
+   */
+  toJSON(): PrescientClientOptions {
+    return {
+      endpointUrl: this.endpointUrl,
+      authProvider: this.authProvider,
+      clientId: this.clientId,
+      authUrl: this.authUrl,
+      tenantId: this.tenantId,
+      googleRedirectPort: this.googleRedirectPort,
+      awsRole: this.awsRole,
+      awsRegion: this.awsRegion,
+      uploadRole: this.uploadRole,
+      uploadBucket: this.uploadBucket,
+    };
   }
 }
 
@@ -112,10 +142,15 @@ function resolveAuthProvider(
 }
 
 function resolvePort(fromOpts: number | undefined, fromEnv: string | undefined): number {
-  if (fromOpts !== undefined) return fromOpts;
+  if (fromOpts !== undefined) {
+    if (!Number.isInteger(fromOpts) || fromOpts < 1 || fromOpts > 65535) {
+      throw new Error(`googleRedirectPort must be an integer 1–65535. Received: ${fromOpts}.`);
+    }
+    return fromOpts;
+  }
   if (fromEnv === undefined) return 8765;
-  const n = Number(fromEnv);
-  if (!Number.isInteger(n) || n < 1 || n > 65535) {
+  const n = parseInt(fromEnv, 10);
+  if (isNaN(n) || n < 1 || n > 65535 || String(n) !== fromEnv.trim()) {
     throw new Error(
       `Invalid PRESCIENT_GOOGLE_REDIRECT_PORT value "${fromEnv}". Must be an integer 1–65535.`,
     );
@@ -125,9 +160,46 @@ function resolvePort(fromOpts: number | undefined, fromEnv: string | undefined):
 
 function assertHttps(url: string, field: string): void {
   if (!url.startsWith('https://')) {
+    let display: string;
+    try {
+      display = new URL(url).origin;
+    } catch {
+      display = '<invalid URL>';
+    }
     throw new Error(
-      `${field} must be an HTTPS URL. Received: "${url}". ` +
+      `${field} must be an HTTPS URL. Received: "${display}". ` +
         'HTTP is not supported — credentials would be transmitted in plaintext.',
     );
+  }
+}
+
+const SSRF_BLOCKED_HOSTS = new Set(['localhost', '0.0.0.0', '[::1]', '169.254.169.254']);
+
+function assertNotSsrf(url: string, field: string): void {
+  let host: string;
+  try {
+    host = new URL(url).hostname.toLowerCase();
+  } catch {
+    throw new Error(`${field} is not a valid URL.`);
+  }
+  if (SSRF_BLOCKED_HOSTS.has(host)) {
+    throw new Error(
+      `${field} must not target internal infrastructure. "${host}" is not allowed.`,
+    );
+  }
+  const ipv4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
+  if (ipv4) {
+    const a = parseInt(ipv4[1], 10);
+    const b = parseInt(ipv4[2], 10);
+    if (
+      a === 10 ||
+      a === 127 ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168)
+    ) {
+      throw new Error(
+        `${field} must not target internal infrastructure. "${host}" is a private/loopback address.`,
+      );
+    }
   }
 }

@@ -13,7 +13,7 @@ const GOOGLE_ENV = {
   PRESCIENT_CLIENT_ID: 'client-id',
   PRESCIENT_AUTH_URL: 'https://auth.example.com',
   PRESCIENT_AUTH_PROVIDER: 'google',
-  PRESCIENT_GOOGLE_CLIENT_SECRET: 'google-secret',
+  PRESCIENT_GOOGLE_CLIENT_SECRET: 'google-secret', // gitleaks:allow
 };
 
 function withEnv(vars: Record<string, string>, fn: () => void): void {
@@ -150,6 +150,88 @@ describe('Settings — validation errors', () => {
     withEnv({ ...GOOGLE_ENV, PRESCIENT_GOOGLE_REDIRECT_PORT: '99999' }, () => {
       expect(() => new Settings()).toThrow('Invalid PRESCIENT_GOOGLE_REDIRECT_PORT value "99999"');
     });
+  });
+});
+
+describe('Settings — port boundary validation', () => {
+  it('throws on out-of-range googleRedirectPort option (0)', () => {
+    withEnv({ PRESCIENT_GOOGLE_CLIENT_SECRET: 'secret' }, () => { // gitleaks:allow
+      expect(() =>
+        new Settings({ ...BASE, authProvider: AuthProvider.GOOGLE, googleRedirectPort: 0 }),
+      ).toThrow('googleRedirectPort must be an integer 1–65535');
+    });
+  });
+
+  it('throws on out-of-range googleRedirectPort option (65536)', () => {
+    withEnv({ PRESCIENT_GOOGLE_CLIENT_SECRET: 'secret' }, () => { // gitleaks:allow
+      expect(() =>
+        new Settings({ ...BASE, authProvider: AuthProvider.GOOGLE, googleRedirectPort: 65536 }),
+      ).toThrow('googleRedirectPort must be an integer 1–65535');
+    });
+  });
+
+  it('throws on non-integer googleRedirectPort option (1.5)', () => {
+    withEnv({ PRESCIENT_GOOGLE_CLIENT_SECRET: 'secret' }, () => { // gitleaks:allow
+      expect(() =>
+        new Settings({ ...BASE, authProvider: AuthProvider.GOOGLE, googleRedirectPort: 1.5 }),
+      ).toThrow('googleRedirectPort must be an integer 1–65535');
+    });
+  });
+
+  it('throws on scientific-notation PRESCIENT_GOOGLE_REDIRECT_PORT', () => {
+    withEnv({ ...GOOGLE_ENV, PRESCIENT_GOOGLE_REDIRECT_PORT: '1e4' }, () => {
+      expect(() => new Settings()).toThrow('Invalid PRESCIENT_GOOGLE_REDIRECT_PORT value "1e4"');
+    });
+  });
+});
+
+describe('Settings — SSRF prevention', () => {
+  it('throws if endpointUrl targets IMDS (169.254.169.254)', () => {
+    expect(() =>
+      new Settings({ ...MICROSOFT_OPTS, endpointUrl: 'https://169.254.169.254/latest' }),
+    ).toThrow('must not target internal infrastructure');
+  });
+
+  it('throws if endpointUrl targets localhost', () => {
+    expect(() =>
+      new Settings({ ...MICROSOFT_OPTS, endpointUrl: 'https://localhost:8080' }),
+    ).toThrow('must not target internal infrastructure');
+  });
+
+  it('throws if endpointUrl targets RFC 1918 (192.168.x.x)', () => {
+    expect(() =>
+      new Settings({ ...MICROSOFT_OPTS, endpointUrl: 'https://192.168.1.1' }),
+    ).toThrow('must not target internal infrastructure');
+  });
+
+  it('throws if authUrl targets RFC 1918 (10.x.x.x)', () => {
+    expect(() =>
+      new Settings({ ...MICROSOFT_OPTS, authUrl: 'https://10.0.0.1/token' }),
+    ).toThrow('must not target internal infrastructure');
+  });
+});
+
+describe('Settings — toJSON', () => {
+  it('excludes _googleClientSecret from JSON.stringify', () => {
+    withEnv({ PRESCIENT_GOOGLE_CLIENT_SECRET: 'secret' }, () => { // gitleaks:allow
+      const s = new Settings({ ...BASE, authProvider: AuthProvider.GOOGLE });
+      const json = JSON.parse(JSON.stringify(s)) as Record<string, unknown>;
+      expect(json['_googleClientSecret']).toBeUndefined();
+      expect(json['endpointUrl']).toBe('https://api.example.com');
+    });
+  });
+});
+
+describe('Settings — awsRole validation', () => {
+  it('accepts a valid ARN', () => {
+    const s = new Settings({ ...MICROSOFT_OPTS, awsRole: 'arn:aws:iam::123456789012:role/MyRole' });
+    expect(s.awsRole).toBe('arn:aws:iam::123456789012:role/MyRole');
+  });
+
+  it('throws on invalid awsRole (missing arn: prefix)', () => {
+    expect(() =>
+      new Settings({ ...MICROSOFT_OPTS, awsRole: 'not-an-arn' }),
+    ).toThrow('awsRole must be a valid AWS ARN');
   });
 });
 
