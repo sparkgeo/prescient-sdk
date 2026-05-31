@@ -14,7 +14,7 @@ Polyglot SDK for integrating with Prescient services. Generated from a single Ty
 
 ## Development
 
-See [JSII_MIGRATION_PLAN.md](../JSII_MIGRATION_PLAN.md) for the full migration plan.
+See [JSII_MIGRATION_PLAN.md](JSII_MIGRATION_PLAN.md) for the full migration plan.
 
 ### Prerequisites
 
