@@ -1,0 +1,2 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0
+COPY --from=node:22-slim /usr/local/bin/node /usr/local/bin/node

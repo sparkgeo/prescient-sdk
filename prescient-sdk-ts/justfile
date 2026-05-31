@@ -1,0 +1,53 @@
+compose := "docker compose -f " + justfile_directory() + "/../smoke-tests/docker-compose.yml"
+
+default: build
+
+# --- SDK ---
+
+# Compile TypeScript with jsii
+build:
+    pnpm run build
+
+# Compile and re-compile on file changes
+watch:
+    pnpm run build:watch
+
+# Run Jest unit tests
+test:
+    pnpm test
+
+# Build then generate language packages via jsii-pacmak
+package: build
+    pnpm run package
+
+# Run tests and generate packages
+all: test package
+
+# --- Docker smoke tests ---
+
+# Run all Docker smoke tests
+docker: docker-js docker-python docker-go docker-dotnet docker-java
+
+# Run JS smoke test in Docker
+docker-js:
+    {{ compose }} run --rm js
+
+# Run Python smoke test in Docker
+docker-python:
+    {{ compose }} run --rm python
+
+# Run Go smoke test in Docker
+docker-go:
+    {{ compose }} run --rm go
+
+# Run .NET smoke test in Docker
+docker-dotnet:
+    {{ compose }} run --rm dotnet
+
+# Run Java smoke test in Docker
+docker-java:
+    {{ compose }} run --rm java
+
+# Rebuild all Docker images
+docker-build:
+    {{ compose }} build

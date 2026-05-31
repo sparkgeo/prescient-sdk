@@ -1,0 +1,13 @@
+title = "prescient-sdk gitleaks configuration"
+
+[allowlist]
+  description = "Test fixture allowlist — placeholder values that look like secrets"
+  paths = [
+    '''prescient-sdk-ts/src/__tests__''',
+  ]
+  regexes = [
+    '''AKIAPLACEHOLDER''',
+    '''FAKE_SECRET_NOT_REAL_DO_NOT_USE''',
+    '''FAKE_SESSION_TOKEN_PLACEHOLDER''',
+    '''PLACEHOLDER_TOKEN''',
+  ]

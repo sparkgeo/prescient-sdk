@@ -1,0 +1,83 @@
+{
+  "name": "prescient-sdk",
+  "version": "1.0.0",
+  "description": "Polyglot SDK for integrating with Prescient services",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "jsii",
+    "build:watch": "jsii --watch",
+    "package": "jsii-pacmak --pack-command 'npm pack --ignore-scripts'",
+    "test": "jest"
+  },
+  "author": {
+    "name": "Sparkgeo",
+    "email": "info@sparkgeo.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sparkgeo/prescient-sdk.git"
+  },
+  "license": "MIT",
+  "stability": "stable",
+  "jsii": {
+    "outdir": "targets",
+    "targets": {
+      "python": {
+        "distName": "prescient-sdk-sparkgeo",
+        "module": "prescient_sdk"
+      },
+      "dotnet": {
+        "namespace": "Sparkgeo.PrescientSdk",
+        "packageId": "Sparkgeo.PrescientSdk"
+      },
+      "java": {
+        "package": "com.sparkgeo.prescient",
+        "maven": {
+          "groupId": "com.sparkgeo",
+          "artifactId": "prescient-sdk"
+        }
+      },
+      "go": {
+        "moduleName": "github.com/sparkgeo/prescient-sdk-go"
+      }
+    },
+    "tsc": {
+      "outDir": "dist"
+    }
+  },
+  "bundledDependencies": [
+    "@aws-sdk/client-sts",
+    "@aws-sdk/client-s3",
+    "@aws-sdk/lib-storage",
+    "@azure/msal-node",
+    "google-auth-library"
+  ],
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3",
+    "@aws-sdk/client-sts": "^3",
+    "@aws-sdk/lib-storage": "^3",
+    "@azure/msal-node": "^2",
+    "google-auth-library": "^9"
+  },
+  "devDependencies": {
+    "@types/jest": "^29",
+    "@types/node": "~22",
+    "aws-sdk-client-mock": "^4",
+    "jest": "^29",
+    "jsii": "^5",
+    "jsii-pacmak": "^1",
+    "ts-jest": "^29",
+    "typescript": "~5.9"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@11.5.0",
+  "keywords": [
+    "prescient",
+    "sparkgeo",
+    "stac",
+    "sdk"
+  ]
+}
