@@ -134,6 +134,50 @@ describe('Uploader.upload', () => {
     expect(MockUpload).not.toHaveBeenCalled();
   });
 
+  it('**/ pattern excludes top-level file (zero segments)', async () => {
+    touch(tmpDir, 'secrets.env');
+    touch(tmpDir, 'keep.csv');
+    await Uploader.upload({ inputDir: tmpDir, exclude: ['**/secrets.env'] }, client);
+    expect(MockUpload).toHaveBeenCalledTimes(1);
+    const { params } = MockUpload.mock.calls[0][0];
+    expect(params.Key).toContain('keep.csv');
+  });
+
+  it('**/ pattern excludes file in nested subdirectory', async () => {
+    touch(tmpDir, 'a', 'b', 'secrets.env');
+    touch(tmpDir, 'keep.csv');
+    await Uploader.upload({ inputDir: tmpDir, exclude: ['**/secrets.env'] }, client);
+    expect(MockUpload).toHaveBeenCalledTimes(1);
+    const { params } = MockUpload.mock.calls[0][0];
+    expect(params.Key).toContain('keep.csv');
+  });
+
+  it('**/ pattern does not exclude files that only share a suffix', async () => {
+    touch(tmpDir, 'not-secrets.env');
+    await Uploader.upload({ inputDir: tmpDir, exclude: ['**/secrets.env'] }, client);
+    expect(MockUpload).toHaveBeenCalledTimes(1);
+  });
+
+  it('excludes files matching character class pattern', async () => {
+    touch(tmpDir, 'Thumbs.db');
+    touch(tmpDir, 'thumbs.db');
+    touch(tmpDir, 'keep.csv');
+    await Uploader.upload({ inputDir: tmpDir, exclude: ['[Tt]humbs.db'] }, client);
+    expect(MockUpload).toHaveBeenCalledTimes(1);
+    const { params } = MockUpload.mock.calls[0][0];
+    expect(params.Key).toContain('keep.csv');
+  });
+
+  it('excludes files matching brace expansion pattern', async () => {
+    touch(tmpDir, 'temp.tmp');
+    touch(tmpDir, 'debug.log');
+    touch(tmpDir, 'keep.csv');
+    await Uploader.upload({ inputDir: tmpDir, exclude: ['{*.tmp,*.log}'] }, client);
+    expect(MockUpload).toHaveBeenCalledTimes(1);
+    const { params } = MockUpload.mock.calls[0][0];
+    expect(params.Key).toContain('keep.csv');
+  });
+
   it('skips existing objects when overwrite is false', async () => {
     touch(tmpDir, 'exists.txt');
     s3Mock.on(HeadObjectCommand).resolves({});
@@ -159,11 +203,21 @@ describe('Uploader.upload', () => {
     expect(MockUpload).toHaveBeenCalledTimes(1);
   });
 
-  it('propagates non-404 HeadObject errors when overwrite is false', async () => {
+  it('propagates non-not-found HeadObject errors when overwrite is false', async () => {
     touch(tmpDir, 'file.txt');
     s3Mock
       .on(HeadObjectCommand)
       .rejects({ name: 'AccessDenied', $metadata: { httpStatusCode: 403 } });
+    await expect(Uploader.upload({ inputDir: tmpDir, overwrite: false }, client)).rejects.toMatchObject(
+      { name: 'AccessDenied' },
+    );
+  });
+
+  it('propagates AccessDenied even when httpStatusCode is 404', async () => {
+    touch(tmpDir, 'file.txt');
+    s3Mock
+      .on(HeadObjectCommand)
+      .rejects({ name: 'AccessDenied', $metadata: { httpStatusCode: 404 } });
     await expect(Uploader.upload({ inputDir: tmpDir, overwrite: false }, client)).rejects.toMatchObject(
       { name: 'AccessDenied' },
     );
@@ -181,6 +235,12 @@ describe('Uploader.upload', () => {
     await expect(
       Uploader.upload({ inputDir: '' }, client),
     ).rejects.toThrow('inputDir must not be empty');
+  });
+
+  it('throws when inputDir traverses above the working directory', async () => {
+    await expect(
+      Uploader.upload({ inputDir: '../../etc' }, client),
+    ).rejects.toThrow('must not traverse above the working directory');
   });
 
   it('throws when inputDir does not exist', async () => {

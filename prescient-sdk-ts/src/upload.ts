@@ -25,18 +25,28 @@ export class Uploader {
    * matched against the basename for single-segment patterns (e.g. `*.txt`) or
    * against the full relative path for multi-segment patterns (e.g. `logs/*`),
    * mirroring Python `pathlib.Path.match` semantics.  `**` matches zero or more
-   * path segments.  Symlinks inside `opts.inputDir` are not followed.
+   * path segments.  `[abc]` matches any character in the set.  `{a,b}` matches
+   * either alternative.  Symlinks inside `opts.inputDir` are not followed.
    *
    * @param opts - Upload options.
    * @param client - PrescientClient to use; a default client is constructed
    *   from environment variables when omitted.
    * @throws Error if `opts.inputDir` is empty.
+   * @throws Error if `opts.inputDir` traverses above the working directory.
    * @throws Error if `opts.inputDir` does not exist or is not a directory.
    * @throws Error if `uploadBucket` is not configured on the client settings.
    */
   static async upload(opts: UploadOptions, client?: PrescientClient): Promise<void> {
     if (!opts.inputDir || opts.inputDir.trim() === '') {
       throw new Error('inputDir must not be empty.');
+    }
+
+    // Reject relative paths that escape the working directory (e.g. ../../etc).
+    // Absolute paths are accepted as-is — the caller is responsible for their scope.
+    if (path.normalize(opts.inputDir).startsWith('..')) {
+      throw new Error(
+        `inputDir must not traverse above the working directory: ${opts.inputDir}`,
+      );
     }
 
     const resolvedDir = path.resolve(opts.inputDir);
@@ -74,13 +84,17 @@ export class Uploader {
     const dirName = path.basename(resolvedDir);
     const files = Uploader._walk(resolvedDir);
 
+    // Pre-compile exclude patterns once — avoids N×M RegExp constructions in the loop.
+    const excludePatterns = (opts.exclude ?? []).map(pat => Uploader._compileGlob(pat));
+
     // Files are uploaded sequentially. Add bounded parallelism here if
     // upload throughput becomes a bottleneck for large directories.
     for (const file of files) {
       const relative = path.relative(resolvedDir, file).replace(/\\/g, '/');
-      if (opts.exclude?.some(p => Uploader._matchGlob(relative, p))) {
-        continue;
-      }
+      const excluded = excludePatterns.some(({ regex, useBasename }) =>
+        regex.test(useBasename ? path.basename(relative) : relative),
+      );
+      if (excluded) continue;
       const key = `${dirName}/${relative}`;
       await Uploader._putFile(file, bucket, key, s3, overwrite);
     }
@@ -88,7 +102,14 @@ export class Uploader {
 
   /** Recursively list all regular files under `dir`. Symlinks are not followed. */
   private static _walk(dir: string, acc: string[] = []): string[] {
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch (err: unknown) {
+      const e = err as NodeJS.ErrnoException;
+      throw new Error(`Cannot read directory ${dir}: ${e.message}`);
+    }
+    for (const entry of entries) {
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) {
         Uploader._walk(full, acc);
@@ -100,33 +121,76 @@ export class Uploader {
   }
 
   /**
-   * Match a relative posix path against a glob pattern.
+   * Compile a glob pattern into a regex and a flag indicating whether to test
+   * against the basename only (patterns with no `/`) or the full relative path.
    *
-   * Patterns with no `/` are tested against the basename only, mirroring
-   * `pathlib.Path.match` right-anchored semantics.  `**` matches zero or more
-   * path segments; `*` matches within a single segment; `?` matches any single
-   * non-separator character.
+   * Supported syntax:
+   *   `*`      — any characters within a single path segment
+   *   `**`     — zero or more complete path segments
+   *   `?`      — any single non-separator character
+   *   `[abc]`  — character class (supports ranges and `!` negation)
+   *   `{a,b}`  — brace expansion (alternatives, no nesting)
    */
-  private static _matchGlob(relative: string, pattern: string): boolean {
+  private static _compileGlob(pattern: string): { regex: RegExp; useBasename: boolean } {
     const p = pattern.replace(/\\/g, '/');
-    const subject = p.includes('/') ? relative : path.basename(relative);
+    const useBasename = !p.includes('/');
     let regStr = '^';
     for (let i = 0; i < p.length; ) {
       if (p[i] === '*' && p[i + 1] === '*') {
-        regStr += '.*';
-        i += 2;
+        if (p[i + 2] === '/') {
+          // **/ — zero or more path segments (including none), consuming the slash
+          regStr += '(?:.*/)?';
+          i += 3;
+        } else {
+          // ** at end or immediately before a non-slash character
+          regStr += '.*';
+          i += 2;
+        }
       } else if (p[i] === '*') {
         regStr += '[^/]*';
         i += 1;
       } else if (p[i] === '?') {
         regStr += '[^/]';
         i += 1;
+      } else if (p[i] === '[') {
+        const end = p.indexOf(']', i + 1);
+        if (end === -1) {
+          regStr += '\\[';
+          i += 1;
+        } else {
+          let cls = p.slice(i + 1, end);
+          const negate = cls.startsWith('!') ? '^' : '';
+          if (negate) cls = cls.slice(1);
+          // Escape regex metacharacters inside the class, preserving - for ranges
+          cls = cls.replace(/[.+*?${}()|[\]\\]/g, '\\$&');
+          regStr += `[${negate}${cls}]`;
+          i = end + 1;
+        }
+      } else if (p[i] === '{') {
+        const end = p.indexOf('}', i + 1);
+        if (end === -1) {
+          regStr += '\\{';
+          i += 1;
+        } else {
+          // Expand {a,b} → (?:a|b), applying * and ? substitution within each alternative
+          const alts = p
+            .slice(i + 1, end)
+            .split(',')
+            .map(alt =>
+              alt
+                .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+                .replace(/\*/g, '[^/]*')
+                .replace(/\?/g, '[^/]'),
+            );
+          regStr += `(?:${alts.join('|')})`;
+          i = end + 1;
+        }
       } else {
         regStr += p[i].replace(/[.+^${}()|[\]\\]/g, '\\$&');
         i += 1;
       }
     }
-    return new RegExp(regStr + '$').test(subject);
+    return { regex: new RegExp(regStr + '$'), useBasename };
   }
 
   private static async _putFile(
@@ -141,15 +205,14 @@ export class Uploader {
         await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
         return; // object exists — skip
       } catch (err: unknown) {
-        const e = err as { name?: string; $metadata?: { httpStatusCode?: number } };
-        if (
-          e.$metadata?.httpStatusCode !== 404 &&
-          e.name !== 'NotFound' &&
-          e.name !== 'NoSuchKey'
-        ) {
+        const e = err as { name?: string };
+        // Only treat canonical not-found error names as "object absent" — any
+        // other error (including AccessDenied returned as 404 by some bucket
+        // policies) is re-thrown so the caller sees the real failure.
+        if (e.name !== 'NotFound' && e.name !== 'NoSuchKey') {
           throw err;
         }
-        // 404 / NotFound / NoSuchKey → object does not exist, proceed with upload
+        // NotFound / NoSuchKey → object does not exist, proceed with upload
       }
     }
 
