@@ -1,8 +1,9 @@
 import * as http from 'http';
 import { spawn } from 'child_process';
+import { randomBytes } from 'crypto';
 
 import { PublicClientApplication } from '@azure/msal-node';
-import { OAuth2Client } from 'google-auth-library';
+import { OAuth2Client, CodeChallengeMethod } from 'google-auth-library';
 import { STSClient, AssumeRoleWithWebIdentityCommand } from '@aws-sdk/client-sts';
 import type { AccountInfo, AuthenticationResult, SilentFlowRequest } from '@azure/msal-node';
 
@@ -25,8 +26,8 @@ const OAUTH_TIMEOUT_MS = 5 * 60 * 1000;
  *
  * Handles Microsoft MSAL or Google OAuth2 authentication, credential caching,
  * and bucket credential exchange via AWS STS or the Prescient fileproxy endpoint.
- * All credentials are cached for a 1-hour TTL and refreshed transparently on
- * the next call after expiry.
+ * All credentials are cached using the provider-reported TTL and refreshed
+ * transparently on the next call after expiry.
  *
  * @example Microsoft (Entra ID) authentication
  * const client = new PrescientClient({
@@ -56,12 +57,16 @@ export class PrescientClient {
   private _bucketCredentials: BucketCredentials | undefined;
   private _uploadBucketCredentials: BucketCredentials | undefined;
 
-  /** @internal */
+  // In-flight promise deduplication — concurrent callers share one browser
+  // flow rather than each opening their own window / fighting for the port.
+  private _authInFlight: Promise<AuthCredentials> | undefined;
+  private _bucketInFlight: Promise<BucketCredentials> | undefined;
+  private _uploadInFlight: Promise<BucketCredentials> | undefined;
+
   private _msalApp: PublicClientApplication | undefined;
-  /** @internal */
   private _msalAccount: AccountInfo | null | undefined;
-  /** @internal */
   private _googleRefreshToken: string | undefined;
+  private _stsClient: STSClient | undefined;
 
   constructor(opts?: PrescientClientOptions) {
     this.settings = new Settings(opts);
@@ -72,25 +77,19 @@ export class PrescientClient {
    * Fetch (or return cached) authentication credentials.
    *
    * Opens a browser window on first call. Subsequent calls return cached
-   * credentials until the 1-hour TTL expires, then silently re-authenticate
-   * using the stored refresh token / MSAL account.
+   * credentials until the provider-reported TTL expires, then silently
+   * re-authenticate using the stored refresh token / MSAL account.
+   * Concurrent callers share one in-flight auth flow.
    */
   async authenticate(): Promise<AuthCredentials> {
     if (this._authCredentials && !isExpired(this._authCredentials.expiresAt)) {
       return this._authCredentials;
     }
-
-    const raw =
-      this.settings.authProvider === AuthProvider.GOOGLE
-        ? await this._fetchGoogleCredentials()
-        : await this._fetchMicrosoftCredentials();
-
-    this._authCredentials = {
-      ...raw,
-      expiresAt: new Date(Date.now() + EXPIRATION_SECONDS * 1000).toISOString(),
-    };
-
-    return this._authCredentials;
+    if (this._authInFlight) return this._authInFlight;
+    this._authInFlight = this._doAuthenticate().finally(() => {
+      this._authInFlight = undefined;
+    });
+    return this._authInFlight;
   }
 
   /** Build `Authorization: Bearer <id_token>` headers for Prescient API requests. */
@@ -113,10 +112,11 @@ export class PrescientClient {
     if (this._bucketCredentials && !isExpired(this._bucketCredentials.expiresAt)) {
       return this._bucketCredentials;
     }
-    this._bucketCredentials = this.settings.awsRole
-      ? await this._fetchStsCredentials(this.settings.awsRole)
-      : await this._fetchFileproxyCredentials();
-    return this._bucketCredentials;
+    if (this._bucketInFlight) return this._bucketInFlight;
+    this._bucketInFlight = this._doFetchBucketCredentials().finally(() => {
+      this._bucketInFlight = undefined;
+    });
+    return this._bucketInFlight;
   }
 
   /**
@@ -133,8 +133,11 @@ export class PrescientClient {
     if (this._uploadBucketCredentials && !isExpired(this._uploadBucketCredentials.expiresAt)) {
       return this._uploadBucketCredentials;
     }
-    this._uploadBucketCredentials = await this._fetchStsCredentials(this.settings.uploadRole);
-    return this._uploadBucketCredentials;
+    if (this._uploadInFlight) return this._uploadInFlight;
+    this._uploadInFlight = this._doFetchUploadCredentials(this.settings.uploadRole).finally(() => {
+      this._uploadInFlight = undefined;
+    });
+    return this._uploadInFlight;
   }
 
   /** True when no auth credentials have been fetched or the cached credentials have expired. */
@@ -159,6 +162,29 @@ export class PrescientClient {
     }
   }
 
+  private async _doAuthenticate(): Promise<AuthCredentials> {
+    const creds =
+      this.settings.authProvider === AuthProvider.GOOGLE
+        ? await this._fetchGoogleCredentials()
+        : await this._fetchMicrosoftCredentials();
+    this._authCredentials = creds;
+    return creds;
+  }
+
+  private async _doFetchBucketCredentials(): Promise<BucketCredentials> {
+    const creds = this.settings.awsRole
+      ? await this._fetchStsCredentials(this.settings.awsRole)
+      : await this._fetchFileproxyCredentials();
+    this._bucketCredentials = creds;
+    return creds;
+  }
+
+  private async _doFetchUploadCredentials(role: string): Promise<BucketCredentials> {
+    const creds = await this._fetchStsCredentials(role);
+    this._uploadBucketCredentials = creds;
+    return creds;
+  }
+
   private _getMsalApp(): PublicClientApplication {
     if (!this._msalApp) {
       const authority = joinUrl(this.settings.authUrl, this.settings.tenantId!);
@@ -170,6 +196,13 @@ export class PrescientClient {
       });
     }
     return this._msalApp;
+  }
+
+  private _getStsClient(): STSClient {
+    if (!this._stsClient) {
+      this._stsClient = new STSClient({ region: this.settings.awsRegion });
+    }
+    return this._stsClient;
   }
 
   private async _fetchMicrosoftCredentials(): Promise<AuthCredentials> {
@@ -230,13 +263,25 @@ export class PrescientClient {
         ? new Date(credentials.expiry_date).toISOString()
         : new Date(Date.now() + EXPIRATION_SECONDS * 1000).toISOString();
     } else {
+      // PKCE (RFC 8252 §8.1) — prevents authorization code interception
+      const pkce = await oauth2Client.generateCodeVerifierAsync();
+      if (!pkce.codeChallenge) {
+        throw new Error('Failed to generate PKCE code challenge.');
+      }
+      // Random state — prevents CSRF (RFC 6749 §10.12)
+      const state = randomBytes(16).toString('hex');
+
       const authUrl = oauth2Client.generateAuthUrl({
         access_type: 'offline',
         scope: GOOGLE_SCOPES,
         prompt: 'consent',
+        code_challenge: pkce.codeChallenge,
+        code_challenge_method: CodeChallengeMethod.S256,
+        state,
       });
-      const code = await captureOAuthCode(this.settings.googleRedirectPort, authUrl);
-      const { tokens } = await oauth2Client.getToken(code);
+
+      const code = await captureOAuthCode(this.settings.googleRedirectPort, authUrl, state);
+      const { tokens } = await oauth2Client.getToken({ code, codeVerifier: pkce.codeVerifier });
       idToken = assertIdToken(tokens.id_token, 'interactive');
       refreshToken = tokens.refresh_token ?? undefined;
       accessToken = tokens.access_token ?? undefined;
@@ -254,13 +299,15 @@ export class PrescientClient {
 
   private async _fetchStsCredentials(role: string): Promise<BucketCredentials> {
     const auth = await this.authenticate();
-    const stsClient = new STSClient({ region: this.settings.awsRegion });
 
-    const parts = role.split('/');
-    const stub = parts.length > 1 ? parts[1] : role.slice(-10);
+    // Sanitise and truncate to stay within the AWS 64-char RoleSessionName limit.
+    // Use the last path component (handles arn:…:role/path/to/Name → Name).
+    const stub = (role.split('/').at(-1) ?? role.slice(-10))
+      .replace(/[^a-zA-Z0-9+=,.@_-]/g, '-')
+      .slice(0, 44); // prefix 'prescient-s3-access-' is 20 chars → 20+44=64
     const roleSessionName = `prescient-s3-access-${stub}`;
 
-    const response = await stsClient.send(
+    const response = await this._getStsClient().send(
       new AssumeRoleWithWebIdentityCommand({
         DurationSeconds: EXPIRATION_SECONDS,
         RoleArn: role,
@@ -307,11 +354,18 @@ export class PrescientClient {
       readonly expiration: string;
     };
 
+    const expiry = new Date(payload.expiration);
+    if (isNaN(expiry.getTime())) {
+      throw new Error(
+        `fileproxy returned an invalid expiration timestamp: "${payload.expiration}"`,
+      );
+    }
+
     return {
       accessKeyId: payload.access_key_id,
       secretAccessKey: payload.secret_access_key,
       sessionToken: payload.session_token,
-      expiresAt: payload.expiration,
+      expiresAt: expiry.toISOString(),
     };
   }
 }
@@ -334,19 +388,31 @@ function assertIdToken(val: string | null | undefined, flow: string): string {
   return val;
 }
 
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function openSystemBrowser(url: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const isWin = process.platform === 'win32';
     const cmd = process.platform === 'darwin' ? 'open' : isWin ? 'cmd' : 'xdg-open';
     const args = isWin ? ['/c', 'start', '', url] : [url];
     const proc = spawn(cmd, args, { detached: true, stdio: 'ignore' });
-    proc.unref();
     proc.on('error', reject);
-    resolve();
+    // 'spawn' fires only after the process successfully launched
+    proc.on('spawn', () => {
+      proc.unref();
+      resolve();
+    });
   });
 }
 
-function captureOAuthCode(port: number, authUrl: string): Promise<string> {
+function captureOAuthCode(port: number, authUrl: string, expectedState: string): Promise<string> {
   return new Promise((resolve, reject) => {
     let settled = false;
 
@@ -359,7 +425,30 @@ function captureOAuthCode(port: number, authUrl: string): Promise<string> {
 
     const server = http.createServer((req, res) => {
       try {
-        const reqUrl = new URL(req.url ?? '/', `http://localhost:${port}`);
+        // Only accept GET requests to '/'
+        if (req.method !== 'GET') {
+          res.writeHead(405).end();
+          return;
+        }
+        const reqUrl = new URL(req.url ?? '/', `http://127.0.0.1:${port}`);
+        if (reqUrl.pathname !== '/') {
+          res.writeHead(404).end();
+          return;
+        }
+
+        // Validate state to prevent CSRF / authorization-code injection
+        const returnedState = reqUrl.searchParams.get('state');
+        if (returnedState !== expectedState) {
+          res.writeHead(400, { 'Content-Type': 'text/plain' });
+          res.end('OAuth2 error: invalid state parameter.');
+          server.close(() =>
+            settle(() =>
+              reject(new Error('OAuth2 error: invalid or missing state parameter.')),
+            ),
+          );
+          return;
+        }
+
         const code = reqUrl.searchParams.get('code');
         const error = reqUrl.searchParams.get('error');
         if (code) {
@@ -368,7 +457,9 @@ function captureOAuthCode(port: number, authUrl: string): Promise<string> {
           server.close(() => settle(() => resolve(code)));
         } else {
           res.writeHead(400, { 'Content-Type': 'text/html' });
-          res.end(`<h1>Authentication failed</h1><p>${String(error ?? 'no code in redirect')}</p>`);
+          res.end(
+            `<h1>Authentication failed</h1><p>${escapeHtml(String(error ?? 'no code in redirect'))}</p>`,
+          );
           server.close(() =>
             settle(() => reject(new Error(`OAuth2 error: ${error ?? 'no code in redirect'}`))),
           );
@@ -389,7 +480,10 @@ function captureOAuthCode(port: number, authUrl: string): Promise<string> {
     server.on('error', (err) => settle(() => reject(err)));
     server.on('close', () => clearTimeout(timeout));
 
-    server.listen(port, () => {
+    // Bind to loopback only — redirect URI is http://localhost:<port> which
+    // resolves to 127.0.0.1; binding to all interfaces during the auth window
+    // would expose the code-capture endpoint to the local network.
+    server.listen(port, '127.0.0.1', () => {
       openSystemBrowser(authUrl).catch((err) => settle(() => reject(err)));
     });
   });
