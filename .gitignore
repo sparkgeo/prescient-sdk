@@ -180,5 +180,5 @@ prescient-sdk-ts/tsconfig.json
 *.env
 
 # Smoke test build artifacts
-smoke-tests/dotnet/obj/
-smoke-tests/dotnet/bin/
+prescient-sdk-ts/smoke-tests/dotnet/obj/
+prescient-sdk-ts/smoke-tests/dotnet/bin/

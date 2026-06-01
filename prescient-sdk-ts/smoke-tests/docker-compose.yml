@@ -1,5 +1,5 @@
 # Mount layout mirrors the repo tree under /workspace/ so that relative paths
-# already embedded in go.mod (../../prescient-sdk-ts/...), nuget.config, and
+# already embedded in go.mod (../../...), nuget.config, and
 # pom.xml all resolve without modification.
 #
 # All non-JS language runtimes are jsii-based and spawn a `node` subprocess,
@@ -16,8 +16,9 @@ services:
     working_dir: /workspace/smoke-tests/js
     volumes:
       - ./js:/workspace/smoke-tests/js:ro
-      - ../prescient-sdk-ts/dist:/workspace/prescient-sdk-ts/dist:ro
-      - ../prescient-sdk-ts/node_modules:/workspace/prescient-sdk-ts/node_modules:ro
+      - ../../local.env:/workspace/smoke-tests/config.env:ro
+      - ../dist:/workspace/prescient-sdk-ts/dist:ro
+      - ../node_modules:/workspace/prescient-sdk-ts/node_modules:ro
     command: node smoke.js
 
   python:
@@ -28,7 +29,8 @@ services:
     working_dir: /workspace/smoke-tests/python
     volumes:
       - ./python:/workspace/smoke-tests/python:ro
-      - ../prescient-sdk-ts/targets/python:/workspace/prescient-sdk-ts/targets/python:ro
+      - ../../local.env:/workspace/smoke-tests/config.env:ro
+      - ../targets/python:/workspace/prescient-sdk-ts/targets/python:ro
       - pip-cache:/root/.cache/pip
     command:
       - sh
@@ -47,7 +49,8 @@ services:
     working_dir: /workspace/smoke-tests/go
     volumes:
       - ./go:/workspace/smoke-tests/go:ro
-      - ../prescient-sdk-ts/targets/go:/workspace/prescient-sdk-ts/targets/go:ro
+      - ../../local.env:/workspace/smoke-tests/config.env:ro
+      - ../targets/go:/workspace/prescient-sdk-ts/targets/go:ro
       - go-mod-cache:/root/go/pkg/mod
       - go-build-cache:/root/.cache/go-build
     environment:
@@ -62,7 +65,8 @@ services:
     working_dir: /workspace/smoke-tests/dotnet
     volumes:
       - ./dotnet:/workspace/smoke-tests/dotnet:ro
-      - ../prescient-sdk-ts/targets/dotnet:/workspace/prescient-sdk-ts/targets/dotnet:ro
+      - ../../local.env:/workspace/smoke-tests/config.env:ro
+      - ../targets/dotnet:/workspace/prescient-sdk-ts/targets/dotnet:ro
       - nuget-cache:/root/.nuget
       - dotnet-obj:/workspace/smoke-tests/dotnet/obj
       - dotnet-bin:/workspace/smoke-tests/dotnet/bin
@@ -76,7 +80,8 @@ services:
     working_dir: /workspace/smoke-tests/java
     volumes:
       - ./java:/workspace/smoke-tests/java:ro
-      - ../prescient-sdk-ts/targets/java:/workspace/prescient-sdk-ts/targets/java:ro
+      - ../../local.env:/workspace/smoke-tests/config.env:ro
+      - ../targets/java:/workspace/prescient-sdk-ts/targets/java:ro
       - maven-cache:/root/.m2
       - maven-target:/workspace/smoke-tests/java/target
     command: mvn --no-transfer-progress compile exec:java

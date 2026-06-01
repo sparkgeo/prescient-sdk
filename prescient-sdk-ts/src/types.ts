@@ -16,22 +16,27 @@ export interface PrescientClientOptions {
   /**
    * Base URL of the Prescient API endpoint.
    * @remarks Must be an HTTPS URL. HTTP is not supported and will be rejected
-   * at client initialization.
+   * at client initialization. Required unless supplied via environment variable
+   * or `envFile`.
    */
-  readonly endpointUrl: string;
+  readonly endpointUrl?: string;
 
   /** OAuth2 authentication provider. Defaults to MICROSOFT. */
   readonly authProvider?: AuthProvider;
 
-  /** OAuth2 client ID issued by the selected authentication provider. */
-  readonly clientId: string;
+  /**
+   * OAuth2 client ID issued by the selected authentication provider.
+   * Required unless supplied via environment variable or `envFile`.
+   */
+  readonly clientId?: string;
 
   /**
    * OAuth2 token endpoint base URL.
    * @remarks Must be an HTTPS URL. HTTP is not supported and will be rejected
-   * at client initialization.
+   * at client initialization. Required unless supplied via environment variable
+   * or `envFile`.
    */
-  readonly authUrl: string;
+  readonly authUrl?: string;
 
   /** Microsoft Entra tenant ID. Required when authProvider is MICROSOFT. */
   readonly tenantId?: string;
@@ -56,6 +61,23 @@ export interface PrescientClientOptions {
 
   /** AWS S3 bucket name targeted by the upload helpers. */
   readonly uploadBucket?: string;
+
+  /**
+   * Path to a `config.env` file to load.
+   *
+   * Values from the file are applied at the lowest priority — they are
+   * overridden by `PRESCIENT_*` environment variables, which in turn are
+   * overridden by explicit options fields.
+   *
+   * `PRESCIENT_GOOGLE_CLIENT_SECRET` in the file is handled securely: it flows
+   * into the internal `_googleClientSecret` field only and is never surfaced in
+   * any public struct.
+   *
+   * @example
+   * // TypeScript / JavaScript
+   * const client = new PrescientClient({ envFile: 'config.env' });
+   */
+  readonly envFile?: string;
 }
 
 /**

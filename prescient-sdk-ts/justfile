@@ -1,4 +1,4 @@
-compose := "docker compose -f " + justfile_directory() + "/../smoke-tests/docker-compose.yml"
+compose := "docker compose -f " + justfile_directory() + "/smoke-tests/docker-compose.yml"
 
 default: build
 
