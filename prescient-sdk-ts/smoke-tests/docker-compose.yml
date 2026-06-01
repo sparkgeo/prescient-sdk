@@ -16,7 +16,7 @@ services:
     working_dir: /workspace/smoke-tests/js
     volumes:
       - ./js:/workspace/smoke-tests/js:ro
-      - ./config.env:/workspace/smoke-tests/config.env:ro
+      - ../../local.env:/workspace/smoke-tests/config.env:ro
       - ../dist:/workspace/prescient-sdk-ts/dist:ro
       - ../node_modules:/workspace/prescient-sdk-ts/node_modules:ro
     command: node smoke.js
@@ -29,7 +29,7 @@ services:
     working_dir: /workspace/smoke-tests/python
     volumes:
       - ./python:/workspace/smoke-tests/python:ro
-      - ./config.env:/workspace/smoke-tests/config.env:ro
+      - ../../local.env:/workspace/smoke-tests/config.env:ro
       - ../targets/python:/workspace/prescient-sdk-ts/targets/python:ro
       - pip-cache:/root/.cache/pip
     command:
@@ -49,7 +49,7 @@ services:
     working_dir: /workspace/smoke-tests/go
     volumes:
       - ./go:/workspace/smoke-tests/go:ro
-      - ./config.env:/workspace/smoke-tests/config.env:ro
+      - ../../local.env:/workspace/smoke-tests/config.env:ro
       - ../targets/go:/workspace/prescient-sdk-ts/targets/go:ro
       - go-mod-cache:/root/go/pkg/mod
       - go-build-cache:/root/.cache/go-build
@@ -65,7 +65,7 @@ services:
     working_dir: /workspace/smoke-tests/dotnet
     volumes:
       - ./dotnet:/workspace/smoke-tests/dotnet:ro
-      - ./config.env:/workspace/smoke-tests/config.env:ro
+      - ../../local.env:/workspace/smoke-tests/config.env:ro
       - ../targets/dotnet:/workspace/prescient-sdk-ts/targets/dotnet:ro
       - nuget-cache:/root/.nuget
       - dotnet-obj:/workspace/smoke-tests/dotnet/obj
@@ -80,7 +80,7 @@ services:
     working_dir: /workspace/smoke-tests/java
     volumes:
       - ./java:/workspace/smoke-tests/java:ro
-      - ./config.env:/workspace/smoke-tests/config.env:ro
+      - ../../local.env:/workspace/smoke-tests/config.env:ro
       - ../targets/java:/workspace/prescient-sdk-ts/targets/java:ro
       - maven-cache:/root/.m2
       - maven-target:/workspace/smoke-tests/java/target
