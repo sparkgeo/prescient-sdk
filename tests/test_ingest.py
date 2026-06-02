@@ -203,7 +203,7 @@ def test_url_joins_v1_paths(mock_creds):
 def test_create_ingestion_from_bytes(mocker: MockerFixture, ingest_client: IngestClient):
     """Bytes are uploaded directly as the multipart spec_file part."""
     post_mock = mocker.patch(
-        "prescient_sdk.ingest.requests.post",
+        "prescient_sdk.ingest.requests.request",
         return_value=_make_response(INGESTION_PAYLOAD),
     )
     spec = b"user: tester\n"
@@ -214,14 +214,18 @@ def test_create_ingestion_from_bytes(mocker: MockerFixture, ingest_client: Inges
     assert result.id == 42
     assert result.status is Status.READY
 
-    args, kwargs = post_mock.call_args
-    assert args[0] == "https://example.server.prescient.earth/ingest/v1/ingestion/"
+    method, url = post_mock.call_args.args
+    kwargs = post_mock.call_args.kwargs
+    assert method == "POST"
+    assert url == "https://example.server.prescient.earth/ingest/v1/ingestion/"
     assert kwargs["files"]["spec_file"][0] == "spec.yaml"
     assert kwargs["files"]["spec_file"][1] == spec
     assert kwargs["files"]["spec_file"][2] == "application/yaml"
-    # Multipart upload must NOT pin Content-Type to application/json.
+    # Multipart upload must NOT pin Content-Type — requests sets it with
+    # the boundary parameter when files= is supplied.
     assert "Content-Type" not in kwargs["headers"]
-    assert kwargs["headers"]["Authorization"] == "Bearer mock_token"
+    # IngestClient does not send an Authorization header (port-forwarded API).
+    assert "Authorization" not in kwargs["headers"]
 
 
 def test_create_ingestion_from_path(
@@ -232,7 +236,7 @@ def test_create_ingestion_from_path(
     spec_file.write_text("user: tester\n")
 
     post_mock = mocker.patch(
-        "prescient_sdk.ingest.requests.post",
+        "prescient_sdk.ingest.requests.request",
         return_value=_make_response(INGESTION_PAYLOAD),
     )
 
@@ -255,7 +259,7 @@ def test_create_ingestion_from_string_path(
     spec_file.write_text("user: tester\n")
 
     post_mock = mocker.patch(
-        "prescient_sdk.ingest.requests.post",
+        "prescient_sdk.ingest.requests.request",
         return_value=_make_response(INGESTION_PAYLOAD),
     )
 
@@ -269,7 +273,7 @@ def test_create_ingestion_propagates_http_errors(
 ):
     """4xx responses surface as requests.HTTPError via raise_for_status."""
     mocker.patch(
-        "prescient_sdk.ingest.requests.post",
+        "prescient_sdk.ingest.requests.request",
         return_value=_make_response(status_code=400, raise_for_status=True),
     )
     with pytest.raises(requests.HTTPError):
@@ -295,7 +299,9 @@ def test_get_ingestion(mocker: MockerFixture, ingest_client: IngestClient):
     method, url = request_mock.call_args.args
     assert method == "GET"
     assert url == "https://example.server.prescient.earth/ingest/v1/ingestion/42"
-    assert request_mock.call_args.kwargs["headers"]["Authorization"] == "Bearer mock_token"
+    # No Authorization header — Ingest API is reached over a port-forward.
+    assert "Authorization" not in request_mock.call_args.kwargs["headers"]
+    assert request_mock.call_args.kwargs["headers"]["Accept"] == "application/json"
 
 
 def test_start_ingestion(mocker: MockerFixture, ingest_client: IngestClient):
@@ -452,28 +458,50 @@ def test_get_ingestion_propagates_404(
 # ---------------------------------------------------------------------------
 
 
-def test_health_check_returns_true_on_204(
+def test_check_returns_true_on_204(
     mocker: MockerFixture, ingest_client: IngestClient
 ):
     get_mock = mocker.patch(
         "prescient_sdk.ingest.requests.get",
         return_value=_make_response(status_code=204),
     )
-    assert ingest_client.health_check() is True
+    assert ingest_client.check() is True
     assert (
         get_mock.call_args.args[0]
         == "https://example.server.prescient.earth/ingest/healthy"
     )
 
 
-def test_health_check_returns_false_on_other_status(
-    mocker: MockerFixture, ingest_client: IngestClient
+def test_check_returns_false_on_other_status(
+    mocker: MockerFixture, ingest_client: IngestClient, capsys: pytest.CaptureFixture
 ):
+    """Non-204 response returns False; when the override is unset, also warns to stdout."""
     mocker.patch(
         "prescient_sdk.ingest.requests.get",
         return_value=_make_response(status_code=500),
     )
-    assert ingest_client.health_check() is False
+    assert ingest_client.check() is False
+    # PRESCIENT_INGEST_ENDPOINT_URL is not set in the test env, so the warning fires.
+    captured = capsys.readouterr()
+    assert "PRESCIENT_INGEST_ENDPOINT_URL" in captured.out
+
+
+def test_check_does_not_warn_when_override_is_set(
+    mocker: MockerFixture,
+    monkeypatch: pytest.MonkeyPatch,
+    mock_creds,
+    capsys: pytest.CaptureFixture,
+):
+    """When the override URL is set, a failing /healthy does not print a warning."""
+    monkeypatch.setenv("PRESCIENT_INGEST_ENDPOINT_URL", "https://ingest.example.com/")
+    client = IngestClient()
+    mocker.patch(
+        "prescient_sdk.ingest.requests.get",
+        return_value=_make_response(status_code=500),
+    )
+    assert client.check() is False
+    captured = capsys.readouterr()
+    assert captured.out == ""
 
 
 # ---------------------------------------------------------------------------

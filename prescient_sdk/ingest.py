@@ -56,8 +56,15 @@ class IngestClient:
             raise ValueError(
                 "Cannot provide prescient_client alongside env_file or settings"
             )
+        if env_file and settings:
+            raise ValueError("Cannot provide both env_file and settings")
         if prescient_client is None:
-            prescient_client = PrescientClient(env_file=env_file, settings=settings)
+            if env_file:
+                prescient_client = PrescientClient(env_file=env_file)
+            elif settings:
+                prescient_client = PrescientClient(settings=settings)
+            else:
+                prescient_client = PrescientClient()
         self._client = prescient_client
 
     @property
@@ -82,15 +89,30 @@ class IngestClient:
 
     @property
     def headers(self) -> dict:
-        """Auth headers from the underlying PrescientClient."""
-        return self._client.headers
+        """Default request headers for the Ingest API.
+
+        Returns ``Accept: application/json`` only. ``Content-Type`` is
+        omitted so ``requests`` can set ``multipart/form-data; boundary=...``
+        itself on the upload path in ``create_ingestion``.
+
+        Note: this deliberately does NOT delegate to ``PrescientClient.headers``,
+        because that would trigger an OAuth sign-in via the
+        ``auth_credentials`` property. The Ingest API is reached over a
+        port-forward and does not require a bearer token from the SDK.
+        """
+        return {"Accept": "application/json"}
 
     def _url(self, path: str) -> str:
         return urllib.parse.urljoin(self.base_url, path.lstrip("/"))
 
     def _request(self, method: str, path: str, **kwargs) -> requests.Response:
-        kwargs.setdefault("headers", self.headers)
-        response = requests.request(method, self._url(path), **kwargs)
+        # Allow callers to override or extend headers via kwargs without
+        # colliding with the default headers= passed below.
+        headers = {**self.headers, **kwargs.pop("headers", {})}
+        print(
+            f"_request: method={method} path={self._url(path)} headers={headers} kwargs={kwargs}"
+        )
+        response = requests.request(method, self._url(path), headers=headers, **kwargs)
         response.raise_for_status()
         return response
 
@@ -106,24 +128,43 @@ class IngestClient:
                 spec as an in-memory string should ``.encode("utf-8")`` it
                 first.
         """
-        # Build auth-only headers; let requests set the multipart Content-Type.
-        upload_headers = {
-            "Accept": "application/json",
-            "Authorization": self.headers["Authorization"],
-        }
-        url = self._url("v1/ingestion/")
+        # Multipart upload: do NOT set Content-Type ourselves — requests
+        # sets `multipart/form-data; boundary=...` with the right boundary
+        # parameter once `files=` is provided. `self.headers` deliberately
+        # omits Content-Type so _request doesn't override that.
+        t_start = time.perf_counter()
 
         if isinstance(spec_file, bytes):
             files = {"spec_file": ("spec.yaml", spec_file, "application/yaml")}
-            response = requests.post(url, headers=upload_headers, files=files)
+            t_request = time.perf_counter()
+            response = self._request("POST", "v1/ingestion/", files=files)
+            t_response = time.perf_counter()
+            print(
+                f"create_ingestion: request={t_response - t_request:.3f}s "
+                f"(bytes payload, {len(spec_file)} bytes)"
+            )
         else:
             path = Path(spec_file)
+            t_open = time.perf_counter()
             with open(path, "rb") as fh:
                 files = {"spec_file": (path.name, fh, "application/yaml")}
-                response = requests.post(url, headers=upload_headers, files=files)
+                t_request = time.perf_counter()
+                response = self._request("POST", "v1/ingestion/", files=files)
+                t_response = time.perf_counter()
+            print(
+                f"create_ingestion: open={t_request - t_open:.3f}s "
+                f"request={t_response - t_request:.3f}s "
+                f"(file={path})"
+            )
 
-        response.raise_for_status()
-        return Ingestion.model_validate(response.json())
+        t_parse_start = time.perf_counter()
+        result = Ingestion.model_validate(response.json())
+        t_end = time.perf_counter()
+        print(
+            f"create_ingestion: parse={t_end - t_parse_start:.3f}s "
+            f"total={t_end - t_start:.3f}s"
+        )
+        return result
 
     def get_ingestion(self, ingestion_id: int) -> Ingestion:
         """Get ingestion by ID."""
@@ -203,9 +244,14 @@ class IngestClient:
 
     # /healthy
 
-    def health_check(self) -> bool:
+    def check(self) -> bool:
         """Return ``True`` when the Ingest API responds 204 to ``/healthy``."""
         response = requests.get(self._url("healthy"), timeout=10)
+        if (
+            not self.client.settings.prescient_ingest_endpoint_url
+            and response.status_code != 204
+        ):
+            print("Ingest API not available, or PRESCIENT_INGEST_ENDPOINT_URL not set")
         return response.status_code == 204
 
     # Workflow helper
@@ -249,6 +295,7 @@ class IngestClient:
                 obj: Ingestion | Batch = self.get_ingestion(ingestion_id)
             else:
                 obj = self.get_batch(ingestion_id, batch_number)
+            print(obj.status)
             if obj.status in targets:
                 return obj
             if time.monotonic() >= deadline:
