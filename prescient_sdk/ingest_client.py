@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import logging
 import time
 import urllib.parse
 from pathlib import Path
-from typing import Iterable
+from typing import Callable, Iterable, Protocol, TypeVar
 
 import requests
 
@@ -20,6 +21,41 @@ from prescient_sdk.ingest_models import (
     OutputFile,
     Status,
 )
+
+logger = logging.getLogger("prescient_sdk")
+
+
+class _HasStatus(Protocol):
+    status: Status
+
+
+_StatusT = TypeVar("_StatusT", bound=_HasStatus)
+
+
+def _poll_for_status(
+    fetcher: Callable[[], _StatusT],
+    target_statuses: Iterable[Status],
+    poll_interval: float,
+    timeout: float,
+) -> _StatusT:
+    """Poll ``fetcher`` until the returned object's ``status`` is in ``target_statuses``.
+
+    Shared by :meth:`IngestClient.wait_for_status` and the resource-class
+    waiters so polling behaviour stays in one place.
+    """
+    targets = set(target_statuses)
+    deadline = time.monotonic() + timeout
+    while True:
+        obj = fetcher()
+        logger.debug("poll status=%s", obj.status)
+        if obj.status in targets:
+            return obj
+        if time.monotonic() >= deadline:
+            raise TimeoutError(
+                f"Status {obj.status.value!r} did not reach "
+                f"{sorted(s.value for s in targets)} within {timeout}s"
+            )
+        time.sleep(poll_interval)
 
 
 class IngestClient:
@@ -109,9 +145,7 @@ class IngestClient:
         # Allow callers to override or extend headers via kwargs without
         # colliding with the default headers= passed below.
         headers = {**self.headers, **kwargs.pop("headers", {})}
-        print(
-            f"_request: method={method} path={self._url(path)} headers={headers} kwargs={kwargs}"
-        )
+        logger.debug("_request method=%s path=%s", method, self._url(path))
         response = requests.request(method, self._url(path), headers=headers, **kwargs)
         response.raise_for_status()
         return response
@@ -132,39 +166,15 @@ class IngestClient:
         # sets `multipart/form-data; boundary=...` with the right boundary
         # parameter once `files=` is provided. `self.headers` deliberately
         # omits Content-Type so _request doesn't override that.
-        t_start = time.perf_counter()
-
         if isinstance(spec_file, bytes):
             files = {"spec_file": ("spec.yaml", spec_file, "application/yaml")}
-            t_request = time.perf_counter()
             response = self._request("POST", "v1/ingestion/", files=files)
-            t_response = time.perf_counter()
-            print(
-                f"create_ingestion: request={t_response - t_request:.3f}s "
-                f"(bytes payload, {len(spec_file)} bytes)"
-            )
         else:
             path = Path(spec_file)
-            t_open = time.perf_counter()
             with open(path, "rb") as fh:
                 files = {"spec_file": (path.name, fh, "application/yaml")}
-                t_request = time.perf_counter()
                 response = self._request("POST", "v1/ingestion/", files=files)
-                t_response = time.perf_counter()
-            print(
-                f"create_ingestion: open={t_request - t_open:.3f}s "
-                f"request={t_response - t_request:.3f}s "
-                f"(file={path})"
-            )
-
-        t_parse_start = time.perf_counter()
-        result = Ingestion.model_validate(response.json())
-        t_end = time.perf_counter()
-        print(
-            f"create_ingestion: parse={t_end - t_parse_start:.3f}s "
-            f"total={t_end - t_start:.3f}s"
-        )
-        return result
+        return Ingestion.model_validate(response.json())
 
     def get_ingestion(self, ingestion_id: int) -> Ingestion:
         """Get ingestion by ID."""
@@ -251,7 +261,9 @@ class IngestClient:
             not self.client.settings.prescient_ingest_endpoint_url
             and response.status_code != 204
         ):
-            print("Ingest API not available, or PRESCIENT_INGEST_ENDPOINT_URL not set")
+            logger.warning(
+                "Ingest API not available, or PRESCIENT_INGEST_ENDPOINT_URL not set"
+            )
         return response.status_code == 204
 
     # Workflow helper
@@ -288,19 +300,10 @@ class IngestClient:
             TimeoutError: If ``timeout`` elapses before reaching a target
                 status.
         """
-        targets = set(target_statuses)
-        deadline = time.monotonic() + timeout
-        while True:
-            if batch_number is None:
-                obj: Ingestion | Batch = self.get_ingestion(ingestion_id)
-            else:
-                obj = self.get_batch(ingestion_id, batch_number)
-            print(obj.status)
-            if obj.status in targets:
-                return obj
-            if time.monotonic() >= deadline:
-                raise TimeoutError(
-                    f"Status {obj.status.value!r} did not reach "
-                    f"{sorted(s.value for s in targets)} within {timeout}s"
-                )
-            time.sleep(poll_interval)
+        if batch_number is None:
+            fetcher: Callable[[], Ingestion | Batch] = lambda: self.get_ingestion(
+                ingestion_id
+            )
+        else:
+            fetcher = lambda: self.get_batch(ingestion_id, batch_number)
+        return _poll_for_status(fetcher, target_statuses, poll_interval, timeout)

@@ -1,4 +1,5 @@
 import io
+import logging
 import os
 from unittest.mock import MagicMock
 
@@ -8,7 +9,7 @@ from pytest_mock import MockerFixture
 
 from prescient_sdk.client import PrescientClient
 from prescient_sdk.config import Settings
-from prescient_sdk.ingest import IngestClient
+from prescient_sdk.ingest_client import IngestClient
 from prescient_sdk.ingest_models import (
     Batch,
     Error,
@@ -203,7 +204,7 @@ def test_url_joins_v1_paths(mock_creds):
 def test_create_ingestion_from_bytes(mocker: MockerFixture, ingest_client: IngestClient):
     """Bytes are uploaded directly as the multipart spec_file part."""
     post_mock = mocker.patch(
-        "prescient_sdk.ingest.requests.request",
+        "prescient_sdk.ingest_client.requests.request",
         return_value=_make_response(INGESTION_PAYLOAD),
     )
     spec = b"user: tester\n"
@@ -236,7 +237,7 @@ def test_create_ingestion_from_path(
     spec_file.write_text("user: tester\n")
 
     post_mock = mocker.patch(
-        "prescient_sdk.ingest.requests.request",
+        "prescient_sdk.ingest_client.requests.request",
         return_value=_make_response(INGESTION_PAYLOAD),
     )
 
@@ -259,7 +260,7 @@ def test_create_ingestion_from_string_path(
     spec_file.write_text("user: tester\n")
 
     post_mock = mocker.patch(
-        "prescient_sdk.ingest.requests.request",
+        "prescient_sdk.ingest_client.requests.request",
         return_value=_make_response(INGESTION_PAYLOAD),
     )
 
@@ -273,7 +274,7 @@ def test_create_ingestion_propagates_http_errors(
 ):
     """4xx responses surface as requests.HTTPError via raise_for_status."""
     mocker.patch(
-        "prescient_sdk.ingest.requests.request",
+        "prescient_sdk.ingest_client.requests.request",
         return_value=_make_response(status_code=400, raise_for_status=True),
     )
     with pytest.raises(requests.HTTPError):
@@ -287,7 +288,7 @@ def test_create_ingestion_propagates_http_errors(
 
 def test_get_ingestion(mocker: MockerFixture, ingest_client: IngestClient):
     request_mock = mocker.patch(
-        "prescient_sdk.ingest.requests.request",
+        "prescient_sdk.ingest_client.requests.request",
         return_value=_make_response(INGESTION_PAYLOAD),
     )
 
@@ -306,7 +307,7 @@ def test_get_ingestion(mocker: MockerFixture, ingest_client: IngestClient):
 
 def test_start_ingestion(mocker: MockerFixture, ingest_client: IngestClient):
     request_mock = mocker.patch(
-        "prescient_sdk.ingest.requests.request",
+        "prescient_sdk.ingest_client.requests.request",
         return_value=_make_response({**INGESTION_PAYLOAD, "status": "INGESTING"}),
     )
 
@@ -320,7 +321,7 @@ def test_start_ingestion(mocker: MockerFixture, ingest_client: IngestClient):
 
 def test_get_ingestion_input_files(mocker: MockerFixture, ingest_client: IngestClient):
     mocker.patch(
-        "prescient_sdk.ingest.requests.request",
+        "prescient_sdk.ingest_client.requests.request",
         return_value=_make_response([INPUT_FILE_PAYLOAD, INPUT_FILE_PAYLOAD]),
     )
     result = ingest_client.get_ingestion_input_files(42)
@@ -331,7 +332,7 @@ def test_get_ingestion_input_files(mocker: MockerFixture, ingest_client: IngestC
 
 def test_get_ingestion_output_files(mocker: MockerFixture, ingest_client: IngestClient):
     mocker.patch(
-        "prescient_sdk.ingest.requests.request",
+        "prescient_sdk.ingest_client.requests.request",
         return_value=_make_response([OUTPUT_FILE_PAYLOAD]),
     )
     result = ingest_client.get_ingestion_output_files(42)
@@ -343,7 +344,7 @@ def test_get_ingestion_output_files(mocker: MockerFixture, ingest_client: Ingest
 
 def test_get_ingestion_errors(mocker: MockerFixture, ingest_client: IngestClient):
     mocker.patch(
-        "prescient_sdk.ingest.requests.request",
+        "prescient_sdk.ingest_client.requests.request",
         return_value=_make_response([ERROR_PAYLOAD]),
     )
     result = ingest_client.get_ingestion_errors(42)
@@ -359,7 +360,7 @@ def test_get_ingestion_errors(mocker: MockerFixture, ingest_client: IngestClient
 
 def test_list_batches(mocker: MockerFixture, ingest_client: IngestClient):
     mocker.patch(
-        "prescient_sdk.ingest.requests.request",
+        "prescient_sdk.ingest_client.requests.request",
         return_value=_make_response([BATCH_PAYLOAD]),
     )
     result = ingest_client.list_batches(42)
@@ -370,7 +371,7 @@ def test_list_batches(mocker: MockerFixture, ingest_client: IngestClient):
 
 def test_create_batch(mocker: MockerFixture, ingest_client: IngestClient):
     request_mock = mocker.patch(
-        "prescient_sdk.ingest.requests.request",
+        "prescient_sdk.ingest_client.requests.request",
         return_value=_make_response(BATCH_PAYLOAD),
     )
     result = ingest_client.create_batch(42)
@@ -383,7 +384,7 @@ def test_create_batch(mocker: MockerFixture, ingest_client: IngestClient):
 
 def test_get_batch(mocker: MockerFixture, ingest_client: IngestClient):
     request_mock = mocker.patch(
-        "prescient_sdk.ingest.requests.request",
+        "prescient_sdk.ingest_client.requests.request",
         return_value=_make_response(BATCH_PAYLOAD),
     )
     result = ingest_client.get_batch(42, 1)
@@ -396,7 +397,7 @@ def test_get_batch(mocker: MockerFixture, ingest_client: IngestClient):
 
 def test_start_batch(mocker: MockerFixture, ingest_client: IngestClient):
     request_mock = mocker.patch(
-        "prescient_sdk.ingest.requests.request",
+        "prescient_sdk.ingest_client.requests.request",
         return_value=_make_response({**BATCH_PAYLOAD, "status": "INGESTING"}),
     )
     result = ingest_client.start_batch(42, 1)
@@ -409,7 +410,7 @@ def test_start_batch(mocker: MockerFixture, ingest_client: IngestClient):
 
 def test_get_batch_input_files(mocker: MockerFixture, ingest_client: IngestClient):
     mocker.patch(
-        "prescient_sdk.ingest.requests.request",
+        "prescient_sdk.ingest_client.requests.request",
         return_value=_make_response([INPUT_FILE_PAYLOAD]),
     )
     result = ingest_client.get_batch_input_files(42, 1)
@@ -419,7 +420,7 @@ def test_get_batch_input_files(mocker: MockerFixture, ingest_client: IngestClien
 
 def test_get_batch_output_files(mocker: MockerFixture, ingest_client: IngestClient):
     mocker.patch(
-        "prescient_sdk.ingest.requests.request",
+        "prescient_sdk.ingest_client.requests.request",
         return_value=_make_response([OUTPUT_FILE_PAYLOAD]),
     )
     result = ingest_client.get_batch_output_files(42, 1)
@@ -429,7 +430,7 @@ def test_get_batch_output_files(mocker: MockerFixture, ingest_client: IngestClie
 
 def test_get_batch_errors(mocker: MockerFixture, ingest_client: IngestClient):
     mocker.patch(
-        "prescient_sdk.ingest.requests.request",
+        "prescient_sdk.ingest_client.requests.request",
         return_value=_make_response([ERROR_PAYLOAD]),
     )
     result = ingest_client.get_batch_errors(42, 1)
@@ -446,7 +447,7 @@ def test_get_ingestion_propagates_404(
     mocker: MockerFixture, ingest_client: IngestClient
 ):
     mocker.patch(
-        "prescient_sdk.ingest.requests.request",
+        "prescient_sdk.ingest_client.requests.request",
         return_value=_make_response(status_code=404, raise_for_status=True),
     )
     with pytest.raises(requests.HTTPError):
@@ -462,7 +463,7 @@ def test_check_returns_true_on_204(
     mocker: MockerFixture, ingest_client: IngestClient
 ):
     get_mock = mocker.patch(
-        "prescient_sdk.ingest.requests.get",
+        "prescient_sdk.ingest_client.requests.get",
         return_value=_make_response(status_code=204),
     )
     assert ingest_client.check() is True
@@ -473,35 +474,41 @@ def test_check_returns_true_on_204(
 
 
 def test_check_returns_false_on_other_status(
-    mocker: MockerFixture, ingest_client: IngestClient, capsys: pytest.CaptureFixture
+    mocker: MockerFixture,
+    ingest_client: IngestClient,
+    caplog: pytest.LogCaptureFixture,
 ):
-    """Non-204 response returns False; when the override is unset, also warns to stdout."""
+    """Non-204 response returns False; when the override is unset, also warns via logger."""
     mocker.patch(
-        "prescient_sdk.ingest.requests.get",
+        "prescient_sdk.ingest_client.requests.get",
         return_value=_make_response(status_code=500),
     )
-    assert ingest_client.check() is False
+    with caplog.at_level(logging.WARNING, logger="prescient_sdk"):
+        assert ingest_client.check() is False
     # PRESCIENT_INGEST_ENDPOINT_URL is not set in the test env, so the warning fires.
-    captured = capsys.readouterr()
-    assert "PRESCIENT_INGEST_ENDPOINT_URL" in captured.out
+    assert any(
+        "PRESCIENT_INGEST_ENDPOINT_URL" in record.message for record in caplog.records
+    )
 
 
 def test_check_does_not_warn_when_override_is_set(
     mocker: MockerFixture,
     monkeypatch: pytest.MonkeyPatch,
     mock_creds,
-    capsys: pytest.CaptureFixture,
+    caplog: pytest.LogCaptureFixture,
 ):
-    """When the override URL is set, a failing /healthy does not print a warning."""
+    """When the override URL is set, a failing /healthy does not emit a warning."""
     monkeypatch.setenv("PRESCIENT_INGEST_ENDPOINT_URL", "https://ingest.example.com/")
     client = IngestClient()
     mocker.patch(
-        "prescient_sdk.ingest.requests.get",
+        "prescient_sdk.ingest_client.requests.get",
         return_value=_make_response(status_code=500),
     )
-    assert client.check() is False
-    captured = capsys.readouterr()
-    assert captured.out == ""
+    with caplog.at_level(logging.WARNING, logger="prescient_sdk"):
+        assert client.check() is False
+    assert not any(
+        "PRESCIENT_INGEST_ENDPOINT_URL" in record.message for record in caplog.records
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -518,8 +525,8 @@ def test_wait_for_status_returns_when_target_reached(
         _make_response({**INGESTION_PAYLOAD, "status": "SCANNING"}),
         _make_response({**INGESTION_PAYLOAD, "status": "READY"}),
     ]
-    mocker.patch("prescient_sdk.ingest.requests.request", side_effect=responses)
-    sleep_mock = mocker.patch("prescient_sdk.ingest.time.sleep")
+    mocker.patch("prescient_sdk.ingest_client.requests.request", side_effect=responses)
+    sleep_mock = mocker.patch("prescient_sdk.ingest_client.time.sleep")
 
     result = ingest_client.wait_for_status(42, poll_interval=0.01, timeout=10)
 
@@ -533,10 +540,10 @@ def test_wait_for_status_polls_batch_when_batch_number_given(
     mocker: MockerFixture, ingest_client: IngestClient
 ):
     request_mock = mocker.patch(
-        "prescient_sdk.ingest.requests.request",
+        "prescient_sdk.ingest_client.requests.request",
         return_value=_make_response({**BATCH_PAYLOAD, "status": "DONE"}),
     )
-    mocker.patch("prescient_sdk.ingest.time.sleep")
+    mocker.patch("prescient_sdk.ingest_client.time.sleep")
 
     result = ingest_client.wait_for_status(42, batch_number=1, poll_interval=0.01)
     assert isinstance(result, Batch)
@@ -550,13 +557,13 @@ def test_wait_for_status_times_out(
 ):
     """If a target status is never reached, TimeoutError is raised."""
     mocker.patch(
-        "prescient_sdk.ingest.requests.request",
+        "prescient_sdk.ingest_client.requests.request",
         return_value=_make_response({**INGESTION_PAYLOAD, "status": "SCANNING"}),
     )
-    mocker.patch("prescient_sdk.ingest.time.sleep")
+    mocker.patch("prescient_sdk.ingest_client.time.sleep")
     # Drive monotonic so the deadline elapses on the first iteration.
     mocker.patch(
-        "prescient_sdk.ingest.time.monotonic", side_effect=[0.0, 100.0, 100.0]
+        "prescient_sdk.ingest_client.time.monotonic", side_effect=[0.0, 100.0, 100.0]
     )
 
     with pytest.raises(TimeoutError):
@@ -577,8 +584,8 @@ def test_wait_for_status_custom_target(
         _make_response({**INGESTION_PAYLOAD, "status": "INGESTING"}),
         _make_response({**INGESTION_PAYLOAD, "status": "DONE"}),
     ]
-    mocker.patch("prescient_sdk.ingest.requests.request", side_effect=responses)
-    mocker.patch("prescient_sdk.ingest.time.sleep")
+    mocker.patch("prescient_sdk.ingest_client.requests.request", side_effect=responses)
+    mocker.patch("prescient_sdk.ingest_client.time.sleep")
 
     result = ingest_client.wait_for_status(
         42,
@@ -609,7 +616,7 @@ def test_ingestion_spec_deserializes_tasks(
         },
     }
     mocker.patch(
-        "prescient_sdk.ingest.requests.request",
+        "prescient_sdk.ingest_client.requests.request",
         return_value=_make_response(payload),
     )
     result = ingest_client.get_ingestion(7)

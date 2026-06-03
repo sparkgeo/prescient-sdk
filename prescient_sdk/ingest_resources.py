@@ -1,17 +1,20 @@
 """High-level resource classes built on top of :class:`IngestClient`.
 
 These wrap an ingestion (and its batches) as stateful Python objects with
-context-manager support and a live, readable progress display in both
-notebooks and terminals.
+a small observer hook so external code can react to state changes.
+Construction goes through the classmethods ``create`` / ``from_id`` /
+``from_number`` so the network call is visible at the call site.
+
+For a live, auto-updating Rich progress display, wrap a resource in
+:class:`LiveStatus` — display lifecycle lives there, not on the resource.
 """
 
 from __future__ import annotations
 
 import io
-import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 
 from rich.console import Console, Group, RenderableType
 from rich.live import Live
@@ -20,8 +23,10 @@ from rich.table import Table
 from rich.text import Text
 
 from prescient_sdk import ingest_models as models
-from prescient_sdk.ingest import IngestClient
+from prescient_sdk.ingest_client import IngestClient, _poll_for_status
 from prescient_sdk.ingest_models import (
+    DONE_STATUSES,
+    READY_STATUSES,
     Error,
     ErrorSeverity,
     InputFile,
@@ -80,14 +85,22 @@ def _errors_panel(errors: list[Error]) -> Panel | None:
     return Panel(table, title="Errors", title_align="left", border_style="red")
 
 
+_RefreshCallback = Callable[["_IngestResource"], None]
+
+
 class _IngestResource:
-    """Shared lifecycle / display machinery for :class:`Ingestion` and :class:`Batch`."""
+    """Shared state + observer machinery for :class:`IngestionResource` and :class:`BatchResource`.
+
+    Subclasses cache a pydantic model, expose status/listings, and notify
+    registered observers each time the model changes (via ``refresh()`` or
+    ``start()``). The class is intentionally display-agnostic — wrap it in
+    :class:`LiveStatus` to get a Rich live progress display.
+    """
 
     def __init__(self, client: IngestClient):
         self._client = client
-        self._console = Console()
-        self._live: Live | None = None
         self._errors: list[Error] = []
+        self._observers: list[_RefreshCallback] = []
 
     # -- Subclass hooks --------------------------------------------------
 
@@ -107,13 +120,39 @@ class _IngestResource:
     def _render(self) -> RenderableType:
         raise NotImplementedError
 
+    def _fetch_status_carrier(self) -> Any:
+        """Return the object whose ``.status`` is checked by the poller.
+
+        Subclasses return their cached pydantic model.
+        """
+        raise NotImplementedError
+
+    # -- Observers -------------------------------------------------------
+
+    def on_refresh(self, callback: _RefreshCallback) -> _RefreshCallback:
+        """Register a callback fired after every ``refresh()`` and ``start()``.
+
+        Returns the callback unchanged so it can be passed to
+        :meth:`off_refresh` when unsubscribing.
+        """
+        self._observers.append(callback)
+        return callback
+
+    def off_refresh(self, callback: _RefreshCallback) -> None:
+        if callback in self._observers:
+            self._observers.remove(callback)
+
+    def _notify(self) -> None:
+        for cb in self._observers:
+            cb(self)
+
     # -- Lifecycle -------------------------------------------------------
 
     def refresh(self) -> "_IngestResource":
-        """Re-fetch the underlying model + errors and update any live display."""
+        """Re-fetch the underlying model + errors and notify observers."""
         self._set_model(self._fetch_model())
         self._errors = self._fetch_errors()
-        self._update_display()
+        self._notify()
         return self
 
     def _wait(
@@ -122,89 +161,59 @@ class _IngestResource:
         poll_interval: float,
         timeout: float,
     ) -> "_IngestResource":
-        targets = set(target_statuses)
-        deadline = time.monotonic() + timeout
-        while True:
+        # Drive the shared polling helper with a fetcher that refreshes this
+        # resource on every iteration. Observers (e.g. LiveStatus) fire via
+        # refresh() each tick.
+        def fetcher() -> Any:
             self.refresh()
-            if self.status in targets:
-                return self
-            if time.monotonic() >= deadline:
-                raise TimeoutError(
-                    f"Status {self.status.value!r} did not reach "
-                    f"{sorted(s.value for s in targets)} within {timeout}s"
-                )
-            time.sleep(poll_interval)
+            return self._fetch_status_carrier()
 
-    # -- Context manager -------------------------------------------------
-
-    def __enter__(self) -> "_IngestResource":
-        self._live = Live(
-            self._render(),
-            console=self._console,
-            refresh_per_second=4,
-        )
-        self._live.start()
+        _poll_for_status(fetcher, target_statuses, poll_interval, timeout)
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> bool:
-        try:
-            self.refresh()
-        except Exception:
-            # Best-effort final refresh; never mask the user's own exception.
-            pass
-        live = self._live
-        self._live = None
-        if live is not None:
-            try:
-                live.update(self._render(), refresh=True)
-            finally:
-                live.stop()
-        return False
-
-    def _update_display(self) -> None:
-        if self._live is not None:
-            self._live.update(self._render(), refresh=True)
-
-    # -- Rich integrations -----------------------------------------------
+    # -- Rich integrations (cheap, no lifecycle) -------------------------
 
     def __rich__(self) -> RenderableType:
         return self._render()
 
     def _repr_html_(self) -> str:
-        """Render to HTML for Jupyter when the object is displayed bare (no `with`)."""
+        """Render to HTML for Jupyter when displayed bare (no LiveStatus)."""
         console = Console(record=True, file=io.StringIO(), force_jupyter=False)
         console.print(self._render())
         return console.export_html(inline_styles=True)
 
 
-class Ingestion(_IngestResource):
+class IngestionResource(_IngestResource):
     """A Prescient ingestion as a stateful Python resource.
 
-    Construct with exactly one of ``spec`` (to create a new ingestion) or
-    ``id`` (to attach to an existing one). Use as a context manager to get
-    a live, auto-updating progress display::
+    Construct via :meth:`create` (POST a new ingestion) or :meth:`from_id`
+    (attach to an existing one). Wrap in :class:`LiveStatus` for a live
+    progress display::
 
-        with Ingestion(client, spec="spec.yaml") as ing:
+        ing = IngestionResource.create(client, spec="spec.yaml")
+        with LiveStatus(ing):
             ing.wait_until_ready()
             if not ing.errors():
                 ing.start().wait_until_done()
     """
 
-    def __init__(
-        self,
-        client: IngestClient,
-        *,
-        spec: Path | str | bytes | None = None,
-        id: int | None = None,
-    ):
-        if (spec is None) == (id is None):
-            raise ValueError("Provide exactly one of `spec` or `id`")
+    def __init__(self, client: IngestClient, model: models.Ingestion):
         super().__init__(client)
-        if spec is not None:
-            self._model: models.Ingestion = client.create_ingestion(spec)
-        else:
-            assert id is not None
-            self._model = client.get_ingestion(id)
+        self._model: models.Ingestion = model
+
+    # -- Constructors ----------------------------------------------------
+
+    @classmethod
+    def create(
+        cls, client: IngestClient, spec: Path | str | bytes
+    ) -> "IngestionResource":
+        """POST a new ingestion from ``spec`` and wrap the result."""
+        return cls(client, client.create_ingestion(spec))
+
+    @classmethod
+    def from_id(cls, client: IngestClient, id: int) -> "IngestionResource":
+        """GET an existing ingestion by ID and wrap it."""
+        return cls(client, client.get_ingestion(id))
 
     # -- Identity / state ------------------------------------------------
 
@@ -233,39 +242,33 @@ class Ingestion(_IngestResource):
 
     # -- State transitions -----------------------------------------------
 
-    def start(self) -> "Ingestion":
+    def start(self) -> "IngestionResource":
         self._set_model(self._client.start_ingestion(self.id))
-        self._update_display()
+        self._notify()
         return self
 
     def wait_until_ready(
         self, poll_interval: float = 5.0, timeout: float = 300.0
-    ) -> "Ingestion":
-        self._wait(
-            [Status.READY, Status.FAILED, Status.INCOMPLETE], poll_interval, timeout
-        )
+    ) -> "IngestionResource":
+        self._wait(READY_STATUSES, poll_interval, timeout)
         return self
 
     def wait_until_done(
         self, poll_interval: float = 10.0, timeout: float = 3600.0
-    ) -> "Ingestion":
-        self._wait(
-            [Status.DONE, Status.FAILED, Status.INCOMPLETE], poll_interval, timeout
-        )
+    ) -> "IngestionResource":
+        self._wait(DONE_STATUSES, poll_interval, timeout)
         return self
 
     # -- Batches ---------------------------------------------------------
 
-    def create_batch(self) -> "Batch":
-        """Create a new batch under this ingestion."""
-        return Batch._from_model(
-            self._client, self._client.create_batch(self.id)
-        )
+    def create_batch(self) -> "BatchResource":
+        """POST a new batch under this ingestion."""
+        return BatchResource.create(self._client, self.id)
 
-    def list_batches(self) -> list["Batch"]:
-        """Return ``Batch`` wrappers for every batch belonging to this ingestion."""
+    def list_batches(self) -> list["BatchResource"]:
+        """Return ``BatchResource`` wrappers for every batch under this ingestion."""
         return [
-            Batch._from_model(self._client, m)
+            BatchResource(self._client, m)
             for m in self._client.list_batches(self.id)
         ]
 
@@ -279,6 +282,9 @@ class Ingestion(_IngestResource):
 
     def _fetch_errors(self) -> list[Error]:
         return self._client.get_ingestion_errors(self.id)
+
+    def _fetch_status_carrier(self) -> models.Ingestion:
+        return self._model
 
     def _render(self) -> RenderableType:
         header = Table.grid(padding=(0, 1))
@@ -305,35 +311,32 @@ class Ingestion(_IngestResource):
         return Panel(Group(*renderables), title="Ingestion", title_align="left")
 
 
-class Batch(_IngestResource):
+class BatchResource(_IngestResource):
     """A single ingestion batch as a stateful Python resource.
 
-    Construct with an ``ingestion_id`` and either a ``batch_number`` (to
-    attach to an existing batch) or no batch number (to create a new
-    batch). Most users will get a ``Batch`` back from
-    :meth:`Ingestion.create_batch` rather than constructing one directly.
+    Construct via :meth:`create` (POST a new batch under an ingestion) or
+    :meth:`from_number` (attach to an existing batch). Most users will get
+    a ``BatchResource`` back from :meth:`IngestionResource.create_batch`.
+    Wrap in :class:`LiveStatus` for a live progress display.
     """
 
-    def __init__(
-        self,
-        client: IngestClient,
-        *,
-        ingestion_id: int,
-        batch_number: int | None = None,
-    ):
+    def __init__(self, client: IngestClient, model: models.Batch):
         super().__init__(client)
-        if batch_number is None:
-            self._model: models.Batch = client.create_batch(ingestion_id)
-        else:
-            self._model = client.get_batch(ingestion_id, batch_number)
+        self._model: models.Batch = model
+
+    # -- Constructors ----------------------------------------------------
 
     @classmethod
-    def _from_model(cls, client: IngestClient, model: models.Batch) -> "Batch":
-        """Internal: build a ``Batch`` wrapping an already-fetched pydantic model."""
-        obj = cls.__new__(cls)
-        _IngestResource.__init__(obj, client)
-        obj._model = model
-        return obj
+    def create(cls, client: IngestClient, ingestion_id: int) -> "BatchResource":
+        """POST a new batch under ``ingestion_id`` and wrap the result."""
+        return cls(client, client.create_batch(ingestion_id))
+
+    @classmethod
+    def from_number(
+        cls, client: IngestClient, ingestion_id: int, batch_number: int
+    ) -> "BatchResource":
+        """GET an existing batch and wrap it."""
+        return cls(client, client.get_batch(ingestion_id, batch_number))
 
     # -- Identity / state ------------------------------------------------
 
@@ -376,27 +379,23 @@ class Batch(_IngestResource):
 
     # -- State transitions -----------------------------------------------
 
-    def start(self) -> "Batch":
+    def start(self) -> "BatchResource":
         self._set_model(
             self._client.start_batch(self.ingestion_id, self.batch_number)
         )
-        self._update_display()
+        self._notify()
         return self
 
     def wait_until_ready(
         self, poll_interval: float = 5.0, timeout: float = 300.0
-    ) -> "Batch":
-        self._wait(
-            [Status.READY, Status.FAILED, Status.INCOMPLETE], poll_interval, timeout
-        )
+    ) -> "BatchResource":
+        self._wait(READY_STATUSES, poll_interval, timeout)
         return self
 
     def wait_until_done(
         self, poll_interval: float = 10.0, timeout: float = 3600.0
-    ) -> "Batch":
-        self._wait(
-            [Status.DONE, Status.FAILED, Status.INCOMPLETE], poll_interval, timeout
-        )
+    ) -> "BatchResource":
+        self._wait(DONE_STATUSES, poll_interval, timeout)
         return self
 
     # -- Internals -------------------------------------------------------
@@ -409,6 +408,9 @@ class Batch(_IngestResource):
 
     def _fetch_errors(self) -> list[Error]:
         return self._client.get_batch_errors(self.ingestion_id, self.batch_number)
+
+    def _fetch_status_carrier(self) -> models.Batch:
+        return self._model
 
     def _render(self) -> RenderableType:
         header = Table.grid(padding=(0, 1))
@@ -436,3 +438,55 @@ class Batch(_IngestResource):
         if errs_panel is not None:
             renderables.append(errs_panel)
         return Panel(Group(*renderables), title="Batch", title_align="left")
+
+
+class LiveStatus:
+    """Render a live, auto-updating Rich display of a resource's status.
+
+    Wraps any :class:`IngestionResource` or :class:`BatchResource`. Use as a
+    context manager — the display starts on ``__enter__``, refreshes after
+    every ``refresh()`` and ``start()`` on the wrapped resource, and
+    finalizes on ``__exit__``. The resource itself remains fully usable
+    outside the block (without the live display)::
+
+        ing = IngestionResource.create(client, spec="spec.yaml")
+        with LiveStatus(ing):
+            ing.wait_until_ready()
+            if not ing.errors():
+                ing.start().wait_until_done()
+    """
+
+    def __init__(
+        self,
+        resource: _IngestResource,
+        *,
+        console: Console | None = None,
+        refresh_per_second: int = 4,
+    ):
+        self._resource = resource
+        self._live = Live(
+            resource._render(),
+            console=console or Console(),
+            refresh_per_second=refresh_per_second,
+        )
+
+    def __enter__(self) -> _IngestResource:
+        self._live.start()
+        self._resource.on_refresh(self._on_refresh)
+        return self._resource
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> bool:
+        self._resource.off_refresh(self._on_refresh)
+        # Best-effort final refresh; never mask the caller's exception.
+        try:
+            self._resource.refresh()
+        except Exception:
+            pass
+        try:
+            self._live.update(self._resource._render(), refresh=True)
+        finally:
+            self._live.stop()
+        return False
+
+    def _on_refresh(self, _resource: _IngestResource) -> None:
+        self._live.update(self._resource._render(), refresh=True)

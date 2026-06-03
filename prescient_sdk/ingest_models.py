@@ -1,7 +1,7 @@
 """Pydantic models for the Prescient Ingest API.
 
 These mirror the schemas defined in the Ingest API OpenAPI specification
-and are returned by :class:`prescient_sdk.ingest.IngestClient`.
+and are returned by :class:`prescient_sdk.ingest_client.IngestClient`.
 """
 
 from __future__ import annotations
@@ -191,4 +191,16 @@ class Error(BaseModel):
 
 TERMINAL_STATUSES: frozenset[Status] = frozenset(
     {Status.READY, Status.DONE, Status.FAILED, Status.INCOMPLETE}
+)
+
+# Targets for "wait until the create/scan phase resolves" — anything that
+# ends SCANNING/PLANNING.
+READY_STATUSES: frozenset[Status] = frozenset(
+    {Status.READY, Status.FAILED, Status.INCOMPLETE}
+)
+
+# Targets for "wait until ingestion finishes" — READY is no longer a stop
+# condition once ingestion has been started.
+DONE_STATUSES: frozenset[Status] = frozenset(
+    {Status.DONE, Status.FAILED, Status.INCOMPLETE}
 )
