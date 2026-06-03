@@ -300,10 +300,9 @@ class IngestClient:
             TimeoutError: If ``timeout`` elapses before reaching a target
                 status.
         """
-        if batch_number is None:
-            fetcher: Callable[[], Ingestion | Batch] = lambda: self.get_ingestion(
-                ingestion_id
-            )
-        else:
-            fetcher = lambda: self.get_batch(ingestion_id, batch_number)
+        def fetcher() -> Ingestion | Batch:
+            if batch_number is None:
+                return self.get_ingestion(ingestion_id)
+            return self.get_batch(ingestion_id, batch_number)
+
         return _poll_for_status(fetcher, target_statuses, poll_interval, timeout)
