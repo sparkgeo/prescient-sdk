@@ -3,7 +3,7 @@ name: deploy-book
 # Run this when a new release tag is pushed
 on:
   push:
-    tags: ['*.*.*']
+    tags: ['*.*.*', 'v*.*.*']
 
 # This job installs dependencies, builds the book, and pushes it to `gh-pages`
 jobs:

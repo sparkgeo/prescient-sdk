@@ -2,7 +2,7 @@ name: Publish Python 🐍 distribution 📦 to PyPI and TestPyPI
 
 on:
   push:
-    tags: ["*.*.*"]
+    tags: ["*.*.*", "v*.*.*"]
 
 env:
   TWINE_USERNAME: __token__
@@ -23,13 +23,13 @@ jobs:
         run: |
           set -e
           TAG="${GITHUB_REF_NAME}"
-          if [[ "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+(a|b|rc).[0-9]+$ ]]; then
+          if [[ "$TAG" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+(a|b|rc)\.[0-9]+$ ]]; then
             echo "Pre-release tag '$TAG' — any branch is allowed."
           else
             if git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
               echo "Final release tag '$TAG' is on main — proceeding."
             else
-              echo "::error::Final release tag '$TAG' must be created from a commit on main. Use a pre-release suffix (a/b/rc, e.g. 1.2.3rc.1) to publish from non-main branches."
+              echo "::error::Final release tag '$TAG' must be created from a commit on main. Use a pre-release suffix (a/b/rc, e.g. v1.2.3rc.1) to publish from non-main branches."
               exit 1
             fi
           fi
