@@ -1,6 +1,6 @@
 [project]
 name = "prescient-sdk"
-version = "4.1.2rc1"
+version = "0.4.2rc1"
 description = "A Python SDK for integrating with Prescient services"
 readme = "README.md"
 license = {file = "LICENSE"}
