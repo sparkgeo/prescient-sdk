@@ -25,7 +25,7 @@ def make_ingestion_model(
     return models.Ingestion(
         id=id,
         status=status,
-        spec=models.IngestionSpec(user=user),
+        spec={"user": user},
     )
 
 
@@ -119,7 +119,7 @@ def test_ingestion_properties_delegate_to_model(client):
     ing = IngestionResource.create(client, spec=b"")
     assert ing.id == 7
     assert ing.status is models.Status.READY
-    assert ing.spec.user == "alice"
+    assert ing.spec["user"] == "alice"
 
 
 def test_ingestion_listings_call_through(client):

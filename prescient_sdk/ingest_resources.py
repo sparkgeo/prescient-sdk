@@ -30,7 +30,6 @@ from prescient_sdk.ingest_models import (
     Error,
     ErrorSeverity,
     InputFile,
-    IngestionSpec,
     OutputFile,
     Status,
 )
@@ -226,7 +225,7 @@ class IngestionResource(_IngestResource):
         return self._model.status
 
     @property
-    def spec(self) -> IngestionSpec:
+    def spec(self) -> dict[str, Any]:
         return self._model.spec
 
     # -- Listings (always fresh) -----------------------------------------
@@ -299,10 +298,10 @@ class IngestionResource(_IngestResource):
         spec_table = Table.grid(padding=(0, 2))
         spec_table.add_column(style="dim")
         spec_table.add_column()
-        spec_table.add_row("User", spec.user)
-        spec_table.add_row("Tasks", str(len(spec.tasks)))
-        spec_table.add_row("Locations", str(len(spec.locations)))
-        spec_table.add_row("Source file sets", str(len(spec.source_file_sets)))
+        spec_table.add_row("User", str(spec.get("user", "—")))
+        spec_table.add_row("Tasks", str(len(spec.get("tasks") or {})))
+        spec_table.add_row("Locations", str(len(spec.get("locations") or {})))
+        spec_table.add_row("Source file sets", str(len(spec.get("source_file_sets") or {})))
 
         renderables: list[RenderableType] = [header, spec_table]
         errs_panel = _errors_panel(self._errors)

@@ -19,7 +19,6 @@ from prescient_sdk.ingest_models import (
     InputFile,
     OutputFile,
     Status,
-    TaskType,
 )
 
 
@@ -596,14 +595,14 @@ def test_wait_for_status_custom_target(
 
 
 # ---------------------------------------------------------------------------
-# Model coverage: TaskType enum is reachable via IngestionSpec
+# Model coverage: Ingestion.spec is an opaque dict
 # ---------------------------------------------------------------------------
 
 
-def test_ingestion_spec_deserializes_tasks(
+def test_ingestion_spec_is_opaque_dict(
     mocker: MockerFixture, ingest_client: IngestClient
 ):
-    """A richer Ingestion payload with tasks parses cleanly into typed enums."""
+    """The Ingest API exposes ``spec`` as an open object; it round-trips as a dict."""
     payload = {
         "id": 7,
         "status": "READY",
@@ -620,5 +619,7 @@ def test_ingestion_spec_deserializes_tasks(
         return_value=_make_response(payload),
     )
     result = ingest_client.get_ingestion(7)
-    assert result.spec.tasks["main"].type is TaskType.TRANSFORM
-    assert result.spec.tasks["thumb"].type is TaskType.THUMBNAIL
+    assert isinstance(result.spec, dict)
+    assert result.spec["user"] == "tester"
+    assert result.spec["tasks"]["main"]["type"] == "transform"
+    assert result.spec["tasks"]["thumb"]["type"] == "thumbnail"
