@@ -26,7 +26,9 @@ def iter_files(input_dir: Path, exclude: Optional[list[str]] = None) -> Iterator
         if path.is_dir():
             continue
         if exclude:
-            if any(path.match(e) for e in exclude):
+            matched = next((e for e in exclude if path.match(e)), None)
+            if matched is not None:
+                logger.debug("Excluded %s (matched %s)", path, matched)
                 continue
 
         yield path
@@ -38,6 +40,7 @@ def _upload(
     s3 = session.client("s3")
 
     if not overwrite:
+        logger.debug("Pre-flight head_object on s3://%s/%s", bucket, key)
         try:
             _ = s3.head_object(Bucket=bucket, Key=key)
             logger.info(
@@ -102,7 +105,11 @@ def upload(
     if not input_path.exists():
         raise FileNotFoundError(input_dir)
 
-    prescient_client = prescient_client or PrescientClient()
+    if prescient_client is None:
+        logger.debug(
+            "No prescient_client provided; constructing default PrescientClient"
+        )
+        prescient_client = PrescientClient()
 
     bucket = prescient_client.settings.prescient_upload_bucket
     if not bucket:
@@ -123,3 +130,4 @@ def upload(
             session=prescient_client.upload_session,
             overwrite=overwrite,
         )
+    logger.info("Upload complete: %s files to s3://%s", len(files), bucket)

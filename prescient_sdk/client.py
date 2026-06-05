@@ -80,6 +80,11 @@ class PrescientClient:
                 # directory, or env variables
                 settings = Settings()  # type: ignore
         self.settings: Settings = settings
+        logger.debug(
+            "Settings loaded: endpoint=%s provider=%s",
+            settings.prescient_endpoint_url,
+            settings.prescient_auth_provider,
+        )
         self._expiration_duration = 1 * 60 * 60  # Fixed to 1hr
         # initialize empty credentials
         self._auth_credentials: dict = {}
@@ -113,10 +118,12 @@ class PrescientClient:
             not self._auth_credentials
             or "refresh_token" not in self._auth_credentials.keys()
         ):
+            logger.info("Starting interactive Microsoft sign-in")
             return app.acquire_token_interactive(
                 scopes=["https://graph.microsoft.com/.default"]
             )
         else:
+            logger.debug("Refreshing Microsoft auth token via refresh_token")
             return app.acquire_token_by_refresh_token(
                 refresh_token=self._auth_credentials["refresh_token"],
                 scopes=["https://graph.microsoft.com/.default"],
@@ -141,6 +148,10 @@ class PrescientClient:
         scopes = ["openid", "https://www.googleapis.com/auth/userinfo.email"]
 
         if not self._auth_credentials or "refresh_token" not in self._auth_credentials:
+            logger.info(
+                "Starting interactive Google sign-in on port %s",
+                self.settings.prescient_google_redirect_port,
+            )
             flow = InstalledAppFlow.from_client_config(
                 client_config={
                     "installed": {
@@ -158,6 +169,7 @@ class PrescientClient:
                 port=self.settings.prescient_google_redirect_port
             )
         else:
+            logger.debug("Refreshing Google auth token")
             credentials = google.oauth2.credentials.Credentials(
                 token=None,
                 refresh_token=self._auth_credentials["refresh_token"],
@@ -191,6 +203,10 @@ class PrescientClient:
             ValueError: If a valid id_token cannot be obtained.
         """
         if not self.credentials_expired:
+            logger.debug(
+                "Using cached auth credentials (expires %s)",
+                self._auth_credentials.get("expiration"),
+            )
             return self._auth_credentials
 
         time_zero = datetime.datetime.now(datetime.timezone.utc)
@@ -206,6 +222,10 @@ class PrescientClient:
 
         self._auth_credentials["expiration"] = time_zero + datetime.timedelta(
             seconds=self._expiration_duration
+        )
+        logger.info(
+            "Obtained auth credentials from provider=%s",
+            self.settings.prescient_auth_provider,
         )
 
         return self._auth_credentials
@@ -234,6 +254,7 @@ class PrescientClient:
         except IndexError:
             role_name_stub = role[-10:]
         role_session_name = f"prescient-s3-access-{role_name_stub}"
+        logger.debug("Assuming role %s as %s", role, role_session_name)
 
         # exchange token with aws temp creds
         response: dict = sts_client.assume_role_with_web_identity(
@@ -274,6 +295,10 @@ class PrescientClient:
         if self._bucket_credentials and not self.credentials_expired:
             return self._bucket_credentials
 
+        logger.info(
+            "Fetching bucket credentials via %s",
+            "STS assume-role" if self.settings.prescient_aws_role else "fileproxy",
+        )
         if self.settings.prescient_aws_role:
             self._bucket_credentials = self._fetch_sts_credentials()
         else:
@@ -314,7 +339,10 @@ class PrescientClient:
         url = urllib.parse.urljoin(
             self.settings.prescient_endpoint_url, "fileproxy/credentials"
         )
+        logger.debug("GET %s", url)
         response = requests.get(url, headers=self.headers)
+        if not response.ok:
+            logger.warning("fileproxy returned %s", response.status_code)
         response.raise_for_status()
         payload = response.json()
         return {
@@ -411,6 +439,7 @@ class PrescientClient:
         Returns:
             None
         """
+        logger.info("Refreshing all credentials (force=%s)", force)
         if force:
             self._auth_credentials.pop("expiration")
 

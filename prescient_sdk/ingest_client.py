@@ -46,10 +46,17 @@ def _poll_for_status(
     """
     targets = set(target_statuses)
     deadline = time.monotonic() + timeout
+    logger.debug(
+        "Polling for status in %s (timeout=%ss, interval=%ss)",
+        sorted(s.value for s in targets),
+        timeout,
+        poll_interval,
+    )
     while True:
         obj = fetcher()
         logger.debug("poll status=%s", obj.status)
         if obj.status in targets:
+            logger.info("Status reached %s", obj.status.value)
             return obj
         if time.monotonic() >= deadline:
             raise TimeoutError(
@@ -157,8 +164,12 @@ class IngestClient:
         # Allow callers to override or extend headers via kwargs without
         # colliding with the default headers= passed below.
         headers = {**self.headers, **kwargs.pop("headers", {})}
-        logger.debug("_request method=%s path=%s", method, self._url(path))
-        response = requests.request(method, self._url(path), headers=headers, **kwargs)
+        url = self._url(path)
+        logger.debug("_request method=%s path=%s", method, url)
+        response = requests.request(method, url, headers=headers, **kwargs)
+        logger.debug(
+            "_response method=%s path=%s status=%s", method, url, response.status_code
+        )
         response.raise_for_status()
         return response
 
@@ -186,7 +197,9 @@ class IngestClient:
             with open(path, "rb") as fh:
                 files = {"spec_file": (path.name, fh, "application/yaml")}
                 response = self._request("POST", "v1/ingestion/", files=files)
-        return Ingestion.model_validate(response.json())
+        ingestion = Ingestion.model_validate(response.json())
+        logger.info("Created ingestion id=%s", ingestion.id)
+        return ingestion
 
     def get_ingestion(self, ingestion_id: int) -> Ingestion:
         """Get ingestion by ID."""
@@ -195,6 +208,7 @@ class IngestClient:
 
     def start_ingestion(self, ingestion_id: int) -> Ingestion:
         """Start ingesting files for the latest batch (must be ``READY``)."""
+        logger.info("Starting ingestion id=%s", ingestion_id)
         response = self._request("POST", f"v1/ingestion/{ingestion_id}/start")
         return Ingestion.model_validate(response.json())
 
@@ -223,7 +237,11 @@ class IngestClient:
     def create_batch(self, ingestion_id: int) -> Batch:
         """Create a new ingestion batch and start scanning for input files."""
         response = self._request("POST", f"v1/ingestion/{ingestion_id}/batches")
-        return Batch.model_validate(response.json())
+        batch = Batch.model_validate(response.json())
+        logger.info(
+            "Created batch ingestion=%s batch=%s", ingestion_id, batch.batch_number
+        )
+        return batch
 
     def get_batch(self, ingestion_id: int, batch_number: int) -> Batch:
         """Get information on a single batch by its 1-based batch number."""
@@ -234,6 +252,9 @@ class IngestClient:
 
     def start_batch(self, ingestion_id: int, batch_number: int) -> Batch:
         """Start ingesting files for a specific batch (must be ``READY``)."""
+        logger.info(
+            "Starting batch ingestion=%s batch=%s", ingestion_id, batch_number
+        )
         response = self._request(
             "POST", f"v1/ingestion/{ingestion_id}/batches/{batch_number}/start"
         )
@@ -268,7 +289,9 @@ class IngestClient:
 
     def check(self) -> bool:
         """Return ``True`` when the Ingest API responds 204 to ``/healthy``."""
-        response = requests.get(self._url("healthy"), timeout=10)
+        url = self._url("healthy")
+        response = requests.get(url, timeout=10)
+        logger.debug("Health check %s -> %s", url, response.status_code)
         if (
             not self.client.settings.prescient_ingest_endpoint_url
             and response.status_code != 204

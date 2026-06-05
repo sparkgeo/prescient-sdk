@@ -12,6 +12,7 @@ For a live, auto-updating Rich progress display, wrap a resource in
 from __future__ import annotations
 
 import io
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Iterable
@@ -33,6 +34,8 @@ from prescient_sdk.ingest_models import (
     OutputFile,
     Status,
 )
+
+logger = logging.getLogger("prescient_sdk")
 
 
 STATUS_STYLES: dict[Status, str] = {
@@ -149,6 +152,7 @@ class _IngestResource:
 
     def refresh(self) -> "_IngestResource":
         """Re-fetch the underlying model + errors and notify observers."""
+        logger.debug("Refreshing %s", self.__class__.__name__)
         self._set_model(self._fetch_model())
         self._errors = self._fetch_errors()
         self._notify()
@@ -163,6 +167,13 @@ class _IngestResource:
         # Drive the shared polling helper with a fetcher that refreshes this
         # resource on every iteration. Observers (e.g. LiveStatus) fire via
         # refresh() each tick.
+        logger.info(
+            "Waiting for %s to reach %s (timeout=%ss)",
+            self.__class__.__name__,
+            sorted(s.value for s in target_statuses),
+            timeout,
+        )
+
         def fetcher() -> Any:
             self.refresh()
             return self._fetch_status_carrier()
@@ -207,7 +218,9 @@ class IngestionResource(_IngestResource):
         cls, client: IngestClient, spec: Path | str | bytes
     ) -> "IngestionResource":
         """POST a new ingestion from ``spec`` and wrap the result."""
-        return cls(client, client.create_ingestion(spec))
+        ingestion = client.create_ingestion(spec)
+        logger.info("IngestionResource created id=%s", ingestion.id)
+        return cls(client, ingestion)
 
     @classmethod
     def from_id(cls, client: IngestClient, id: int) -> "IngestionResource":
@@ -242,6 +255,7 @@ class IngestionResource(_IngestResource):
     # -- State transitions -----------------------------------------------
 
     def start(self) -> "IngestionResource":
+        logger.info("Starting ingestion id=%s", self.id)
         self._set_model(self._client.start_ingestion(self.id))
         self._notify()
         return self
@@ -328,7 +342,13 @@ class BatchResource(_IngestResource):
     @classmethod
     def create(cls, client: IngestClient, ingestion_id: int) -> "BatchResource":
         """POST a new batch under ``ingestion_id`` and wrap the result."""
-        return cls(client, client.create_batch(ingestion_id))
+        batch = client.create_batch(ingestion_id)
+        logger.info(
+            "BatchResource created ingestion=%s batch=%s",
+            ingestion_id,
+            batch.batch_number,
+        )
+        return cls(client, batch)
 
     @classmethod
     def from_number(
@@ -379,6 +399,9 @@ class BatchResource(_IngestResource):
     # -- State transitions -----------------------------------------------
 
     def start(self) -> "BatchResource":
+        logger.info(
+            "Starting batch ingestion=%s batch=%s", self.ingestion_id, self.batch_number
+        )
         self._set_model(
             self._client.start_batch(self.ingestion_id, self.batch_number)
         )
@@ -470,6 +493,9 @@ class LiveStatus:
         )
 
     def __enter__(self) -> _IngestResource:
+        logger.debug(
+            "LiveStatus started for %s", self._resource.__class__.__name__
+        )
         self._live.start()
         self._resource.on_refresh(self._on_refresh)
         return self._resource
@@ -485,6 +511,7 @@ class LiveStatus:
             self._live.update(self._resource._render(), refresh=True)
         finally:
             self._live.stop()
+        logger.debug("LiveStatus stopped")
         return False
 
     def _on_refresh(self, _resource: _IngestResource) -> None:
