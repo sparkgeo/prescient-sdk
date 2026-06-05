@@ -19,7 +19,16 @@ logger = logging.getLogger(__name__)
 
 
 def iter_files(input_dir: Path, exclude: Optional[list[str]] = None) -> Iterator[Path]:
-    """Return an iterator of Path"""
+    """Recursively yield files under ``input_dir``, skipping directories.
+
+    Args:
+        input_dir: Directory to walk recursively.
+        exclude: Optional list of glob patterns; any file whose path matches a
+            pattern is skipped.
+
+    Yields:
+        Each file path that survives the ``exclude`` filter.
+    """
     glob_pattern = "**/*"
 
     for path in input_dir.glob(glob_pattern):
@@ -92,8 +101,9 @@ def upload(
             When input_dir is a relative path, this should be relative to the current working
             directory used to execute this function.
         exclude (Optional[list[str]]): A list of glob patterns to exclude from uploading.
-            For example `exclude=["*.txt", "*.csv"] would skip any matched files that end with a .txt or
-            .csv suffix. If not provided by default all files will be uploaded.
+            For example ``exclude=["*.txt", "*.csv"]`` would skip any matched files that end
+            with a ``.txt`` or ``.csv`` suffix. If not provided, by default all files will
+            be uploaded.
         prescient_client (Optional[PrescientClient]): A PrescientClient instance. If not provided
             a default PrescientClient instance will be created.
         overwrite (bool): Whether to overwrite objects if they already exist. If False, upload

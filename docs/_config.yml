@@ -44,12 +44,10 @@ sphinx:
     suppress_warnings: ["etoc.toctree"]
     autodoc_pydantic_model_show_json: false
     autodoc_pydantic_model_show_config_summary: false
-    autodoc_pydantic_model_show_config_member: false
     autodoc_pydantic_model_show_validator_summary: false
     autodoc_pydantic_model_show_validator_members: false
     autodoc_pydantic_settings_show_json: false
     autodoc_pydantic_settings_show_config_summary: false
-    autodoc_pydantic_settings_show_config_member: false
     autodoc_pydantic_settings_show_validator_summary: false
     autodoc_pydantic_settings_show_validator_members: false
     autodoc_pydantic_field_list_validators: false

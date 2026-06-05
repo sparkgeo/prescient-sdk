@@ -19,5 +19,7 @@ parts:
 - caption: SDK Reference
   chapters:
   - file: client-sdk
+  - file: ingest-client
+  - file: ingest-resources
   - file: upload
   - file: config

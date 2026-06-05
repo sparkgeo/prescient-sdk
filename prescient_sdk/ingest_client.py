@@ -43,6 +43,20 @@ def _poll_for_status(
 
     Shared by :meth:`IngestClient.wait_for_status` and the resource-class
     waiters so polling behaviour stays in one place.
+
+    Args:
+        fetcher (Callable[[], _StatusT]): Callable that returns an object with a
+            ``status`` attribute. Invoked once per poll iteration.
+        target_statuses (Iterable[Status]): Statuses that end the wait.
+        poll_interval (float): Seconds between polls.
+        timeout (float): Total seconds to wait before raising.
+
+    Returns:
+        _StatusT: The object returned by ``fetcher`` once its ``status`` matches
+        one of ``target_statuses``.
+
+    Raises:
+        TimeoutError: If ``timeout`` elapses before reaching a target status.
     """
     targets = set(target_statuses)
     deadline = time.monotonic() + timeout
@@ -78,20 +92,24 @@ class IngestClient:
     when set, otherwise falls back to ``Settings.prescient_endpoint_url``.
 
     Args:
-        prescient_client: An existing PrescientClient to use for auth. When
-            provided, ``env_file`` and ``settings`` must be omitted.
-        env_file: Optional path to a configuration file. Forwarded to
+        prescient_client (PrescientClient, optional): An existing PrescientClient
+            to use for auth. When provided, ``env_file`` and ``settings`` must be
+            omitted. Defaults to None.
+        env_file (str | Path, optional): Path to a configuration file. Forwarded
+            to ``PrescientClient`` when ``prescient_client`` is not supplied.
+            Defaults to None.
+        settings (Settings, optional): Settings object. Forwarded to
             ``PrescientClient`` when ``prescient_client`` is not supplied.
-        settings: Optional Settings object. Forwarded to ``PrescientClient``
-            when ``prescient_client`` is not supplied.
-        debug: When True, emit DEBUG/INFO/WARNING/ERROR logs; otherwise
-            only WARNING/ERROR. Defaults to False.
-        log_file: Destination for log output. When None (default), logs
-            go to stdout; when set, logs go to this file.
+            Defaults to None.
+        debug (bool, optional): When True, emit DEBUG/INFO/WARNING/ERROR logs;
+            otherwise only WARNING/ERROR. Defaults to False.
+        log_file (str | Path, optional): Destination for log output. When None
+            (default), logs go to stdout; when set, logs go to this file.
 
     Raises:
-        ValueError: If ``prescient_client`` is provided alongside
-            ``env_file`` or ``settings``.
+        ValueError: If ``prescient_client`` is provided alongside ``env_file``
+            or ``settings``.
+        ValueError: If both ``env_file`` and ``settings`` are provided.
     """
 
     def __init__(
@@ -124,7 +142,11 @@ class IngestClient:
 
     @property
     def client(self) -> PrescientClient:
-        """The underlying :class:`PrescientClient` used for auth."""
+        """The underlying :class:`PrescientClient` used for auth.
+
+        Returns:
+            PrescientClient: The wrapped client instance.
+        """
         return self._client
 
     @property
@@ -133,6 +155,9 @@ class IngestClient:
 
         Uses ``prescient_ingest_endpoint_url`` when set; otherwise falls back
         to ``<prescient_endpoint_url>/ingest/``.
+
+        Returns:
+            str: The Ingest API base URL with a trailing slash.
         """
         override = self._client.settings.prescient_ingest_endpoint_url
         if override:
@@ -154,6 +179,9 @@ class IngestClient:
         because that would trigger an OAuth sign-in via the
         ``auth_credentials`` property. The Ingest API is reached over a
         port-forward and does not require a bearer token from the SDK.
+
+        Returns:
+            dict: The default headers used on every Ingest API request.
         """
         return {"Accept": "application/json"}
 
@@ -179,11 +207,14 @@ class IngestClient:
         """Create a new ingestion from an ingestion specification YAML.
 
         Args:
-            spec_file: The YAML specification. A ``Path`` or ``str`` is
-                treated as a file path and opened in binary mode. ``bytes``
-                is posted directly as the file content. Callers with the
-                spec as an in-memory string should ``.encode("utf-8")`` it
+            spec_file (Path | str | bytes): The YAML specification. A ``Path``
+                or ``str`` is treated as a file path and opened in binary mode.
+                ``bytes`` is posted directly as the file content. Callers with
+                the spec as an in-memory string should ``.encode("utf-8")`` it
                 first.
+
+        Returns:
+            Ingestion: The newly created ingestion as returned by the API.
         """
         # Multipart upload: do NOT set Content-Type ourselves — requests
         # sets `multipart/form-data; boundary=...` with the right boundary
@@ -202,40 +233,89 @@ class IngestClient:
         return ingestion
 
     def get_ingestion(self, ingestion_id: int) -> Ingestion:
-        """Get ingestion by ID."""
+        """Get ingestion by ID.
+
+        Args:
+            ingestion_id (int): The ingestion's server-assigned ID.
+
+        Returns:
+            Ingestion: The current ingestion model as returned by the API.
+        """
         response = self._request("GET", f"v1/ingestion/{ingestion_id}")
         return Ingestion.model_validate(response.json())
 
     def start_ingestion(self, ingestion_id: int) -> Ingestion:
-        """Start ingesting files for the latest batch (must be ``READY``)."""
+        """Start ingesting files for the latest batch (must be ``READY``).
+
+        Args:
+            ingestion_id (int): The ingestion to start.
+
+        Returns:
+            Ingestion: The updated ingestion model after starting.
+        """
         logger.info("Starting ingestion id=%s", ingestion_id)
         response = self._request("POST", f"v1/ingestion/{ingestion_id}/start")
         return Ingestion.model_validate(response.json())
 
     def get_ingestion_input_files(self, ingestion_id: int) -> list[InputFile]:
-        """List all input files for an ingestion across all batches."""
+        """List all input files for an ingestion across all batches.
+
+        Args:
+            ingestion_id (int): The ingestion to query.
+
+        Returns:
+            list[InputFile]: Input files across every batch in this ingestion.
+        """
         response = self._request("GET", f"v1/ingestion/{ingestion_id}/input_files")
         return [InputFile.model_validate(item) for item in response.json()]
 
     def get_ingestion_output_files(self, ingestion_id: int) -> list[OutputFile]:
-        """List all output files for an ingestion across all batches."""
+        """List all output files for an ingestion across all batches.
+
+        Args:
+            ingestion_id (int): The ingestion to query.
+
+        Returns:
+            list[OutputFile]: Output files across every batch in this ingestion.
+        """
         response = self._request("GET", f"v1/ingestion/{ingestion_id}/output_files")
         return [OutputFile.model_validate(item) for item in response.json()]
 
     def get_ingestion_errors(self, ingestion_id: int) -> list[Error]:
-        """Get all errors associated with an ingestion across all batches."""
+        """Get all errors associated with an ingestion across all batches.
+
+        Args:
+            ingestion_id (int): The ingestion to query.
+
+        Returns:
+            list[Error]: Errors recorded against this ingestion.
+        """
         response = self._request("GET", f"v1/ingestion/{ingestion_id}/errors")
         return [Error.model_validate(item) for item in response.json()]
 
     # /v1/ingestion/{ingestion_id}/batches/...
 
     def list_batches(self, ingestion_id: int) -> list[Batch]:
-        """List all batches for an ingestion."""
+        """List all batches for an ingestion.
+
+        Args:
+            ingestion_id (int): The parent ingestion ID.
+
+        Returns:
+            list[Batch]: Every batch belonging to this ingestion.
+        """
         response = self._request("GET", f"v1/ingestion/{ingestion_id}/batches")
         return [Batch.model_validate(item) for item in response.json()]
 
     def create_batch(self, ingestion_id: int) -> Batch:
-        """Create a new ingestion batch and start scanning for input files."""
+        """Create a new ingestion batch and start scanning for input files.
+
+        Args:
+            ingestion_id (int): The parent ingestion ID.
+
+        Returns:
+            Batch: The newly created batch as returned by the API.
+        """
         response = self._request("POST", f"v1/ingestion/{ingestion_id}/batches")
         batch = Batch.model_validate(response.json())
         logger.info(
@@ -244,14 +324,30 @@ class IngestClient:
         return batch
 
     def get_batch(self, ingestion_id: int, batch_number: int) -> Batch:
-        """Get information on a single batch by its 1-based batch number."""
+        """Get information on a single batch by its 1-based batch number.
+
+        Args:
+            ingestion_id (int): The parent ingestion ID.
+            batch_number (int): 1-based batch number within the ingestion.
+
+        Returns:
+            Batch: The current batch model as returned by the API.
+        """
         response = self._request(
             "GET", f"v1/ingestion/{ingestion_id}/batches/{batch_number}"
         )
         return Batch.model_validate(response.json())
 
     def start_batch(self, ingestion_id: int, batch_number: int) -> Batch:
-        """Start ingesting files for a specific batch (must be ``READY``)."""
+        """Start ingesting files for a specific batch (must be ``READY``).
+
+        Args:
+            ingestion_id (int): The parent ingestion ID.
+            batch_number (int): 1-based batch number within the ingestion.
+
+        Returns:
+            Batch: The updated batch model after starting.
+        """
         logger.info(
             "Starting batch ingestion=%s batch=%s", ingestion_id, batch_number
         )
@@ -263,7 +359,15 @@ class IngestClient:
     def get_batch_input_files(
         self, ingestion_id: int, batch_number: int
     ) -> list[InputFile]:
-        """List input files for a specific batch."""
+        """List input files for a specific batch.
+
+        Args:
+            ingestion_id (int): The parent ingestion ID.
+            batch_number (int): 1-based batch number within the ingestion.
+
+        Returns:
+            list[InputFile]: Input files belonging to this batch.
+        """
         response = self._request(
             "GET", f"v1/ingestion/{ingestion_id}/batches/{batch_number}/input_files"
         )
@@ -272,14 +376,30 @@ class IngestClient:
     def get_batch_output_files(
         self, ingestion_id: int, batch_number: int
     ) -> list[OutputFile]:
-        """List output files for a specific batch."""
+        """List output files for a specific batch.
+
+        Args:
+            ingestion_id (int): The parent ingestion ID.
+            batch_number (int): 1-based batch number within the ingestion.
+
+        Returns:
+            list[OutputFile]: Output files produced by this batch.
+        """
         response = self._request(
             "GET", f"v1/ingestion/{ingestion_id}/batches/{batch_number}/output_files"
         )
         return [OutputFile.model_validate(item) for item in response.json()]
 
     def get_batch_errors(self, ingestion_id: int, batch_number: int) -> list[Error]:
-        """Get all errors associated with a specific batch."""
+        """Get all errors associated with a specific batch.
+
+        Args:
+            ingestion_id (int): The parent ingestion ID.
+            batch_number (int): 1-based batch number within the ingestion.
+
+        Returns:
+            list[Error]: Errors recorded against this batch.
+        """
         response = self._request(
             "GET", f"v1/ingestion/{ingestion_id}/batches/{batch_number}/errors"
         )
@@ -288,7 +408,11 @@ class IngestClient:
     # /healthy
 
     def check(self) -> bool:
-        """Return ``True`` when the Ingest API responds 204 to ``/healthy``."""
+        """Return ``True`` when the Ingest API responds 204 to ``/healthy``.
+
+        Returns:
+            bool: True if the health endpoint returned 204, False otherwise.
+        """
         url = self._url("healthy")
         response = requests.get(url, timeout=10)
         logger.debug("Health check %s -> %s", url, response.status_code)
@@ -319,17 +443,20 @@ class IngestClient:
         seconds have elapsed.
 
         Args:
-            ingestion_id: The ingestion to poll.
-            batch_number: If given, poll the specific batch rather than the
-                top-level ingestion.
-            target_statuses: Statuses that end the wait. Defaults to the
-                terminal/decision states ``READY``, ``DONE``, ``FAILED``,
-                and ``INCOMPLETE``.
-            poll_interval: Seconds between polls.
-            timeout: Total seconds to wait before raising.
+            ingestion_id (int): The ingestion to poll.
+            batch_number (int, optional): If given, poll the specific batch
+                rather than the top-level ingestion. Defaults to None.
+            target_statuses (Iterable[Status], optional): Statuses that end
+                the wait. Defaults to the terminal/decision states ``READY``,
+                ``DONE``, ``FAILED``, and ``INCOMPLETE``.
+            poll_interval (float, optional): Seconds between polls. Defaults
+                to 5.0.
+            timeout (float, optional): Total seconds to wait before raising.
+                Defaults to 300.0.
 
         Returns:
-            The ``Ingestion`` or ``Batch`` once it reaches a target status.
+            Ingestion | Batch: The ingestion or batch once it reaches a
+            target status.
 
         Raises:
             TimeoutError: If ``timeout`` elapses before reaching a target
