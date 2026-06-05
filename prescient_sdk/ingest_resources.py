@@ -64,7 +64,15 @@ def _status_badge(status: Status) -> Text:
 
 
 def _errors_panel(errors: list[Error]) -> Panel | None:
-    """Build a small table summarizing errors by severity. Returns None if empty."""
+    """Build a small table summarizing errors by severity.
+
+    Args:
+        errors (list[Error]): Errors to summarize.
+
+    Returns:
+        Panel | None: A Rich ``Panel`` containing the summary, or ``None``
+        when ``errors`` is empty.
+    """
     if not errors:
         return None
 
@@ -134,13 +142,24 @@ class _IngestResource:
     def on_refresh(self, callback: _RefreshCallback) -> _RefreshCallback:
         """Register a callback fired after every ``refresh()`` and ``start()``.
 
-        Returns the callback unchanged so it can be passed to
-        :meth:`off_refresh` when unsubscribing.
+        Args:
+            callback (Callable[[_IngestResource], None]): Function invoked with
+                this resource each time its state changes.
+
+        Returns:
+            Callable[[_IngestResource], None]: The same callback, returned so it
+            can be passed to :meth:`off_refresh` when unsubscribing.
         """
         self._observers.append(callback)
         return callback
 
     def off_refresh(self, callback: _RefreshCallback) -> None:
+        """Unregister a callback previously passed to :meth:`on_refresh`.
+
+        Args:
+            callback (Callable[[_IngestResource], None]): The callback to remove.
+                A no-op if it was never registered.
+        """
         if callback in self._observers:
             self._observers.remove(callback)
 
@@ -151,7 +170,11 @@ class _IngestResource:
     # -- Lifecycle -------------------------------------------------------
 
     def refresh(self) -> "_IngestResource":
-        """Re-fetch the underlying model + errors and notify observers."""
+        """Re-fetch the underlying model + errors and notify observers.
+
+        Returns:
+            _IngestResource: This resource, for chaining.
+        """
         logger.debug("Refreshing %s", self.__class__.__name__)
         self._set_model(self._fetch_model())
         self._errors = self._fetch_errors()
@@ -217,44 +240,99 @@ class IngestionResource(_IngestResource):
     def create(
         cls, client: IngestClient, spec: Path | str | bytes
     ) -> "IngestionResource":
-        """POST a new ingestion from ``spec`` and wrap the result."""
+        """POST a new ingestion from ``spec`` and wrap the result.
+
+        Args:
+            client (IngestClient): Client used for the API call and subsequent
+                state transitions.
+            spec (Path | str | bytes): The YAML specification. See
+                :meth:`IngestClient.create_ingestion` for how each type is
+                handled.
+
+        Returns:
+            IngestionResource: A resource wrapping the newly created ingestion.
+        """
         ingestion = client.create_ingestion(spec)
         logger.info("IngestionResource created id=%s", ingestion.id)
         return cls(client, ingestion)
 
     @classmethod
     def from_id(cls, client: IngestClient, id: int) -> "IngestionResource":
-        """GET an existing ingestion by ID and wrap it."""
+        """GET an existing ingestion by ID and wrap it.
+
+        Args:
+            client (IngestClient): Client used for the API call and subsequent
+                state transitions.
+            id (int): The ingestion's server-assigned ID.
+
+        Returns:
+            IngestionResource: A resource wrapping the existing ingestion.
+        """
         return cls(client, client.get_ingestion(id))
 
     # -- Identity / state ------------------------------------------------
 
     @property
     def id(self) -> int:
+        """The ingestion's server-assigned ID.
+
+        Returns:
+            int: The ingestion ID.
+        """
         return self._model.id
 
     @property
     def status(self) -> Status:
+        """Current ingestion status from the most recently fetched model.
+
+        Returns:
+            Status: The cached ingestion status.
+        """
         return self._model.status
 
     @property
     def spec(self) -> dict[str, Any]:
+        """The parsed ingestion specification submitted on creation.
+
+        Returns:
+            dict[str, Any]: The ingestion specification.
+        """
         return self._model.spec
 
     # -- Listings (always fresh) -----------------------------------------
 
     def input_files(self) -> list[InputFile]:
+        """Fetch all input files across every batch in this ingestion.
+
+        Returns:
+            list[InputFile]: Input files across every batch.
+        """
         return self._client.get_ingestion_input_files(self.id)
 
     def output_files(self) -> list[OutputFile]:
+        """Fetch all output files across every batch in this ingestion.
+
+        Returns:
+            list[OutputFile]: Output files across every batch.
+        """
         return self._client.get_ingestion_output_files(self.id)
 
     def errors(self) -> list[Error]:
+        """Fetch all errors recorded against this ingestion.
+
+        Returns:
+            list[Error]: Errors recorded against this ingestion.
+        """
         return self._client.get_ingestion_errors(self.id)
 
     # -- State transitions -----------------------------------------------
 
     def start(self) -> "IngestionResource":
+        """Start the latest batch (must be ``READY``) and refresh the model.
+
+        Returns:
+            IngestionResource: This resource, for chaining.
+        """
         logger.info("Starting ingestion id=%s", self.id)
         self._set_model(self._client.start_ingestion(self.id))
         self._notify()
@@ -263,23 +341,59 @@ class IngestionResource(_IngestResource):
     def wait_until_ready(
         self, poll_interval: float = 5.0, timeout: float = 300.0
     ) -> "IngestionResource":
+        """Block until the ingestion enters a ``READY`` (or terminal) state.
+
+        Args:
+            poll_interval (float, optional): Seconds between polls. Defaults
+                to 5.0.
+            timeout (float, optional): Total seconds to wait before raising.
+                Defaults to 300.0.
+
+        Returns:
+            IngestionResource: This resource, for chaining.
+
+        Raises:
+            TimeoutError: If ``timeout`` elapses first.
+        """
         self._wait(READY_STATUSES, poll_interval, timeout)
         return self
 
     def wait_until_done(
         self, poll_interval: float = 10.0, timeout: float = 3600.0
     ) -> "IngestionResource":
+        """Block until the ingestion reaches ``DONE``, ``FAILED``, or ``INCOMPLETE``.
+
+        Args:
+            poll_interval (float, optional): Seconds between polls. Defaults
+                to 10.0.
+            timeout (float, optional): Total seconds to wait before raising.
+                Defaults to 3600.0.
+
+        Returns:
+            IngestionResource: This resource, for chaining.
+
+        Raises:
+            TimeoutError: If ``timeout`` elapses first.
+        """
         self._wait(DONE_STATUSES, poll_interval, timeout)
         return self
 
     # -- Batches ---------------------------------------------------------
 
     def create_batch(self) -> "BatchResource":
-        """POST a new batch under this ingestion."""
+        """POST a new batch under this ingestion.
+
+        Returns:
+            BatchResource: A resource wrapping the newly created batch.
+        """
         return BatchResource.create(self._client, self.id)
 
     def list_batches(self) -> list["BatchResource"]:
-        """Return ``BatchResource`` wrappers for every batch under this ingestion."""
+        """Return ``BatchResource`` wrappers for every batch under this ingestion.
+
+        Returns:
+            list[BatchResource]: One resource per batch in this ingestion.
+        """
         return [
             BatchResource(self._client, m)
             for m in self._client.list_batches(self.id)
@@ -341,7 +455,16 @@ class BatchResource(_IngestResource):
 
     @classmethod
     def create(cls, client: IngestClient, ingestion_id: int) -> "BatchResource":
-        """POST a new batch under ``ingestion_id`` and wrap the result."""
+        """POST a new batch under ``ingestion_id`` and wrap the result.
+
+        Args:
+            client (IngestClient): Client used for the API call and subsequent
+                state transitions.
+            ingestion_id (int): The parent ingestion ID.
+
+        Returns:
+            BatchResource: A resource wrapping the newly created batch.
+        """
         batch = client.create_batch(ingestion_id)
         logger.info(
             "BatchResource created ingestion=%s batch=%s",
@@ -354,51 +477,112 @@ class BatchResource(_IngestResource):
     def from_number(
         cls, client: IngestClient, ingestion_id: int, batch_number: int
     ) -> "BatchResource":
-        """GET an existing batch and wrap it."""
+        """GET an existing batch and wrap it.
+
+        Args:
+            client (IngestClient): Client used for the API call and subsequent
+                state transitions.
+            ingestion_id (int): The parent ingestion ID.
+            batch_number (int): 1-based batch number within the ingestion.
+
+        Returns:
+            BatchResource: A resource wrapping the existing batch.
+        """
         return cls(client, client.get_batch(ingestion_id, batch_number))
 
     # -- Identity / state ------------------------------------------------
 
     @property
     def ingestion_id(self) -> int:
+        """ID of the parent ingestion this batch belongs to.
+
+        Returns:
+            int: The parent ingestion ID.
+        """
         return self._model.ingestion_id
 
     @property
     def batch_number(self) -> int:
+        """1-based batch number within the parent ingestion.
+
+        Returns:
+            int: The batch number.
+        """
         return self._model.batch_number
 
     @property
     def status(self) -> Status:
+        """Current batch status from the most recently fetched model.
+
+        Returns:
+            Status: The cached batch status.
+        """
         return self._model.status
 
     @property
     def created(self) -> datetime:
+        """Timestamp the batch was created on the server.
+
+        Returns:
+            datetime: Batch creation time.
+        """
         return self._model.created
 
     @property
     def started(self) -> datetime | None:
+        """Timestamp the batch began ingesting, or ``None`` if not yet started.
+
+        Returns:
+            datetime | None: Time the batch started, or ``None`` if not started.
+        """
         return self._model.started
 
     @property
     def finalized(self) -> datetime | None:
+        """Timestamp the batch reached a terminal state, or ``None`` if still running.
+
+        Returns:
+            datetime | None: Time the batch finalized, or ``None`` if still
+            running.
+        """
         return self._model.finalized
 
     # -- Listings --------------------------------------------------------
 
     def input_files(self) -> list[InputFile]:
+        """Fetch the input files belonging to this batch.
+
+        Returns:
+            list[InputFile]: Input files belonging to this batch.
+        """
         return self._client.get_batch_input_files(self.ingestion_id, self.batch_number)
 
     def output_files(self) -> list[OutputFile]:
+        """Fetch the output files produced by this batch.
+
+        Returns:
+            list[OutputFile]: Output files produced by this batch.
+        """
         return self._client.get_batch_output_files(
             self.ingestion_id, self.batch_number
         )
 
     def errors(self) -> list[Error]:
+        """Fetch the errors recorded against this batch.
+
+        Returns:
+            list[Error]: Errors recorded against this batch.
+        """
         return self._client.get_batch_errors(self.ingestion_id, self.batch_number)
 
     # -- State transitions -----------------------------------------------
 
     def start(self) -> "BatchResource":
+        """Start this batch (must be ``READY``) and refresh the model.
+
+        Returns:
+            BatchResource: This resource, for chaining.
+        """
         logger.info(
             "Starting batch ingestion=%s batch=%s", self.ingestion_id, self.batch_number
         )
@@ -411,12 +595,40 @@ class BatchResource(_IngestResource):
     def wait_until_ready(
         self, poll_interval: float = 5.0, timeout: float = 300.0
     ) -> "BatchResource":
+        """Block until the batch enters a ``READY`` (or terminal) state.
+
+        Args:
+            poll_interval (float, optional): Seconds between polls. Defaults
+                to 5.0.
+            timeout (float, optional): Total seconds to wait before raising.
+                Defaults to 300.0.
+
+        Returns:
+            BatchResource: This resource, for chaining.
+
+        Raises:
+            TimeoutError: If ``timeout`` elapses first.
+        """
         self._wait(READY_STATUSES, poll_interval, timeout)
         return self
 
     def wait_until_done(
         self, poll_interval: float = 10.0, timeout: float = 3600.0
     ) -> "BatchResource":
+        """Block until the batch reaches ``DONE``, ``FAILED``, or ``INCOMPLETE``.
+
+        Args:
+            poll_interval (float, optional): Seconds between polls. Defaults
+                to 10.0.
+            timeout (float, optional): Total seconds to wait before raising.
+                Defaults to 3600.0.
+
+        Returns:
+            BatchResource: This resource, for chaining.
+
+        Raises:
+            TimeoutError: If ``timeout`` elapses first.
+        """
         self._wait(DONE_STATUSES, poll_interval, timeout)
         return self
 

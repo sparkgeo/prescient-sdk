@@ -474,8 +474,10 @@ class PrescientClient:
 
         param force: If True will force the creds to be refreshed.
 
-        Returns:
-            None
+        Args:
+            force (bool): When True, drop the cached expiration so credentials
+                are re-fetched even if they have not yet expired. Defaults to
+                False.
         """
         if self.settings.prescient_api_key:
             return
