@@ -524,7 +524,7 @@ class BatchResource(_IngestResource):
         """Timestamp the batch was created on the server.
 
         Returns:
-            datetime: Batch creation time.
+            datetime.datetime: Batch creation time.
         """
         return self._model.created
 
@@ -533,7 +533,7 @@ class BatchResource(_IngestResource):
         """Timestamp the batch began ingesting, or ``None`` if not yet started.
 
         Returns:
-            datetime | None: Time the batch started, or ``None`` if not started.
+            datetime.datetime | None: Time the batch started, or ``None`` if not started.
         """
         return self._model.started
 
@@ -542,8 +542,8 @@ class BatchResource(_IngestResource):
         """Timestamp the batch reached a terminal state, or ``None`` if still running.
 
         Returns:
-            datetime | None: Time the batch finalized, or ``None`` if still
-            running.
+            datetime.datetime | None: Time the batch finalized, or ``None`` if
+            still running.
         """
         return self._model.finalized
 

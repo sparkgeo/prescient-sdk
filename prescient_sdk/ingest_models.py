@@ -47,6 +47,8 @@ class ErrorSeverity(str, Enum):
 
 
 class InputFile(BaseModel):
+    """An input file discovered during the scan phase of an ingestion."""
+
     location: str
     path: str
     last_modified: datetime
@@ -55,18 +57,24 @@ class InputFile(BaseModel):
 
 
 class OutputFile(BaseModel):
+    """A STAC item produced by an ingestion task."""
+
     stac_item_id: UUID
     task_name: str
     status: FileStatus
 
 
 class Ingestion(BaseModel):
+    """A top-level ingestion plus its current status and submitted spec."""
+
     id: int
     status: Status
     spec: dict[str, Any]
 
 
 class Batch(BaseModel):
+    """A single batch within an ingestion, including its lifecycle timestamps."""
+
     id: int
     ingestion_id: int
     batch_number: int
@@ -77,6 +85,8 @@ class Batch(BaseModel):
 
 
 class Error(BaseModel):
+    """An error or warning recorded against an ingestion."""
+
     severity: ErrorSeverity
     time_occurred: datetime
     description: str

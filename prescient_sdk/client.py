@@ -423,7 +423,7 @@ class PrescientClient:
         Get an AWS session for authenticating to the bucket
 
         Returns:
-            Session: boto3 Session object
+            boto3.session.Session: boto3 Session object
         """
         return boto3.Session(
             aws_access_key_id=self.bucket_credentials["AccessKeyId"],
@@ -437,7 +437,7 @@ class PrescientClient:
         Get an AWS session for authenticating to the upload bucket
 
         Returns:
-            Session: boto3 Session object
+            boto3.session.Session: boto3 Session object
         """
         return boto3.Session(
             aws_access_key_id=self.upload_bucket_credentials["AccessKeyId"],

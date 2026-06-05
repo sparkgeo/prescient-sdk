@@ -21,5 +21,6 @@ parts:
   - file: client-sdk
   - file: ingest-client
   - file: ingest-resources
+  - file: ingest-models
   - file: upload
   - file: config
