@@ -1,6 +1,6 @@
 [project]
 name = "prescient-sdk"
-version = "0.4.2"
+version = "0.4.3rc1"
 description = "A Python SDK for integrating with Prescient services"
 readme = "README.md"
 license = {file = "LICENSE"}
@@ -10,8 +10,10 @@ dependencies = [
     "google-auth>=2.35.0",
     "google-auth-oauthlib>=1.2.0",
     "msal>=1.31.0",
+    "pydantic>=2.0",
     "pydantic-settings>=2.5.2",
     "requests>=2.32.3",
+    "rich>=13.0",
 ]
 
 [project.urls]

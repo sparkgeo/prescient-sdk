@@ -2,12 +2,11 @@ name: Publish Python 🐍 distribution 📦 to PyPI and TestPyPI
 
 on:
   push:
-    tags: ['*.*.*']
+    tags: ["*.*.*", "v*.*.*"]
 
 env:
-    TWINE_USERNAME: __token__
-    TWINE_PASSWORD: ${{ secrets.PY_PI_API_TOKEN }}
-
+  TWINE_USERNAME: __token__
+  TWINE_PASSWORD: ${{ secrets.PY_PI_API_TOKEN }}
 
 jobs:
   publish:
@@ -15,37 +14,63 @@ jobs:
     permissions:
       pages: write
       id-token: write
+      contents: write
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-    - name: Install uv
-      uses: astral-sh/setup-uv@v2
-      with:
-        version: "0.4.10"
-        enable-cache: true
-        cache-dependency-glob: "uv.lock"
+      - name: Enforce tag/branch policy
+        run: |
+          set -e
+          TAG="${GITHUB_REF_NAME}"
+          if [[ "$TAG" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+(a|b|rc)\.[0-9]+$ ]]; then
+            echo "Pre-release tag '$TAG' — any branch is allowed."
+          else
+            if git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+              echo "Final release tag '$TAG' is on main — proceeding."
+            else
+              echo "::error::Final release tag '$TAG' must be created from a commit on main. Use a pre-release suffix (a/b/rc, e.g. v1.2.3rc.1) to publish from non-main branches."
+              exit 1
+            fi
+          fi
 
-    - name: "Set up Python"
-      uses: actions/setup-python@v5
-      with:
-        python-version-file: ".python-version"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v2
+        with:
+          version: "0.4.10"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
 
-    - name: Install the project
-      run: uv sync --all-extras --dev
+      - name: "Set up Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: ".python-version"
 
-    # run tests and check formatting
-    - name: run tests
-      run: |
-        uv run pytest tests/
+      - name: Install the project
+        run: uv sync --all-extras --dev
 
-    - name: check-format
-      run: |
-        uv run ruff check
+      # run tests and check formatting
+      - name: run tests
+        run: |
+          uv run pytest tests/
 
-    # build and publish
-    - name: build project
-      run: uv build
+      - name: check-format
+        run: |
+          uv run ruff check
 
-    - name: Publish to PyPI
-      run: uvx twine upload dist/* --non-interactive
+      # build and publish
+      - name: build project
+        run: uv build
 
+      - name: Publish to PyPI
+        run: uvx twine upload dist/* --non-interactive
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, 'a.') || contains(github.ref_name, 'b.') || contains(github.ref_name, 'rc.') }}
+          files: dist/*

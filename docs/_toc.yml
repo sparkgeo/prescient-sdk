@@ -14,6 +14,8 @@ parts:
     file: examples/stac_search
   - title: Upload
     file: examples/upload
+  - title: Ingest
+    file: examples/ingest
 - caption: SDK Reference
   chapters:
   - file: client-sdk
