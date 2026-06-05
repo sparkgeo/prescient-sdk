@@ -10,6 +10,7 @@ import msal
 import requests
 from google_auth_oauthlib.flow import InstalledAppFlow
 
+from prescient_sdk import _logging
 from prescient_sdk.config import Settings
 
 logger = logging.getLogger("prescient_sdk")
@@ -38,6 +39,10 @@ class PrescientClient:
     Args:
         env_file (str | Path, optional): Path to a configuration file. Defaults to None.
         settings (Settings, optional): Configuration settings for the client. Defaults to None.
+        debug (bool, optional): When True, emit DEBUG/INFO/WARNING/ERROR logs;
+            otherwise only WARNING/ERROR. Defaults to False.
+        log_file (str | Path, optional): Destination for log output. When None
+            (default), logs go to stdout; when set, logs go to this file.
 
     Raises:
         ValueError: If both an environment file and a settings object are provided.
@@ -49,7 +54,10 @@ class PrescientClient:
         self,
         env_file: str | Path | None = None,
         settings: Settings | None = None,
+        debug: bool = False,
+        log_file: str | Path | None = None,
     ):
+        _logging.configure(debug, log_file)
         if env_file and settings:
             raise ValueError(
                 "Cannot provide both an environment file and a settings object"

@@ -10,6 +10,7 @@ from typing import Callable, Iterable, Protocol, TypeVar
 
 import requests
 
+from prescient_sdk import _logging
 from prescient_sdk.client import PrescientClient
 from prescient_sdk.config import Settings
 from prescient_sdk.ingest_models import (
@@ -76,6 +77,10 @@ class IngestClient:
             ``PrescientClient`` when ``prescient_client`` is not supplied.
         settings: Optional Settings object. Forwarded to ``PrescientClient``
             when ``prescient_client`` is not supplied.
+        debug: When True, emit DEBUG/INFO/WARNING/ERROR logs; otherwise
+            only WARNING/ERROR. Defaults to False.
+        log_file: Destination for log output. When None (default), logs
+            go to stdout; when set, logs go to this file.
 
     Raises:
         ValueError: If ``prescient_client`` is provided alongside
@@ -87,7 +92,10 @@ class IngestClient:
         prescient_client: PrescientClient | None = None,
         env_file: str | Path | None = None,
         settings: Settings | None = None,
+        debug: bool = False,
+        log_file: str | Path | None = None,
     ):
+        _logging.configure(debug, log_file)
         if prescient_client is not None and (env_file or settings):
             raise ValueError(
                 "Cannot provide prescient_client alongside env_file or settings"
@@ -96,11 +104,15 @@ class IngestClient:
             raise ValueError("Cannot provide both env_file and settings")
         if prescient_client is None:
             if env_file:
-                prescient_client = PrescientClient(env_file=env_file)
+                prescient_client = PrescientClient(
+                    env_file=env_file, debug=debug, log_file=log_file
+                )
             elif settings:
-                prescient_client = PrescientClient(settings=settings)
+                prescient_client = PrescientClient(
+                    settings=settings, debug=debug, log_file=log_file
+                )
             else:
-                prescient_client = PrescientClient()
+                prescient_client = PrescientClient(debug=debug, log_file=log_file)
         self._client = prescient_client
 
     @property
