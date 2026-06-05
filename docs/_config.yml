@@ -37,11 +37,36 @@ sphinx:
   extra_extensions:
   - 'sphinx.ext.autodoc'
   - 'sphinx.ext.napoleon'
+  - 'sphinx.ext.intersphinx'
   - 'sphinx.ext.viewcode'
   - 'sphinxcontrib.autodoc_pydantic'
   config:
     add_module_names: False
+    python_use_unqualified_type_names: true
     suppress_warnings: ["etoc.toctree"]
+    napoleon_use_rtype: true
+    napoleon_preprocess_types: true
+    napoleon_type_aliases:
+      Path: pathlib.Path
+      datetime: datetime.datetime
+      UUID: uuid.UUID
+      PrescientClient: prescient_sdk.client.PrescientClient
+      Settings: prescient_sdk.config.Settings
+      IngestClient: prescient_sdk.ingest_client.IngestClient
+      Ingestion: prescient_sdk.ingest_models.Ingestion
+      Batch: prescient_sdk.ingest_models.Batch
+      InputFile: prescient_sdk.ingest_models.InputFile
+      OutputFile: prescient_sdk.ingest_models.OutputFile
+      Error: prescient_sdk.ingest_models.Error
+      Status: prescient_sdk.ingest_models.Status
+      FileStatus: prescient_sdk.ingest_models.FileStatus
+      ErrorSeverity: prescient_sdk.ingest_models.ErrorSeverity
+      IngestionResource: prescient_sdk.ingest_resources.IngestionResource
+      BatchResource: prescient_sdk.ingest_resources.BatchResource
+      _IngestResource: prescient_sdk.ingest_resources._IngestResource
+    intersphinx_mapping:
+      python: ["https://docs.python.org/3", null]
+      boto3: ["https://boto3.amazonaws.com/v1/documentation/api/latest", null]
     autodoc_pydantic_model_show_json: false
     autodoc_pydantic_model_show_config_summary: false
     autodoc_pydantic_model_show_validator_summary: false
