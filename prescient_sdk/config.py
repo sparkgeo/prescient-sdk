@@ -28,7 +28,7 @@ class Settings(BaseSettings):
         description=(
             "Static API key for authenticating to Prescient endpoints. When set, "
             "the SDK skips the OAuth2/IDP flow and sends the key in the "
-            "`http_api_key` request header. `prescient_aws_role` is ignored "
+            "`api-key` request header. `prescient_aws_role` is ignored "
             "in this mode (STS requires an IDP id_token); bucket credentials "
             "are fetched from `/fileproxy/credentials` instead."
         ),

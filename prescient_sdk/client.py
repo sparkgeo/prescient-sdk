@@ -218,7 +218,7 @@ class PrescientClient:
         """
         Get headers for a request.
 
-        In API-key mode the key is sent as an ``http_api_key`` header. Otherwise
+        In API-key mode the key is sent as an ``api-key`` header. Otherwise
         an ``Authorization: Bearer <id_token>`` header is used.
 
         Returns:
@@ -354,8 +354,16 @@ class PrescientClient:
                 }
 
         Raises:
+            NotImplementedError: If the client is configured with an API key.
             ValueError: If the credentials response is empty
         """
+        if self.settings.prescient_api_key:
+            raise NotImplementedError(
+                "The upload feature is not supported when using an API key; "
+                "uploads require an IDP id_token for STS assume_role_with_web_identity. "
+                "Unset prescient_api_key and configure OAuth2/IDP credentials to use uploads."
+            )
+
         if self._upload_bucket_credentials and not self.credentials_expired:
             return self._upload_bucket_credentials
 
@@ -435,7 +443,7 @@ class PrescientClient:
             return
 
         if force:
-            self._auth_credentials.pop("expiration")
+            self._auth_credentials.pop("expiration", None)
 
         _ = self.bucket_credentials  # Will call self.auth_credentials
         if self.settings.prescient_upload_role:

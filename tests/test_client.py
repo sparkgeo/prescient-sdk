@@ -771,11 +771,11 @@ def test_auth_credentials_api_key_mode(mocker: MockerFixture, set_api_key_env_va
 
 
 def test_headers_api_key_mode(set_api_key_env_vars):
-    """Headers carry http_api_key, not Authorization, in API-key mode."""
+    """Headers carry api-key, not Authorization, in API-key mode."""
     client = PrescientClient()
     headers = client.headers
 
-    assert headers["http_api_key"] == "test-api-key-value"
+    assert headers["api-key"] == "test-api-key-value"
     assert "Authorization" not in headers
     assert headers["Content-Type"] == "application/json"
     assert headers["Accept"] == "application/json"
@@ -784,7 +784,7 @@ def test_headers_api_key_mode(set_api_key_env_vars):
 def test_bucket_credentials_api_key_uses_fileproxy(
     mocker: MockerFixture, set_api_key_env_vars
 ):
-    """Bucket creds in API-key mode hit /fileproxy/credentials with http_api_key header."""
+    """Bucket creds in API-key mode hit /fileproxy/credentials with api-key header."""
     expiration_iso = (
         datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
     ).isoformat()
@@ -811,7 +811,7 @@ def test_bucket_credentials_api_key_uses_fileproxy(
 
     called_url, called_kwargs = get_mock.call_args[0][0], get_mock.call_args.kwargs
     assert called_url == "https://example.server.prescient.earth/fileproxy/credentials"
-    assert called_kwargs["headers"]["http_api_key"] == "test-api-key-value"
+    assert called_kwargs["headers"]["api-key"] == "test-api-key-value"
     assert "Authorization" not in called_kwargs["headers"]
 
 
@@ -820,3 +820,10 @@ def test_refresh_credentials_force_api_key_noop(set_api_key_env_vars):
     client = PrescientClient()
     client.refresh_credentials(force=True)
     assert client.auth_credentials == {"api_key": "test-api-key-value"}
+
+
+def test_upload_bucket_credentials_api_key_not_supported(set_api_key_env_vars):
+    """upload_bucket_credentials raises NotImplementedError in API-key mode."""
+    client = PrescientClient()
+    with pytest.raises(NotImplementedError, match="upload feature is not supported"):
+        _ = client.upload_bucket_credentials
