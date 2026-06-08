@@ -784,7 +784,8 @@ def test_headers_api_key_mode(set_api_key_env_vars):
 def test_bucket_credentials_api_key_uses_fileproxy(
     mocker: MockerFixture, set_api_key_env_vars
 ):
-    """Bucket creds in API-key mode hit /fileproxy/credentials with api-key header."""
+    """Bucket creds when ``prescient_api_key`` is set hit /fileproxy/credentials
+       with api-key header."""
     expiration_iso = (
         datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
     ).isoformat()
@@ -816,7 +817,8 @@ def test_bucket_credentials_api_key_uses_fileproxy(
 
 
 def test_refresh_credentials_force_api_key_noop(set_api_key_env_vars):
-    """refresh_credentials(force=True) is a no-op in API-key mode and does not raise."""
+    """refresh_credentials(force=True) is a no-op when ``prescient_api_key`` is configured 
+    and does not raise."""
     client = PrescientClient()
     client.refresh_credentials(force=True)
     assert client.auth_credentials == {"api_key": "test-api-key-value"}

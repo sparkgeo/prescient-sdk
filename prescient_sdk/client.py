@@ -218,8 +218,8 @@ class PrescientClient:
         """
         Get headers for a request.
 
-        In API-key mode the key is sent as an ``api-key`` header. Otherwise
-        an ``Authorization: Bearer <id_token>`` header is used.
+        When ``prescient_api_key`` is configured, key is sent as an ``api-key`` 
+        header. Otherwise an ``Authorization: Bearer <id_token>`` header is used.
 
         Returns:
             dict: The headers.
@@ -412,8 +412,8 @@ class PrescientClient:
     def credentials_expired(self) -> bool:
         """Checks to see if the client credentials have expired.
         Note: if auth credentials have expired, all credentials are considered
-        expired as they all depend on auth credentials. In API-key mode the
-        key is static and is treated as never expiring.
+        expired as they all depend on auth credentials. When ``prescient_api_key`` 
+        is configured the key is static and is treated as never expiring.
 
         Returns:
             bool: True - credentials are expired, False - credentials have NOT expired.
@@ -432,7 +432,7 @@ class PrescientClient:
         """
         Will refresh all the client credentials.
 
-        In API-key mode there is nothing to refresh; the call is a no-op.
+        When ``prescient_api_key`` is configured there is nothing to refresh; the call is a no-op.
 
         param force: If True will force the creds to be refreshed.
 
