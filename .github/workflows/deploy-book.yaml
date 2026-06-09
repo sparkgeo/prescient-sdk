@@ -30,7 +30,7 @@ jobs:
     - name: Install uv
       uses: astral-sh/setup-uv@v2
       with:
-        version: "0.4.10"
+        version: "0.9.7"
         enable-cache: true
         cache-dependency-glob: "uv.lock"
 
@@ -40,7 +40,7 @@ jobs:
         python-version-file: ".python-version"
 
     - name: Install the project
-      run: uv sync --all-extras --dev
+      run: uv sync --all-extras --group dev
 
     - name: cache executed notebooks
       uses: actions/cache@v3
