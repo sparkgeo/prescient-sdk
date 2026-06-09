@@ -1,7 +1,10 @@
+import logging
 from typing import Literal
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = logging.getLogger("prescient_sdk")
 
 
 class Settings(BaseSettings):
@@ -20,15 +23,34 @@ class Settings(BaseSettings):
         description="Base URL of the Prescient API endpoint."
     )
 
+    prescient_api_key: str | None = Field(
+        default=None,
+        description=(
+            "Static API key for authenticating to Prescient endpoints. When set, "
+            "the SDK skips the OAuth2/IDP flow and sends the key in the "
+            "`api-key` request header. `prescient_aws_role` is ignored "
+            "when ``prescient_api_key`` is set (STS requires an IDP id_token); "
+            "bucket credentials are fetched from `/fileproxy/credentials` instead."
+        ),
+    )
+
     prescient_auth_provider: Literal["microsoft", "google"] = Field(
         default="microsoft",
         description="OAuth2 authentication provider. Determines which provider-specific fields are required.",
     )
-    prescient_client_id: str = Field(
-        description="OAuth2 client ID issued by the selected authentication provider."
+    prescient_client_id: str | None = Field(
+        default=None,
+        description=(
+            "OAuth2 client ID issued by the selected authentication provider. "
+            "Required when `prescient_api_key` is not set."
+        ),
     )
-    prescient_auth_url: str = Field(
-        description="OAuth2 token endpoint URL used to exchange credentials for access tokens."
+    prescient_auth_url: str | None = Field(
+        default=None,
+        description=(
+            "OAuth2 token endpoint URL used to exchange credentials for access tokens. "
+            "Required when `prescient_api_key` is not set."
+        ),
     )
 
     prescient_auth_token_path: str | None = Field(
@@ -87,6 +109,23 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_provider_fields(self) -> "Settings":
+        if self.prescient_api_key:
+            if self.prescient_aws_role:
+                logger.warning(
+                    "prescient_aws_role cannot be used with prescient_api_key; "
+                    "STS requires an IDP id_token. Unset one of them. "
+                    "prescient_aws_role will be ignored."
+                )
+            return self
+
+        if not self.prescient_client_id:
+            raise ValueError(
+                "prescient_client_id is required when prescient_api_key is not set"
+            )
+        if not self.prescient_auth_url:
+            raise ValueError(
+                "prescient_auth_url is required when prescient_api_key is not set"
+            )
         if self.prescient_auth_provider == "microsoft" and not self.prescient_tenant_id:
             raise ValueError(
                 "prescient_tenant_id is required when prescient_auth_provider is 'microsoft'"
