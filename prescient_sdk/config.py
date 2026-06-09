@@ -1,12 +1,19 @@
+# `from __future__ import annotations` defers annotation evaluation so the
+# PEP 604 `X | Y` union syntax below works on Python 3.9. Remove this import
+# once Python 3.9 support is dropped.
 from __future__ import annotations
 
 import logging
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger("prescient_sdk")
+
+# NOTE: Fields below use Optional[X] rather than `X | None` because Pydantic
+# evaluates annotations at class-creation time and PEP 604 union syntax
+# requires Python 3.10+. Switch to `X | None` once Python 3.9 support is dropped.
 
 
 class Settings(BaseSettings):
@@ -21,11 +28,11 @@ class Settings(BaseSettings):
     2. `config.env` file: if a `config.env` file is present in the root of the project, it will be used
     """
 
-    prescient_endpoint_url: str = Field(
+    prescient_endpoint_url: Optional[str] = Field(
         description="Base URL of the Prescient API endpoint."
     )
 
-    prescient_api_key: str | None = Field(
+    prescient_api_key: Optional[str] | None = Field(
         default=None,
         description=(
             "Static API key for authenticating to Prescient endpoints. When set, "
@@ -36,7 +43,7 @@ class Settings(BaseSettings):
         ),
     )
 
-    prescient_ingest_endpoint_url: str | None = Field(
+    prescient_ingest_endpoint_url: Optional[str] = Field(
         default=None,
         description=(
             "Optional override for the Ingest API base URL. When unset, "
@@ -48,14 +55,14 @@ class Settings(BaseSettings):
         default="microsoft",
         description="OAuth2 authentication provider. Determines which provider-specific fields are required.",
     )
-    prescient_client_id: str | None = Field(
+    prescient_client_id: Optional[str] | None = Field(
         default=None,
         description=(
             "OAuth2 client ID issued by the selected authentication provider. "
             "Required when `prescient_api_key` is not set."
         ),
     )
-    prescient_auth_url: str | None = Field(
+    prescient_auth_url: Optional[str] | None = Field(
         default=None,
         description=(
             "OAuth2 token endpoint URL used to exchange credentials for access tokens. "
@@ -63,21 +70,21 @@ class Settings(BaseSettings):
         ),
     )
 
-    prescient_auth_token_path: str | None = Field(
+    prescient_auth_token_path: Optional[str] = Field(
         default=None,
         description="Deprecated. Retained for backwards compatibility; no longer used.",
     )
 
-    prescient_tenant_id: str | None = Field(
+    prescient_tenant_id: Optional[str] = Field(
         default=None,
         description="Microsoft Entra tenant ID. Required when `prescient_auth_provider` is `microsoft`.",
     )
 
-    prescient_google_client_secret: str | None = Field(
+    prescient_google_client_secret: Optional[str] = Field(
         default=None,
         description="Google OAuth2 client secret. Required when `prescient_auth_provider` is `google`.",
     )
-    prescient_google_redirect_port: int | None = Field(
+    prescient_google_redirect_port: Optional[int] = Field(
         default=8765,
         description=(
             "Loopback port for the Google OAuth2 redirect URI. Set to the registered "
@@ -86,7 +93,7 @@ class Settings(BaseSettings):
         ),
     )
 
-    prescient_aws_role: str | None = Field(
+    prescient_aws_role: Optional[str] = Field(
         default=None,
         min_length=20,
         description=(
@@ -95,17 +102,17 @@ class Settings(BaseSettings):
             "credentials from the Prescient API's `/fileproxy/credentials` endpoint."
         ),
     )
-    prescient_aws_region: str | None = Field(
+    prescient_aws_region: Optional[str] = Field(
         default=None,
         description="AWS region used when assuming `prescient_aws_role`. Required only when that role is set.",
     )
 
-    prescient_upload_role: str | None = Field(
+    prescient_upload_role: Optional[str] = Field(
         default=None,
         min_length=20,
         description="Optional AWS IAM role ARN used by the upload helpers to write to the upload bucket.",
     )
-    prescient_upload_bucket: str | None = Field(
+    prescient_upload_bucket: Optional[str] = Field(
         default=None,
         description="Optional AWS S3 bucket name targeted by the upload helpers.",
     )
