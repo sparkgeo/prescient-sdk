@@ -30,7 +30,7 @@ jobs:
       uses: astral-sh/setup-uv@v2
       with:
         # Install a specific version of uv.
-        version: "0.4.10"
+        version: "0.9.7"
         enable-cache: true
         cache-dependency-glob: "uv.lock"
 
@@ -38,7 +38,7 @@ jobs:
       run: uv python install ${{ matrix.python-version }}
 
     - name: Install the project
-      run: uv sync --all-extras --dev
+      run: uv sync --all-extras --group dev
 
     - name: run tests
       run: |
