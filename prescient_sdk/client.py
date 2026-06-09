@@ -1,3 +1,6 @@
+# `from __future__ import annotations` defers annotation evaluation so the
+# PEP 604 `X | Y` union syntax below works on Python 3.9. Remove this import
+# once Python 3.9 support is dropped.
 from __future__ import annotations
 
 import datetime
