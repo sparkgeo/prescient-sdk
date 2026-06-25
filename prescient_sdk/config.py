@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     2. `config.env` file: if a `config.env` file is present in the root of the project, it will be used
     """
 
-    prescient_endpoint_url: Optional[str] = Field(
+    prescient_endpoint_url: str = Field(
         description="Base URL of the Prescient API endpoint."
     )
 

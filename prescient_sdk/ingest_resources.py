@@ -102,7 +102,7 @@ _RefreshCallback = Callable[["_IngestResource"], None]
 
 
 class _IngestResource:
-    """Shared state + observer machinery for :class:`IngestionResource` and :class:`BatchResource`.
+    """Shared state + observer machinery for :class:`IngestResource` and :class:`BatchResource`.
 
     Subclasses cache a pydantic model, expose status/listings, and notify
     registered observers each time the model changes (via ``refresh()`` or
@@ -219,14 +219,14 @@ class _IngestResource:
         return console.export_html(inline_styles=True)
 
 
-class IngestionResource(_IngestResource):
+class IngestResource(_IngestResource):
     """A Prescient ingestion as a stateful Python resource.
 
     Construct via :meth:`create` (POST a new ingestion) or :meth:`from_id`
     (attach to an existing one). Wrap in :class:`LiveStatus` for a live
     progress display::
 
-        ing = IngestionResource.create(client, spec="spec.yaml")
+        ing = IngestResource.create(client, spec="spec.yaml")
         with LiveStatus(ing):
             ing.wait_until_ready()
             if not ing.errors():
@@ -242,7 +242,7 @@ class IngestionResource(_IngestResource):
     @classmethod
     def create(
         cls, client: IngestClient, spec: Path | str | bytes
-    ) -> "IngestionResource":
+    ) -> "IngestResource":
         """POST a new ingestion from ``spec`` and wrap the result.
 
         Args:
@@ -253,14 +253,14 @@ class IngestionResource(_IngestResource):
                 handled.
 
         Returns:
-            IngestionResource: A resource wrapping the newly created ingestion.
+            IngestResource: A resource wrapping the newly created ingestion.
         """
         ingestion = client.create_ingestion(spec)
-        logger.info("IngestionResource created id=%s", ingestion.id)
+        logger.info("IngestResource created id=%s", ingestion.id)
         return cls(client, ingestion)
 
     @classmethod
-    def from_id(cls, client: IngestClient, id: int) -> "IngestionResource":
+    def from_id(cls, client: IngestClient, id: int) -> "IngestResource":
         """GET an existing ingestion by ID and wrap it.
 
         Args:
@@ -269,7 +269,7 @@ class IngestionResource(_IngestResource):
             id (int): The ingestion's server-assigned ID.
 
         Returns:
-            IngestionResource: A resource wrapping the existing ingestion.
+            IngestResource: A resource wrapping the existing ingestion.
         """
         return cls(client, client.get_ingestion(id))
 
@@ -330,11 +330,11 @@ class IngestionResource(_IngestResource):
 
     # -- State transitions -----------------------------------------------
 
-    def start(self) -> "IngestionResource":
+    def start(self) -> "IngestResource":
         """Start the latest batch (must be ``READY``) and refresh the model.
 
         Returns:
-            IngestionResource: This resource, for chaining.
+            IngestResource: This resource, for chaining.
         """
         logger.info("Starting ingestion id=%s", self.id)
         self._set_model(self._client.start_ingestion(self.id))
@@ -343,7 +343,7 @@ class IngestionResource(_IngestResource):
 
     def wait_until_ready(
         self, poll_interval: float = 5.0, timeout: float = 300.0
-    ) -> "IngestionResource":
+    ) -> "IngestResource":
         """Block until the ingestion enters a ``READY`` (or terminal) state.
 
         Args:
@@ -353,7 +353,7 @@ class IngestionResource(_IngestResource):
                 Defaults to 300.0.
 
         Returns:
-            IngestionResource: This resource, for chaining.
+            IngestResource: This resource, for chaining.
 
         Raises:
             TimeoutError: If ``timeout`` elapses first.
@@ -363,7 +363,7 @@ class IngestionResource(_IngestResource):
 
     def wait_until_done(
         self, poll_interval: float = 10.0, timeout: float = 3600.0
-    ) -> "IngestionResource":
+    ) -> "IngestResource":
         """Block until the ingestion reaches ``DONE``, ``FAILED``, or ``INCOMPLETE``.
 
         Args:
@@ -373,7 +373,7 @@ class IngestionResource(_IngestResource):
                 Defaults to 3600.0.
 
         Returns:
-            IngestionResource: This resource, for chaining.
+            IngestResource: This resource, for chaining.
 
         Raises:
             TimeoutError: If ``timeout`` elapses first.
@@ -446,7 +446,7 @@ class BatchResource(_IngestResource):
 
     Construct via :meth:`create` (POST a new batch under an ingestion) or
     :meth:`from_number` (attach to an existing batch). Most users will get
-    a ``BatchResource`` back from :meth:`IngestionResource.create_batch`.
+    a ``BatchResource`` back from :meth:`IngestResource.create_batch`.
     Wrap in :class:`LiveStatus` for a live progress display.
     """
 
@@ -680,13 +680,13 @@ class BatchResource(_IngestResource):
 class LiveStatus:
     """Render a live, auto-updating Rich display of a resource's status.
 
-    Wraps any :class:`IngestionResource` or :class:`BatchResource`. Use as a
+    Wraps any :class:`IngestResource` or :class:`BatchResource`. Use as a
     context manager — the display starts on ``__enter__``, refreshes after
     every ``refresh()`` and ``start()`` on the wrapped resource, and
     finalizes on ``__exit__``. The resource itself remains fully usable
     outside the block (without the live display)::
 
-        ing = IngestionResource.create(client, spec="spec.yaml")
+        ing = IngestResource.create(client, spec="spec.yaml")
         with LiveStatus(ing):
             ing.wait_until_ready()
             if not ing.errors():
