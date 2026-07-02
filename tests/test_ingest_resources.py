@@ -10,6 +10,7 @@ from pytest_mock import MockerFixture
 from prescient_sdk import ingest_models as models
 from prescient_sdk.ingest_client import IngestClient
 from prescient_sdk.ingest_resources import BatchResource, IngestResource, LiveStatus
+from prescient_sdk.ingest_spec import IngestSpec
 
 
 # ---------------------------------------------------------------------------
@@ -107,6 +108,29 @@ def test_ingestion_from_id_calls_get_ingestion(client):
     assert ing.id == 1  # from the mock's return value
 
 
+def test_ingestion_create_accepts_ingest_spec(client):
+    spec = IngestSpec.from_dict(
+        {"user": "tester", "locations": {"src": {"path": "s3://bucket/data"}}}
+    )
+    ing = IngestResource.create(client, spec)
+    client.create_ingestion.assert_called_once_with(spec.to_bytes())
+    assert ing.id == 1
+
+
+def test_ingestion_create_rejects_local_locations_in_spec(client):
+    spec = IngestSpec.from_dict(
+        {
+            "locations": {
+                "src": {"path": "/mnt/data/scenes"},
+                "target": {"path": "s3://bucket"},
+            }
+        }
+    )
+    with pytest.raises(ValueError, match="src"):
+        IngestResource.create(client, spec)
+    client.create_ingestion.assert_not_called()
+
+
 # ---------------------------------------------------------------------------
 # IngestResource properties & listings
 # ---------------------------------------------------------------------------
@@ -156,9 +180,7 @@ def test_ingestion_start_updates_state(client):
     assert ing.status is models.Status.INGESTING
 
 
-def test_ingestion_wait_until_ready_polls_until_target(
-    mocker: MockerFixture, client
-):
+def test_ingestion_wait_until_ready_polls_until_target(mocker: MockerFixture, client):
     ing = IngestResource.create(client, spec=b"")
     # Two SCANNING polls, then READY.
     client.get_ingestion.side_effect = [
@@ -213,9 +235,7 @@ def test_ingestion_wait_times_out(mocker: MockerFixture, client):
 
 def test_ingestion_create_batch_returns_batch_resource(client):
     ing = IngestResource.create(client, spec=b"")
-    client.create_batch.return_value = make_batch_model(
-        ingestion_id=1, batch_number=2
-    )
+    client.create_batch.return_value = make_batch_model(ingestion_id=1, batch_number=2)
 
     batch = ing.create_batch()
     assert isinstance(batch, BatchResource)
@@ -283,9 +303,7 @@ def test_live_status_unsubscribes_on_exit(mocker: MockerFixture, client):
     live_instance.update.assert_not_called()
 
 
-def test_live_status_stops_live_even_if_refresh_fails(
-    mocker: MockerFixture, client
-):
+def test_live_status_stops_live_even_if_refresh_fails(mocker: MockerFixture, client):
     live_cls = mocker.patch("prescient_sdk.ingest_resources.Live")
     live_instance = live_cls.return_value
 
@@ -299,9 +317,7 @@ def test_live_status_stops_live_even_if_refresh_fails(
     live_instance.stop.assert_called_once()
 
 
-def test_live_status_does_not_swallow_exceptions(
-    mocker: MockerFixture, client
-):
+def test_live_status_does_not_swallow_exceptions(mocker: MockerFixture, client):
     mocker.patch("prescient_sdk.ingest_resources.Live")
     ing = IngestResource.create(client, spec=b"")
 

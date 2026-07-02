@@ -28,6 +28,7 @@ from rich.text import Text
 
 from prescient_sdk import ingest_models as models
 from prescient_sdk.ingest_client import IngestClient, _poll_for_status
+from prescient_sdk.ingest_spec import IngestSpec
 from prescient_sdk.ingest_models import (
     DONE_STATUSES,
     READY_STATUSES,
@@ -241,20 +242,36 @@ class IngestResource(_IngestResource):
 
     @classmethod
     def create(
-        cls, client: IngestClient, spec: Path | str | bytes
+        cls, client: IngestClient, spec: Path | str | bytes | IngestSpec
     ) -> "IngestResource":
         """POST a new ingestion from ``spec`` and wrap the result.
 
         Args:
             client (IngestClient): Client used for the API call and subsequent
                 state transitions.
-            spec (Path | str | bytes): The YAML specification. See
-                :meth:`IngestClient.create_ingestion` for how each type is
-                handled.
+            spec (Path | str | bytes | IngestSpec): The specification to submit.
+                A ``Path``/``str``/``bytes`` is passed through to
+                :meth:`IngestClient.create_ingestion` unchanged. An
+                :class:`~prescient_sdk.ingest_spec.IngestSpec` is serialized to
+                YAML and submitted, but only after checking that every location
+                is an ``s3://`` path — the Ingest API cannot read local paths.
 
         Returns:
             IngestResource: A resource wrapping the newly created ingestion.
+
+        Raises:
+            ValueError: If ``spec`` is an :class:`IngestSpec` with one or more
+                locations still pointing at a local (non-``s3://``) path. Upload
+                those sources first (see ``IngestSpec.with_uploaded_sources``).
         """
+        if isinstance(spec, IngestSpec):
+            local = spec.local_locations()
+            if local:
+                raise ValueError(
+                    "Cannot create an ingestion: these locations have non-s3:// "
+                    f"paths and must be uploaded first: {local}"
+                )
+            spec = spec.to_bytes()
         ingestion = client.create_ingestion(spec)
         logger.info("IngestResource created id=%s", ingestion.id)
         return cls(client, ingestion)
@@ -398,8 +415,7 @@ class IngestResource(_IngestResource):
             list[BatchResource]: One resource per batch in this ingestion.
         """
         return [
-            BatchResource(self._client, m)
-            for m in self._client.list_batches(self.id)
+            BatchResource(self._client, m) for m in self._client.list_batches(self.id)
         ]
 
     # -- Internals -------------------------------------------------------
@@ -432,7 +448,9 @@ class IngestResource(_IngestResource):
         spec_table.add_row("User", str(spec.get("user", "—")))
         spec_table.add_row("Tasks", str(len(spec.get("tasks") or {})))
         spec_table.add_row("Locations", str(len(spec.get("locations") or {})))
-        spec_table.add_row("Source file sets", str(len(spec.get("source_file_sets") or {})))
+        spec_table.add_row(
+            "Source file sets", str(len(spec.get("source_file_sets") or {}))
+        )
 
         renderables: list[RenderableType] = [header, spec_table]
         errs_panel = _errors_panel(self._errors)
@@ -566,9 +584,7 @@ class BatchResource(_IngestResource):
         Returns:
             list[OutputFile]: Output files produced by this batch.
         """
-        return self._client.get_batch_output_files(
-            self.ingestion_id, self.batch_number
-        )
+        return self._client.get_batch_output_files(self.ingestion_id, self.batch_number)
 
     def errors(self) -> list[Error]:
         """Fetch the errors recorded against this batch.
@@ -589,9 +605,7 @@ class BatchResource(_IngestResource):
         logger.info(
             "Starting batch ingestion=%s batch=%s", self.ingestion_id, self.batch_number
         )
-        self._set_model(
-            self._client.start_batch(self.ingestion_id, self.batch_number)
-        )
+        self._set_model(self._client.start_batch(self.ingestion_id, self.batch_number))
         self._notify()
         return self
 
@@ -708,9 +722,7 @@ class LiveStatus:
         )
 
     def __enter__(self) -> _IngestResource:
-        logger.debug(
-            "LiveStatus started for %s", self._resource.__class__.__name__
-        )
+        logger.debug("LiveStatus started for %s", self._resource.__class__.__name__)
         self._live.start()
         self._resource.on_refresh(self._on_refresh)
         return self._resource
