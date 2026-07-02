@@ -1,5 +1,5 @@
 import time
-from pathlib import Path, PureWindowsPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 import boto3
 import pytest
@@ -8,6 +8,7 @@ from moto import mock_aws
 from prescient_sdk.client import PrescientClient
 from prescient_sdk.upload import (
     _make_s3_key,
+    _relative_posix,
     _split_s3_uri,
     iter_files,
     upload,
@@ -221,3 +222,43 @@ def test_upload_source_files_missing_dir(tmp_path):
         upload_source_files(
             tmp_path / "nope", "s3://test-bucket/p/", ".*", boto3.Session()
         )
+
+
+def test_relative_posix_windows_style():
+    root = PureWindowsPath(r"C:\data\scenes")
+    file = PureWindowsPath(r"C:\data\scenes\nested\image.tif")
+    assert _relative_posix(file, root) == "nested/image.tif"
+
+
+def test_relative_posix_posix_style():
+    root = PurePosixPath("/data/scenes")
+    file = PurePosixPath("/data/scenes/nested/image.tif")
+    assert _relative_posix(file, root) == "nested/image.tif"
+
+
+def test_staged_key_from_windows_path_uses_forward_slashes():
+    # The staged S3 key is key_prefix + relative posix path; a Windows source
+    # tree must still produce forward-slash keys (S3 keys never use backslashes).
+    root = PureWindowsPath(r"C:\data\scenes")
+    file = PureWindowsPath(r"C:\data\scenes\a\b\image.tif")
+
+    key = "user-uploads/uid/" + _relative_posix(file, root)
+
+    assert key == "user-uploads/uid/a/b/image.tif"
+    assert "\\" not in key
+
+
+def test_upload_source_files_windows_pattern_matches_relative_posix(
+    tmp_path, s3, create_test_bucket
+):
+    # A pattern written with a forward-slash subdirectory (as authored in a spec)
+    # must match nested files regardless of the local OS separator, because
+    # matching runs on the posix relative path.
+    _make_tree(tmp_path, ["a/scene.tif", "b/scene.tif", "a/note.txt"])
+
+    upload_source_files(tmp_path, "s3://test-bucket/p/", r"a/.*\.tif$", boto3.Session())
+
+    keys = sorted(
+        o["Key"] for o in s3.list_objects_v2(Bucket="test-bucket")["Contents"]
+    )
+    assert keys == ["p/a/scene.tif"]

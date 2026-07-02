@@ -109,6 +109,24 @@ def _split_s3_uri(uri: str) -> tuple[str, str]:
     return bucket, key_prefix
 
 
+def _relative_posix(file: PurePath, root: PurePath) -> str:
+    """Return ``file``'s path relative to ``root`` using forward slashes.
+
+    ``as_posix`` normalizes separators so S3 keys and pattern matching are
+    identical on Windows and POSIX — e.g. a Windows ``nested\\image.tif``
+    becomes ``nested/image.tif``. S3 keys always use ``/``, so the local OS
+    separator must never leak into a key.
+
+    Args:
+        file (PurePath): The file path, under ``root``.
+        root (PurePath): The directory ``file`` is relative to.
+
+    Returns:
+        str: The forward-slash relative path.
+    """
+    return file.relative_to(root).as_posix()
+
+
 def upload_source_files(
     local_dir: str | os.PathLike,
     dest_prefix: str,
@@ -166,7 +184,7 @@ def upload_source_files(
     matched = [
         file
         for file in iter_files(local_path)
-        if regex.match(file.relative_to(local_path).as_posix())
+        if regex.match(_relative_posix(file, local_path))
     ]
     total = len(matched)
     logger.info(
@@ -177,11 +195,10 @@ def upload_source_files(
         dest_prefix,
     )
     for index, file in enumerate(matched, start=1):
-        relative = file.relative_to(local_path).as_posix()
         _upload(
             file=str(file),
             bucket=bucket,
-            key=key_prefix + relative,
+            key=key_prefix + _relative_posix(file, local_path),
             session=session,
             overwrite=overwrite,
         )
