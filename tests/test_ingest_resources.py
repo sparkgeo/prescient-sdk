@@ -10,6 +10,7 @@ from pytest_mock import MockerFixture
 from prescient_sdk import ingest_models as models
 from prescient_sdk.ingest_client import IngestClient
 from prescient_sdk.ingest_resources import BatchResource, IngestResource, LiveStatus
+from prescient_sdk.ingest_spec import IngestSpec
 
 
 # ---------------------------------------------------------------------------
@@ -94,7 +95,8 @@ def client(mocker: MockerFixture) -> MagicMock:
 
 
 def test_ingestion_create_calls_create_ingestion(client):
-    ing = IngestResource.create(client, spec=b"user: tester\n")
+    spec = IngestSpec.from_bytes(spec=b"user: tester\n")
+    ing = IngestResource.create(client, spec=spec)
     client.create_ingestion.assert_called_once_with(b"user: tester\n")
     client.get_ingestion.assert_not_called()
     assert ing.id == 1
@@ -107,6 +109,29 @@ def test_ingestion_from_id_calls_get_ingestion(client):
     assert ing.id == 1  # from the mock's return value
 
 
+def test_ingestion_create_accepts_ingest_spec(client):
+    spec = IngestSpec.from_dict(
+        {"user": "tester", "locations": {"src": {"path": "s3://bucket/data"}}}
+    )
+    ing = IngestResource.create(client, spec)
+    client.create_ingestion.assert_called_once_with(spec.to_bytes())
+    assert ing.id == 1
+
+
+def test_ingestion_create_rejects_local_locations_in_spec(client):
+    spec = IngestSpec.from_dict(
+        {
+            "locations": {
+                "src": {"path": "/mnt/data/scenes"},
+                "target": {"path": "s3://bucket"},
+            }
+        }
+    )
+    with pytest.raises(ValueError, match="src"):
+        IngestResource.create(client, spec)
+    client.create_ingestion.assert_not_called()
+
+
 # ---------------------------------------------------------------------------
 # IngestResource properties & listings
 # ---------------------------------------------------------------------------
@@ -116,14 +141,14 @@ def test_ingestion_properties_delegate_to_model(client):
     client.create_ingestion.return_value = make_ingestion_model(
         id=7, status="READY", user="alice"
     )
-    ing = IngestResource.create(client, spec=b"")
+    ing = IngestResource.create(client, spec=IngestSpec.from_bytes(b""))
     assert ing.id == 7
     assert ing.status is models.Status.READY
     assert ing.spec["user"] == "alice"
 
 
 def test_ingestion_listings_call_through(client):
-    ing = IngestResource.create(client, spec=b"")
+    ing = IngestResource.create(client, spec=IngestSpec.from_bytes(b""))
     ing.input_files()
     ing.output_files()
     ing.errors()
@@ -138,7 +163,7 @@ def test_ingestion_listings_call_through(client):
 
 
 def test_ingestion_refresh_updates_status_and_errors(client):
-    ing = IngestResource.create(client, spec=b"")
+    ing = IngestResource.create(client, spec=IngestSpec.from_bytes(b""))
     # After construction the status is SCANNING; switch the mock to READY.
     client.get_ingestion.return_value = make_ingestion_model(id=1, status="READY")
     client.get_ingestion_errors.return_value = [make_error_model()]
@@ -150,16 +175,14 @@ def test_ingestion_refresh_updates_status_and_errors(client):
 
 
 def test_ingestion_start_updates_state(client):
-    ing = IngestResource.create(client, spec=b"")
+    ing = IngestResource.create(client, spec=IngestSpec.from_bytes(b""))
     ing.start()
     client.start_ingestion.assert_called_once_with(1)
     assert ing.status is models.Status.INGESTING
 
 
-def test_ingestion_wait_until_ready_polls_until_target(
-    mocker: MockerFixture, client
-):
-    ing = IngestResource.create(client, spec=b"")
+def test_ingestion_wait_until_ready_polls_until_target(mocker: MockerFixture, client):
+    ing = IngestResource.create(client, spec=IngestSpec.from_bytes(b""))
     # Two SCANNING polls, then READY.
     client.get_ingestion.side_effect = [
         make_ingestion_model(status="SCANNING"),
@@ -179,7 +202,7 @@ def test_ingestion_wait_until_ready_polls_until_target(
 def test_ingestion_wait_until_done_targets_done_failed_incomplete(
     mocker: MockerFixture, client
 ):
-    ing = IngestResource.create(client, spec=b"")
+    ing = IngestResource.create(client, spec=IngestSpec.from_bytes(b""))
     # READY should NOT terminate wait_until_done — it should keep polling.
     client.get_ingestion.side_effect = [
         make_ingestion_model(status="READY"),
@@ -193,7 +216,7 @@ def test_ingestion_wait_until_done_targets_done_failed_incomplete(
 
 
 def test_ingestion_wait_times_out(mocker: MockerFixture, client):
-    ing = IngestResource.create(client, spec=b"")
+    ing = IngestResource.create(client, spec=IngestSpec.from_bytes(b""))
     client.get_ingestion.return_value = make_ingestion_model(status="SCANNING")
     mocker.patch("prescient_sdk.ingest_client.time.sleep")
     # Force monotonic to jump past the deadline on first check.
@@ -212,10 +235,8 @@ def test_ingestion_wait_times_out(mocker: MockerFixture, client):
 
 
 def test_ingestion_create_batch_returns_batch_resource(client):
-    ing = IngestResource.create(client, spec=b"")
-    client.create_batch.return_value = make_batch_model(
-        ingestion_id=1, batch_number=2
-    )
+    ing = IngestResource.create(client, spec=IngestSpec.from_bytes(b""))
+    client.create_batch.return_value = make_batch_model(ingestion_id=1, batch_number=2)
 
     batch = ing.create_batch()
     assert isinstance(batch, BatchResource)
@@ -228,7 +249,7 @@ def test_ingestion_list_batches_returns_wrappers(client):
         make_batch_model(batch_number=1),
         make_batch_model(batch_number=2),
     ]
-    ing = IngestResource.create(client, spec=b"")
+    ing = IngestResource.create(client, spec=IngestSpec.from_bytes(b""))
 
     batches = ing.list_batches()
     assert len(batches) == 2
@@ -245,7 +266,7 @@ def test_live_status_starts_and_stops_live(mocker: MockerFixture, client):
     live_cls = mocker.patch("prescient_sdk.ingest_resources.Live")
     live_instance = live_cls.return_value
 
-    ing = IngestResource.create(client, spec=b"")
+    ing = IngestResource.create(client, spec=IngestSpec.from_bytes(b""))
     with LiveStatus(ing) as scope:
         assert scope is ing
         live_instance.start.assert_called_once()
@@ -259,7 +280,7 @@ def test_live_status_updates_on_refresh(mocker: MockerFixture, client):
     live_cls = mocker.patch("prescient_sdk.ingest_resources.Live")
     live_instance = live_cls.return_value
 
-    ing = IngestResource.create(client, spec=b"")
+    ing = IngestResource.create(client, spec=IngestSpec.from_bytes(b""))
     with LiveStatus(ing):
         # Each refresh should fire the observer and update the live display.
         ing.refresh()
@@ -273,7 +294,7 @@ def test_live_status_unsubscribes_on_exit(mocker: MockerFixture, client):
     live_cls = mocker.patch("prescient_sdk.ingest_resources.Live")
     live_instance = live_cls.return_value
 
-    ing = IngestResource.create(client, spec=b"")
+    ing = IngestResource.create(client, spec=IngestSpec.from_bytes(b""))
     with LiveStatus(ing):
         pass
 
@@ -283,13 +304,11 @@ def test_live_status_unsubscribes_on_exit(mocker: MockerFixture, client):
     live_instance.update.assert_not_called()
 
 
-def test_live_status_stops_live_even_if_refresh_fails(
-    mocker: MockerFixture, client
-):
+def test_live_status_stops_live_even_if_refresh_fails(mocker: MockerFixture, client):
     live_cls = mocker.patch("prescient_sdk.ingest_resources.Live")
     live_instance = live_cls.return_value
 
-    ing = IngestResource.create(client, spec=b"")
+    ing = IngestResource.create(client, spec=IngestSpec.from_bytes(b""))
     # The first call (in create) succeeded; make the next refresh raise.
     client.get_ingestion.side_effect = RuntimeError("network down")
 
@@ -299,11 +318,9 @@ def test_live_status_stops_live_even_if_refresh_fails(
     live_instance.stop.assert_called_once()
 
 
-def test_live_status_does_not_swallow_exceptions(
-    mocker: MockerFixture, client
-):
+def test_live_status_does_not_swallow_exceptions(mocker: MockerFixture, client):
     mocker.patch("prescient_sdk.ingest_resources.Live")
-    ing = IngestResource.create(client, spec=b"")
+    ing = IngestResource.create(client, spec=IngestSpec.from_bytes(b""))
 
     with pytest.raises(RuntimeError, match="user code"):
         with LiveStatus(ing):
@@ -320,7 +337,7 @@ def test_render_produces_non_empty_renderable(client):
     import io
     from rich.console import Console
 
-    ing = IngestResource.create(client, spec=b"")
+    ing = IngestResource.create(client, spec=IngestSpec.from_bytes(b""))
     buf = io.StringIO()
     Console(file=buf, force_terminal=True, width=120).print(ing)
     out = buf.getvalue()
@@ -333,7 +350,7 @@ def test_repr_html_contains_status_and_id(client):
     client.create_ingestion.return_value = make_ingestion_model(
         id=99, status="DONE", user="alice"
     )
-    ing = IngestResource.create(client, spec=b"")
+    ing = IngestResource.create(client, spec=IngestSpec.from_bytes(b""))
     html = ing._repr_html_()
     assert isinstance(html, str)
     assert "#99" in html
@@ -341,7 +358,7 @@ def test_repr_html_contains_status_and_id(client):
 
 
 def test_render_includes_error_panel_when_errors_present(client):
-    ing = IngestResource.create(client, spec=b"")
+    ing = IngestResource.create(client, spec=IngestSpec.from_bytes(b""))
     client.get_ingestion_errors.return_value = [
         make_error_model(severity="CRITICAL", description="boom"),
     ]
