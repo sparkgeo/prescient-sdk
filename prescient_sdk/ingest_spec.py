@@ -42,7 +42,7 @@ class IngestSpec:
     """
 
     def __init__(self, spec: dict[str, Any]):
-        self._spec = spec
+        self._spec = spec 
 
     @classmethod
     def from_file(cls, path: Path | str) -> "IngestSpec":
@@ -90,6 +90,15 @@ class IngestSpec:
             )
         return cls(copy.deepcopy(spec))
 
+    @classmethod
+    def from_bytes(cls, spec: bytes) -> "IngestSpec":
+        """IngestSpec from bytes"""
+        if not isinstance(spec, bytes):
+            raise ValueError(
+                    f"Ingestion spec must be bytes, got{type(spec).__name__}"
+                    )
+        return cls(yaml.safe_load(spec))
+
     @property
     def spec(self) -> dict[str, Any]:
         """A deep copy of the parsed spec.
@@ -124,7 +133,7 @@ class IngestSpec:
         Returns:
             list[str]: Location names with a non-``s3://`` path, in spec order.
         """
-        locations = self._spec.get("locations") or {}
+        locations = {} if self._spec is None else self._spec.get("locations", {})
         return [
             name
             for name, location in locations.items()

@@ -242,17 +242,15 @@ class IngestResource(_IngestResource):
 
     @classmethod
     def create(
-        cls, client: IngestClient, spec: Path | str | bytes | IngestSpec
+        cls, client: IngestClient, spec: IngestSpec
     ) -> "IngestResource":
         """POST a new ingestion from ``spec`` and wrap the result.
 
         Args:
             client (IngestClient): Client used for the API call and subsequent
                 state transitions.
-            spec (Path | str | bytes | IngestSpec): The specification to submit.
-                A ``Path``/``str``/``bytes`` is passed through to
-                :meth:`IngestClient.create_ingestion` unchanged. An
-                :class:`~prescient_sdk.ingest_spec.IngestSpec` is serialized to
+            spec (IngestSpec): The specification to submit.
+                A :class:`~prescient_sdk.ingest_spec.IngestSpec` is serialized to
                 YAML and submitted, but only after checking that every location
                 is an ``s3://`` path — the Ingest API cannot read local paths.
 
@@ -264,6 +262,9 @@ class IngestResource(_IngestResource):
                 locations still pointing at a local (non-``s3://``) path. Upload
                 those sources first (see ``IngestSpec.with_uploaded_sources``).
         """
+        if any(isinstance(spec, invalid_type) for invalid_type in (str, Path, bytes)):
+            raise ValueError(f"Expected IngestSpec, got {type(spec)}")
+
         if isinstance(spec, IngestSpec):
             local = spec.local_locations()
             if local:
@@ -272,6 +273,7 @@ class IngestResource(_IngestResource):
                     f"paths and must be uploaded first: {local}"
                 )
             spec = spec.to_bytes()
+
         ingestion = client.create_ingestion(spec)
         logger.info("IngestResource created id=%s", ingestion.id)
         return cls(client, ingestion)
