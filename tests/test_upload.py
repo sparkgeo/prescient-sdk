@@ -1,11 +1,26 @@
 import time
-from pathlib import Path, PureWindowsPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
+import boto3
 import pytest
 from moto import mock_aws
 
 from prescient_sdk.client import PrescientClient
-from prescient_sdk.upload import _make_s3_key, iter_files, upload
+from prescient_sdk.upload import (
+    _make_s3_key,
+    _relative_posix,
+    _split_s3_uri,
+    iter_files,
+    upload,
+    upload_source_files,
+)
+
+
+def _make_tree(root: Path, rel_paths: list[str]) -> None:
+    for rel in rel_paths:
+        p = root / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.touch()
 
 
 @pytest.fixture
@@ -138,3 +153,112 @@ def test_upload_invalid_dir(tmp_path):
     tmp_dir = tmp_path.joinpath("some-dir")
     with pytest.raises(FileNotFoundError):
         upload(str(tmp_dir))
+
+
+@pytest.mark.parametrize(
+    "uri, expected",
+    [
+        ("s3://bucket/a/b/", ("bucket", "a/b/")),
+        ("s3://bucket/a/b", ("bucket", "a/b/")),
+        ("s3://bucket/", ("bucket", "")),
+        ("s3://bucket", ("bucket", "")),
+    ],
+)
+def test_split_s3_uri(uri, expected):
+    assert _split_s3_uri(uri) == expected
+
+
+@pytest.mark.parametrize("uri", ["http://bucket/x", "bucket/x", "s3://", "s3:///key"])
+def test_split_s3_uri_invalid(uri):
+    with pytest.raises(ValueError):
+        _split_s3_uri(uri)
+
+
+def test_upload_source_files_filters_and_preserves_relative_paths(
+    tmp_path, s3, create_test_bucket
+):
+    _make_tree(tmp_path, ["a.tif", "sub/b.tif", "note.txt"])
+    calls = []
+
+    upload_source_files(
+        tmp_path,
+        "s3://test-bucket/user-uploads/uid/",
+        r".*\.tif$",
+        boto3.Session(),
+        on_file=lambda index, total, path: calls.append((index, total, path)),
+    )
+
+    keys = sorted(
+        o["Key"] for o in s3.list_objects_v2(Bucket="test-bucket")["Contents"]
+    )
+    # only .tif files, keyed as dest_prefix + relative path (no dir-name segment)
+    assert keys == ["user-uploads/uid/a.tif", "user-uploads/uid/sub/b.tif"]
+    assert all(tmp_path.name not in key for key in keys)
+    # on_file fired once per uploaded file with a 1-based index and the total
+    assert [(index, total) for index, total, _ in calls] == [(1, 2), (2, 2)]
+    assert {path for _, _, path in calls} == {
+        tmp_path / "a.tif",
+        tmp_path / "sub" / "b.tif",
+    }
+
+
+def test_upload_source_files_uses_anchored_match(tmp_path, s3, create_test_bucket):
+    # re.match anchors at the start: "scene.tif" matches at the root but not
+    # under a subdirectory, so only the root file is selected.
+    _make_tree(tmp_path, ["scene.tif", "sub/scene.tif"])
+
+    upload_source_files(
+        tmp_path, "s3://test-bucket/p/", r"scene\.tif$", boto3.Session()
+    )
+
+    keys = sorted(
+        o["Key"] for o in s3.list_objects_v2(Bucket="test-bucket")["Contents"]
+    )
+    assert keys == ["p/scene.tif"]
+
+
+def test_upload_source_files_missing_dir(tmp_path):
+    with pytest.raises(FileNotFoundError):
+        upload_source_files(
+            tmp_path / "nope", "s3://test-bucket/p/", ".*", boto3.Session()
+        )
+
+
+def test_relative_posix_windows_style():
+    root = PureWindowsPath(r"C:\data\scenes")
+    file = PureWindowsPath(r"C:\data\scenes\nested\image.tif")
+    assert _relative_posix(file, root) == "nested/image.tif"
+
+
+def test_relative_posix_posix_style():
+    root = PurePosixPath("/data/scenes")
+    file = PurePosixPath("/data/scenes/nested/image.tif")
+    assert _relative_posix(file, root) == "nested/image.tif"
+
+
+def test_staged_key_from_windows_path_uses_forward_slashes():
+    # The staged S3 key is key_prefix + relative posix path; a Windows source
+    # tree must still produce forward-slash keys (S3 keys never use backslashes).
+    root = PureWindowsPath(r"C:\data\scenes")
+    file = PureWindowsPath(r"C:\data\scenes\a\b\image.tif")
+
+    key = "user-uploads/uid/" + _relative_posix(file, root)
+
+    assert key == "user-uploads/uid/a/b/image.tif"
+    assert "\\" not in key
+
+
+def test_upload_source_files_windows_pattern_matches_relative_posix(
+    tmp_path, s3, create_test_bucket
+):
+    # A pattern written with a forward-slash subdirectory (as authored in a spec)
+    # must match nested files regardless of the local OS separator, because
+    # matching runs on the posix relative path.
+    _make_tree(tmp_path, ["a/scene.tif", "b/scene.tif", "a/note.txt"])
+
+    upload_source_files(tmp_path, "s3://test-bucket/p/", r"a/.*\.tif$", boto3.Session())
+
+    keys = sorted(
+        o["Key"] for o in s3.list_objects_v2(Bucket="test-bucket")["Contents"]
+    )
+    assert keys == ["p/a/scene.tif"]
