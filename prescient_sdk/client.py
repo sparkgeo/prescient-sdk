@@ -398,24 +398,28 @@ class PrescientClient:
             NotImplementedError: If the client is configured with an API key.
             ValueError: If the credentials response is empty
         """
-        if self.settings.prescient_api_key:
-            raise NotImplementedError(
-                "The upload feature is not supported when using an API key; "
-                "uploads require an IDP id_token for STS assume_role_with_web_identity. "
-                "Unset prescient_api_key and configure OAuth2/IDP credentials to use uploads."
+        if self._upload_bucket_credentials:
+            if not self.credentials_expired or (self.settings.prescient_api_key and datetime.datetime.now(datetime.timezone.utc) < self._upload_bucket_credentials["Expiration"]):
+                return self._upload_bucket_credentials
+        
+        logger.info(
+            "Fetching bucket credentials via %s",
+            "STS assume-role" if self.settings.prescient_upload_role else "fileproxy",
+        )
+        if self.settings.prescient_upload_role and not self.settings.prescient_api_key:
+            self._upload_bucket_credentials = self._get_bucket_credentials(role=self.settings.prescient_upload_role)
+        elif self.settings.prescient_api_key:
+            self._upload_bucket_credentials = self._fetch_fileproxy_credentials()
+        else:
+            raise ValueError(f"upload bucket credentials require `prescient_upload_role` or `prescient_api_key` being set")
+
+        expiration = self._upload_bucket_credentials["Expiration"]
+        if isinstance(expiration, str):
+            expiration = datetime.datetime.fromisoformat(
+                expiration.replace("Z", "+00:00")
             )
-
-        if self._upload_bucket_credentials and not self.credentials_expired:
-            return self._upload_bucket_credentials
-
-        if not self.settings.prescient_upload_role:
-            raise ValueError(
-                "prescient_upload_role is not configured; set PRESCIENT_UPLOAD_ROLE "
-                "to use the upload bucket."
-            )
-
-        self._upload_bucket_credentials = self._get_bucket_credentials(
-            role=self.settings.prescient_upload_role
+        self._upload_bucket_credentials["Expiration"] = expiration.astimezone(
+            datetime.timezone.utc
         )
 
         return self._upload_bucket_credentials

@@ -613,10 +613,10 @@ def test_upload_role_and_bucket_optional(set_env_vars):
     assert client.settings.prescient_upload_bucket is None
 
 
-def test_upload_bucket_credentials_requires_role(set_env_vars, mock_creds):
+def test_upload_bucket_credentials_requires_one_of_role_or_api(set_env_vars, mock_creds):
     """Accessing upload_bucket_credentials should raise when upload_role is unset."""
     client = PrescientClient()
-    with pytest.raises(ValueError, match="prescient_upload_role"):
+    with pytest.raises(ValueError, match="require `prescient_upload_role` or `prescient_api_key`"):
         _ = client.upload_bucket_credentials
 
 
@@ -823,9 +823,37 @@ def test_refresh_credentials_force_api_key_noop(set_api_key_env_vars):
     client.refresh_credentials(force=True)
     assert client.auth_credentials == {"api_key": "test-api-key-value"}
 
+def test_upload_bucket_credentials_api_key_uses_fileproxy(
+    mocker: MockerFixture, set_api_key_env_vars
+):
+    """Upload bucket creds when ``prescient_api_key`` is set hit /fileproxy/credentials
+       with api-key header."""
+    expiration_iso = (
+        datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
+    ).isoformat()
+    fake_response = MagicMock()
+    fake_response.json.return_value = {
+        "access_key_id": "proxy_key",
+        "secret_access_key": "proxy_secret",
+        "session_token": "proxy_session",
+        "expiration": expiration_iso,
+    }
+    fake_response.raise_for_status = MagicMock()
+    get_mock = mocker.patch(
+        "prescient_sdk.client.requests.get", return_value=fake_response
+    )
+    boto_mock = mocker.patch("boto3.client")
 
-def test_upload_bucket_credentials_api_key_not_supported(set_api_key_env_vars):
-    """upload_bucket_credentials raises NotImplementedError in API-key mode."""
     client = PrescientClient()
-    with pytest.raises(NotImplementedError, match="upload feature is not supported"):
-        _ = client.upload_bucket_credentials
+    creds = client.upload_bucket_credentials
+
+    assert creds["AccessKeyId"] == "proxy_key"
+    assert creds["SecretAccessKey"] == "proxy_secret"
+    assert creds["SessionToken"] == "proxy_session"
+    boto_mock.assert_not_called()
+
+    called_url, called_kwargs = get_mock.call_args[0][0], get_mock.call_args.kwargs
+    assert called_url == "https://example.server.prescient.earth/fileproxy/credentials"
+    assert called_kwargs["headers"]["api-key"] == "test-api-key-value"
+    assert "Authorization" not in called_kwargs["headers"]
+
