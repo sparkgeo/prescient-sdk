@@ -380,9 +380,7 @@ class PrescientClient:
     @property
     def upload_bucket_credentials(self):
         """Get upload bucket credentials using an auth access token
-
-        Note: uploads use STS ``assume_role_with_web_identity`` which requires
-        an IDP id_token. Not supported in API-key mode.
+        or API key.
 
         Returns:
             dict: bucket temporary credentials::
@@ -395,8 +393,7 @@ class PrescientClient:
                 }
 
         Raises:
-            NotImplementedError: If the client is configured with an API key.
-            ValueError: If the credentials response is empty
+            ValueError: If neither upload role or API key are provided or if the credentials response is empty
         """
         if self._upload_bucket_credentials:
             if not self.credentials_expired or (self.settings.prescient_api_key and datetime.datetime.now(datetime.timezone.utc) < self._upload_bucket_credentials["Expiration"]):
