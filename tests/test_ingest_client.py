@@ -200,7 +200,9 @@ def test_url_joins_v1_paths(mock_creds):
 # ---------------------------------------------------------------------------
 
 
-def test_create_ingestion_from_bytes(mocker: MockerFixture, ingest_client: IngestClient):
+def test_create_ingestion_from_bytes(
+    mocker: MockerFixture, ingest_client: IngestClient
+):
     """Bytes are uploaded directly as the multipart spec_file part."""
     post_mock = mocker.patch(
         "prescient_sdk.ingest_client.requests.request",
@@ -458,9 +460,7 @@ def test_get_ingestion_propagates_404(
 # ---------------------------------------------------------------------------
 
 
-def test_check_returns_true_on_204(
-    mocker: MockerFixture, ingest_client: IngestClient
-):
+def test_check_returns_true_on_204(mocker: MockerFixture, ingest_client: IngestClient):
     get_mock = mocker.patch(
         "prescient_sdk.ingest_client.requests.get",
         return_value=_make_response(status_code=204),
@@ -551,9 +551,7 @@ def test_wait_for_status_polls_batch_when_batch_number_given(
     assert request_mock.call_args.args[1].endswith("/batches/1")
 
 
-def test_wait_for_status_times_out(
-    mocker: MockerFixture, ingest_client: IngestClient
-):
+def test_wait_for_status_times_out(mocker: MockerFixture, ingest_client: IngestClient):
     """If a target status is never reached, TimeoutError is raised."""
     mocker.patch(
         "prescient_sdk.ingest_client.requests.request",

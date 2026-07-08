@@ -241,9 +241,7 @@ class IngestResource(_IngestResource):
     # -- Constructors ----------------------------------------------------
 
     @classmethod
-    def create(
-        cls, client: IngestClient, spec: IngestSpec
-    ) -> "IngestResource":
+    def create(cls, client: IngestClient, spec: IngestSpec) -> "IngestResource":
         """POST a new ingestion from ``spec`` and wrap the result.
 
         Args:

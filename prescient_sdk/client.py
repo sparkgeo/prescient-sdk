@@ -396,19 +396,27 @@ class PrescientClient:
             ValueError: If neither upload role or API key are provided or if the credentials response is empty
         """
         if self._upload_bucket_credentials:
-            if not self.credentials_expired or (self.settings.prescient_api_key and datetime.datetime.now(datetime.timezone.utc) < self._upload_bucket_credentials["Expiration"]):
+            if not self.credentials_expired or (
+                self.settings.prescient_api_key
+                and datetime.datetime.now(datetime.timezone.utc)
+                < self._upload_bucket_credentials["Expiration"]
+            ):
                 return self._upload_bucket_credentials
-        
+
         logger.info(
             "Fetching bucket credentials via %s",
             "STS assume-role" if self.settings.prescient_upload_role else "fileproxy",
         )
         if self.settings.prescient_upload_role and not self.settings.prescient_api_key:
-            self._upload_bucket_credentials = self._get_bucket_credentials(role=self.settings.prescient_upload_role)
+            self._upload_bucket_credentials = self._get_bucket_credentials(
+                role=self.settings.prescient_upload_role
+            )
         elif self.settings.prescient_api_key:
             self._upload_bucket_credentials = self._fetch_fileproxy_credentials()
         else:
-            raise ValueError(f"upload bucket credentials require `prescient_upload_role` or `prescient_api_key` being set")
+            raise ValueError(
+                "upload bucket credentials require `prescient_upload_role` or `prescient_api_key` being set"
+            )
 
         expiration = self._upload_bucket_credentials["Expiration"]
         if isinstance(expiration, str):

@@ -613,10 +613,14 @@ def test_upload_role_and_bucket_optional(set_env_vars):
     assert client.settings.prescient_upload_bucket is None
 
 
-def test_upload_bucket_credentials_requires_one_of_role_or_api(set_env_vars, mock_creds):
+def test_upload_bucket_credentials_requires_one_of_role_or_api(
+    set_env_vars, mock_creds
+):
     """Accessing upload_bucket_credentials should raise when upload_role is unset."""
     client = PrescientClient()
-    with pytest.raises(ValueError, match="require `prescient_upload_role` or `prescient_api_key`"):
+    with pytest.raises(
+        ValueError, match="require `prescient_upload_role` or `prescient_api_key`"
+    ):
         _ = client.upload_bucket_credentials
 
 
@@ -721,7 +725,9 @@ def test_bucket_credentials_api_key_ignores_aws_role(
     mocker: MockerFixture, monkeypatch: pytest.MonkeyPatch, clear_prescient_env
 ):
     """With both api_key and aws_role set, bucket creds come from fileproxy (STS skipped)."""
-    monkeypatch.setenv("PRESCIENT_ENDPOINT_URL", "https://example.server.prescient.earth/")
+    monkeypatch.setenv(
+        "PRESCIENT_ENDPOINT_URL", "https://example.server.prescient.earth/"
+    )
     monkeypatch.setenv("PRESCIENT_API_KEY", "test-api-key-value")
     monkeypatch.setenv("PRESCIENT_AWS_ROLE", "arn:aws:iam::something")
 
@@ -785,7 +791,7 @@ def test_bucket_credentials_api_key_uses_fileproxy(
     mocker: MockerFixture, set_api_key_env_vars
 ):
     """Bucket creds when ``prescient_api_key`` is set hit /fileproxy/credentials
-       with api-key header."""
+    with api-key header."""
     expiration_iso = (
         datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
     ).isoformat()
@@ -817,17 +823,18 @@ def test_bucket_credentials_api_key_uses_fileproxy(
 
 
 def test_refresh_credentials_force_api_key_noop(set_api_key_env_vars):
-    """refresh_credentials(force=True) is a no-op when ``prescient_api_key`` is configured 
+    """refresh_credentials(force=True) is a no-op when ``prescient_api_key`` is configured
     and does not raise."""
     client = PrescientClient()
     client.refresh_credentials(force=True)
     assert client.auth_credentials == {"api_key": "test-api-key-value"}
 
+
 def test_upload_bucket_credentials_api_key_uses_fileproxy(
     mocker: MockerFixture, set_api_key_env_vars
 ):
     """Upload bucket creds when ``prescient_api_key`` is set hit /fileproxy/credentials
-       with api-key header."""
+    with api-key header."""
     expiration_iso = (
         datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
     ).isoformat()
@@ -856,4 +863,3 @@ def test_upload_bucket_credentials_api_key_uses_fileproxy(
     assert called_url == "https://example.server.prescient.earth/fileproxy/credentials"
     assert called_kwargs["headers"]["api-key"] == "test-api-key-value"
     assert "Authorization" not in called_kwargs["headers"]
-
