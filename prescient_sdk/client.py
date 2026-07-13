@@ -403,15 +403,13 @@ class PrescientClient:
             ):
                 return self._upload_bucket_credentials
 
-        logger.info(
-            "Fetching bucket credentials via %s",
-            "STS assume-role" if self.settings.prescient_upload_role else "fileproxy",
-        )
         if self.settings.prescient_upload_role and not self.settings.prescient_api_key:
+            logger.info("Fetching upload bucket credentials via STS assume-role")
             self._upload_bucket_credentials = self._get_bucket_credentials(
                 role=self.settings.prescient_upload_role
             )
         elif self.settings.prescient_api_key:
+            logger.info("Fetching upload bucket credentials via fileproxy")
             self._upload_bucket_credentials = self._fetch_fileproxy_credentials()
         else:
             raise ValueError(

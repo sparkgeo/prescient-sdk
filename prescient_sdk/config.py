@@ -32,7 +32,7 @@ class Settings(BaseSettings):
         description="Base URL of the Prescient API endpoint."
     )
 
-    prescient_api_key: Optional[str] | None = Field(
+    prescient_api_key: Optional[str] = Field(
         default=None,
         description=(
             "Static API key for authenticating to Prescient endpoints. When set, "
@@ -55,14 +55,14 @@ class Settings(BaseSettings):
         default="microsoft",
         description="OAuth2 authentication provider. Determines which provider-specific fields are required.",
     )
-    prescient_client_id: Optional[str] | None = Field(
+    prescient_client_id: Optional[str] = Field(
         default=None,
         description=(
             "OAuth2 client ID issued by the selected authentication provider. "
             "Required when `prescient_api_key` is not set."
         ),
     )
-    prescient_auth_url: Optional[str] | None = Field(
+    prescient_auth_url: Optional[str] = Field(
         default=None,
         description=(
             "OAuth2 token endpoint URL used to exchange credentials for access tokens. "
@@ -110,7 +110,13 @@ class Settings(BaseSettings):
     prescient_upload_role: Optional[str] = Field(
         default=None,
         min_length=20,
-        description="Optional AWS IAM role ARN used by the upload helpers to write to the upload bucket.",
+        description=(
+            "Optional AWS IAM role ARN used by the upload helpers to write to the "
+            "upload bucket. When set (and an api key is not), the client assumes this "
+            "role via STS to obtain upload credentials. When unset and an api key is "
+            "set, upload credentials are fetched from the Prescient API's "
+            "`/fileproxy/credentials` endpoint instead."
+        ),
     )
     prescient_upload_bucket: Optional[str] = Field(
         default=None,
