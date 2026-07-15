@@ -53,7 +53,7 @@ def prescient_client(mocker):
     client = mocker.MagicMock(spec=PrescientClient)
     client.settings = SimpleNamespace(
         prescient_upload_bucket="upload-bucket",
-        prescient_upload_prefix=None,
+        prescient_upload_prefix="uploads"
     )
     client.upload_session = mocker.sentinel.session
     return client
@@ -163,14 +163,14 @@ def test_with_uploaded_sources_stages_set(
     args, kwargs = upload_mock.call_args
     local_dir, dest_prefix, pattern, session = args
     assert local_dir == "/data/scenes"
-    assert dest_prefix == "s3://upload-bucket/uuid-1/"
+    assert dest_prefix == "s3://upload-bucket/uploads/uuid-1/"
     assert pattern == r".*\.tif$"
     assert session is prescient_client.upload_session
     assert callable(kwargs["on_file"])
 
     assert (
         staged.spec["locations"]["source_location"]["path"]
-        == "s3://upload-bucket/uuid-1/"
+        == "s3://upload-bucket/uploads/uuid-1/"
     )
     assert staged.local_locations() == ["props_location"]
 
@@ -187,10 +187,10 @@ def test_with_uploaded_sources_shared_location_one_prefix(
     assert uuid_mock.call_count == 1
     assert upload_mock.call_count == 2
     dests = {call.args[1] for call in upload_mock.call_args_list}
-    assert dests == {"s3://upload-bucket/uuid-1/"}
+    assert dests == {"s3://upload-bucket/uploads/uuid-1/"}
     assert (
         staged.spec["locations"]["source_location"]["path"]
-        == "s3://upload-bucket/uuid-1/"
+        == "s3://upload-bucket/uploads/uuid-1/"
     )
 
 
@@ -205,16 +205,16 @@ def test_with_uploaded_sources_distinct_locations_distinct_prefixes(
     assert uuid_mock.call_count == 2
     assert (
         staged.spec["locations"]["source_location"]["path"]
-        == "s3://upload-bucket/uuid-1/"
+        == "s3://upload-bucket/uploads/uuid-1/"
     )
     # file:// scheme is stripped before upload.
     props_call = next(
         c for c in upload_mock.call_args_list if c.args[0] == "/data/props"
     )
-    assert props_call.args[1] == "s3://upload-bucket/uuid-2/"
+    assert props_call.args[1] == "s3://upload-bucket/uploads/uuid-2/"
     assert (
         staged.spec["locations"]["props_location"]["path"]
-        == "s3://upload-bucket/uuid-2/"
+        == "s3://upload-bucket/uploads/uuid-2/"
     )
     assert staged.local_locations() == []
 
@@ -353,7 +353,7 @@ def test_with_uploaded_sources_end_to_end(
 
     client = mocker.MagicMock(spec=PrescientClient)
     client.settings = SimpleNamespace(
-        prescient_upload_bucket="upload-bucket", prescient_upload_prefix=None
+        prescient_upload_bucket="upload-bucket", prescient_upload_prefix="uploads"
     )
     client.upload_session = boto3.Session(region_name="us-east-1")
 
@@ -364,10 +364,10 @@ def test_with_uploaded_sources_end_to_end(
     keys = sorted(
         o["Key"] for o in s3.list_objects_v2(Bucket="upload-bucket")["Contents"]
     )
-    assert keys == ["uuid-1/a.tif", "uuid-1/nested/b.tif"]
+    assert keys == ["uploads/uuid-1/a.tif", "uploads/uuid-1/nested/b.tif"]
     assert (
         ready.spec["locations"]["source_location"]["path"]
-        == "s3://upload-bucket/uuid-1/"
+        == "s3://upload-bucket/uploads/uuid-1/"
     )
     assert ready.local_locations() == []
 

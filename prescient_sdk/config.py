@@ -6,7 +6,7 @@ from __future__ import annotations
 import logging
 from typing import Literal, Optional
 
-from pydantic import Field, model_validator
+from pydantic import Field, model_validator, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger("prescient_sdk")
@@ -122,14 +122,11 @@ class Settings(BaseSettings):
         default=None,
         description="Optional AWS S3 bucket name targeted by the upload helpers.",
     )
-    prescient_upload_prefix: Optional[str] = Field(
-        default=None,
-        description=(
-            "Optional key prefix under `prescient_upload_bucket` for staged source "
-            "files (e.g. 'user-uploads'). When unset, staged files are keyed from the "
-            "bucket root."
-        ),
-    )
+
+    @computed_field
+    @property
+    def prescient_upload_prefix(self) -> Literal["uploads"]:
+        return "uploads"
 
     model_config = SettingsConfigDict(
         env_file="config.env",
