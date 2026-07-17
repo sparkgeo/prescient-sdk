@@ -348,9 +348,7 @@ class IngestClient:
         Returns:
             Batch: The updated batch model after starting.
         """
-        logger.info(
-            "Starting batch ingestion=%s batch=%s", ingestion_id, batch_number
-        )
+        logger.info("Starting batch ingestion=%s batch=%s", ingestion_id, batch_number)
         response = self._request(
             "POST", f"v1/ingestion/{ingestion_id}/batches/{batch_number}/start"
         )
@@ -462,6 +460,7 @@ class IngestClient:
             TimeoutError: If ``timeout`` elapses before reaching a target
                 status.
         """
+
         def fetcher() -> Ingestion | Batch:
             if batch_number is None:
                 return self.get_ingestion(ingestion_id)
