@@ -113,8 +113,8 @@ class Settings(BaseSettings):
         description=(
             "Optional AWS IAM role ARN used by the upload helpers to write to the "
             "upload bucket. When set (and an api key is not), the client assumes this "
-            "role via STS to obtain upload credentials. When unset and an api key is "
-            "set, upload credentials are fetched from the Prescient API's "
+            "role via STS to obtain upload credentials. When unset, the client fetches "
+            "temporary upload credentials from the Prescient API's "
             "`/fileproxy/credentials` endpoint instead."
         ),
     )

@@ -298,6 +298,19 @@ def test_refresh_creds_func_unexpired(
         "msal.PublicClientApplication",
         return_value=auth_client_mock,
     )
+    # upload_role is unset in set_env_vars, so refresh_credentials() pre-warming
+    # upload_bucket_credentials falls through to fileproxy
+    fake_response = MagicMock()
+    fake_response.json.return_value = {
+        "access_key_id": "proxy_key",
+        "secret_access_key": "proxy_secret",
+        "session_token": "proxy_session",
+        "expiration": (
+            datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
+        ).isoformat(),
+    }
+    fake_response.raise_for_status = MagicMock()
+    mocker.patch("prescient_sdk.client.requests.get", return_value=fake_response)
 
     client = PrescientClient()
 
@@ -329,6 +342,19 @@ def test_refresh_creds_func_expired(
         "msal.PublicClientApplication",
         return_value=auth_client_mock,
     )
+    # upload_role is unset in set_env_vars, so refresh_credentials() pre-warming
+    # upload_bucket_credentials falls through to fileproxy
+    fake_response = MagicMock()
+    fake_response.json.return_value = {
+        "access_key_id": "proxy_key",
+        "secret_access_key": "proxy_secret",
+        "session_token": "proxy_session",
+        "expiration": (
+            datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
+        ).isoformat(),
+    }
+    fake_response.raise_for_status = MagicMock()
+    mocker.patch("prescient_sdk.client.requests.get", return_value=fake_response)
 
     client = PrescientClient()
 
@@ -358,6 +384,19 @@ def test_force_creds_refreshed(
         "msal.PublicClientApplication",
         return_value=auth_client_mock,
     )
+    # upload_role is unset in set_env_vars, so refresh_credentials() pre-warming
+    # upload_bucket_credentials falls through to fileproxy
+    fake_response = MagicMock()
+    fake_response.json.return_value = {
+        "access_key_id": "proxy_key",
+        "secret_access_key": "proxy_secret",
+        "session_token": "proxy_session",
+        "expiration": (
+            datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
+        ).isoformat(),
+    }
+    fake_response.raise_for_status = MagicMock()
+    mocker.patch("prescient_sdk.client.requests.get", return_value=fake_response)
 
     client = PrescientClient()
 
@@ -613,15 +652,74 @@ def test_upload_role_and_bucket_optional(set_env_vars):
     assert client.settings.prescient_upload_bucket is None
 
 
-def test_upload_bucket_credentials_requires_one_of_role_or_api(
-    set_env_vars, mock_creds
+def test_upload_bucket_credentials_fileproxy_idp_mode(
+    mocker: MockerFixture, set_env_vars_no_role, unexpired_auth_credentials_mock
 ):
-    """Accessing upload_bucket_credentials should raise when upload_role is unset."""
+    """When upload_role is unset, upload_bucket_credentials hits /fileproxy/credentials
+    in IDP/OAuth mode too (no api key), same as bucket_credentials."""
+    expiration_iso = (
+        datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
+    ).isoformat()
+    fake_response = MagicMock()
+    fake_response.json.return_value = {
+        "access_key_id": "proxy_key",
+        "secret_access_key": "proxy_secret",
+        "session_token": "proxy_session",
+        "expiration": expiration_iso,
+    }
+    fake_response.raise_for_status = MagicMock()
+    get_mock = mocker.patch(
+        "prescient_sdk.client.requests.get", return_value=fake_response
+    )
+    boto_mock = mocker.patch("boto3.client")
+
     client = PrescientClient()
-    with pytest.raises(
-        ValueError, match="require `prescient_upload_role` or `prescient_api_key`"
-    ):
-        _ = client.upload_bucket_credentials
+    client._auth_credentials = unexpired_auth_credentials_mock
+
+    creds = client.upload_bucket_credentials
+    assert creds["AccessKeyId"] == "proxy_key"
+    assert creds["SecretAccessKey"] == "proxy_secret"
+    assert creds["SessionToken"] == "proxy_session"
+
+    # STS should never be called when fetching from fileproxy
+    boto_mock.assert_not_called()
+
+    # GET called against the fileproxy endpoint with the bearer token
+    get_mock.assert_called_once()
+    called_url, called_kwargs = get_mock.call_args[0][0], get_mock.call_args.kwargs
+    assert called_url == "https://example.server.prescient.earth/fileproxy/credentials"
+    assert called_kwargs["headers"]["Authorization"] == "Bearer cached_token"
+
+
+def test_upload_bucket_credentials_api_key_ignores_upload_role(
+    mocker: MockerFixture, monkeypatch: pytest.MonkeyPatch, clear_prescient_env
+):
+    """With both api_key and upload_role set, upload creds come from fileproxy (STS skipped)."""
+    monkeypatch.setenv(
+        "PRESCIENT_ENDPOINT_URL", "https://example.server.prescient.earth/"
+    )
+    monkeypatch.setenv("PRESCIENT_API_KEY", "test-api-key-value")
+    monkeypatch.setenv("PRESCIENT_UPLOAD_ROLE", "arn:aws:iam::test-upload")
+
+    expiration_iso = (
+        datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
+    ).isoformat()
+    fake_response = MagicMock()
+    fake_response.json.return_value = {
+        "access_key_id": "proxy_key",
+        "secret_access_key": "proxy_secret",
+        "session_token": "proxy_session",
+        "expiration": expiration_iso,
+    }
+    fake_response.raise_for_status = MagicMock()
+    mocker.patch("prescient_sdk.client.requests.get", return_value=fake_response)
+    boto_mock = mocker.patch("boto3.client")
+
+    client = PrescientClient()
+    creds = client.upload_bucket_credentials
+
+    assert creds["AccessKeyId"] == "proxy_key"
+    boto_mock.assert_not_called()
 
 
 def test_fileproxy_credentials_fetch(

@@ -176,9 +176,9 @@ class IngestSpec:
         new instance whose staged locations are now ``s3://`` URIs.
 
         The upload uses ``client.upload_session``, whose credentials come from
-        either STS ``assume_role_with_web_identity`` (when ``prescient_upload_role``
-        is set and an api key is not) or the API's ``/fileproxy/credentials``
-        endpoint (when an api key is set).
+        STS ``assume_role_with_web_identity`` (when ``prescient_upload_role`` is
+        set and an api key is not) or, otherwise, the API's
+        ``/fileproxy/credentials`` endpoint.
 
         Example::
 
