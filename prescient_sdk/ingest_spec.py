@@ -18,7 +18,7 @@ from __future__ import annotations
 import copy
 import logging
 from pathlib import Path
-from typing import Any, Union
+from typing import Any
 from uuid import uuid4
 
 import yaml
@@ -152,7 +152,7 @@ class IngestSpec:
 
     def with_uploaded_sources(
         self,
-        client: Union[PrescientClient, IngestClient],
+        client: PrescientClient | IngestClient,
         source_file_sets: list[str],
         *,
         console: Any = None,
@@ -256,8 +256,7 @@ class IngestSpec:
             )
 
             if location_name not in location_dest:
-                key_prefix = f"{prefix}/{uuid4()}" if prefix else str(uuid4())
-                location_dest[location_name] = f"s3://{bucket}/{key_prefix}/"
+                location_dest[location_name] = f"s3://{bucket}/{prefix}/{uuid4()}/"
 
             pattern = (file_sets[set_name] or {}).get("pattern", ".*")
             resolved.append((set_name, location_name, local_path, pattern))
@@ -282,6 +281,8 @@ class IngestSpec:
                 )
 
         for location_name, dest_prefix in location_dest.items():
+            if locations[location_name] is None:
+                locations[location_name] = {}
             locations[location_name]["path"] = dest_prefix
 
         return IngestSpec(spec)

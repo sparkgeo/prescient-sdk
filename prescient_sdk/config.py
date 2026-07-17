@@ -144,6 +144,12 @@ class Settings(BaseSettings):
                     "STS requires an IDP id_token. Unset one of them. "
                     "prescient_aws_role will be ignored."
                 )
+            if self.prescient_upload_role:
+                logger.warning(
+                    "prescient_upload_role cannot be used with prescient_api_key; "
+                    "STS requires an IDP id_token. Unset one of them. "
+                    "prescient_upload_role will be ignored."
+                )
             return self
 
         if not self.prescient_client_id:

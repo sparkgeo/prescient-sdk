@@ -21,6 +21,25 @@ from prescient_sdk.config import Settings
 logger = logging.getLogger("prescient_sdk")
 
 
+def _normalize_expiration(credentials: dict) -> dict:
+    """Coerce a credentials dict's ``Expiration`` to a timezone-aware UTC datetime.
+
+    Fileproxy responses return an ISO 8601 string; STS responses already return
+    a ``datetime``. Mutates ``credentials`` in place and also returns it.
+
+    Args:
+        credentials (dict): A credentials dict with an ``Expiration`` key.
+
+    Returns:
+        dict: The same ``credentials`` dict, with ``Expiration`` normalized.
+    """
+    expiration = credentials["Expiration"]
+    if isinstance(expiration, str):
+        expiration = datetime.datetime.fromisoformat(expiration.replace("Z", "+00:00"))
+    credentials["Expiration"] = expiration.astimezone(datetime.timezone.utc)
+    return credentials
+
+
 class PrescientClient:
     """
     Client for interacting with the Prescient API.
@@ -329,14 +348,7 @@ class PrescientClient:
         else:
             self._bucket_credentials = self._fetch_fileproxy_credentials()
 
-        expiration = self._bucket_credentials["Expiration"]
-        if isinstance(expiration, str):
-            expiration = datetime.datetime.fromisoformat(
-                expiration.replace("Z", "+00:00")
-            )
-        self._bucket_credentials["Expiration"] = expiration.astimezone(
-            datetime.timezone.utc
-        )
+        self._bucket_credentials = _normalize_expiration(self._bucket_credentials)
 
         return self._bucket_credentials
 
@@ -396,11 +408,13 @@ class PrescientClient:
             ValueError: If the credentials response is empty
         """
         if self._upload_bucket_credentials:
-            if not self.credentials_expired or (
-                self.settings.prescient_api_key
-                and datetime.datetime.now(datetime.timezone.utc)
-                < self._upload_bucket_credentials["Expiration"]
-            ):
+            if self.settings.prescient_api_key:
+                if (
+                    datetime.datetime.now(datetime.timezone.utc)
+                    < self._upload_bucket_credentials["Expiration"]
+                ):
+                    return self._upload_bucket_credentials
+            elif not self.credentials_expired:
                 return self._upload_bucket_credentials
 
         if self.settings.prescient_upload_role and not self.settings.prescient_api_key:
@@ -412,13 +426,8 @@ class PrescientClient:
             logger.info("Fetching upload bucket credentials via fileproxy")
             self._upload_bucket_credentials = self._fetch_fileproxy_credentials()
 
-        expiration = self._upload_bucket_credentials["Expiration"]
-        if isinstance(expiration, str):
-            expiration = datetime.datetime.fromisoformat(
-                expiration.replace("Z", "+00:00")
-            )
-        self._upload_bucket_credentials["Expiration"] = expiration.astimezone(
-            datetime.timezone.utc
+        self._upload_bucket_credentials = _normalize_expiration(
+            self._upload_bucket_credentials
         )
 
         return self._upload_bucket_credentials
