@@ -6,7 +6,7 @@ from __future__ import annotations
 import logging
 from typing import Literal, Optional
 
-from pydantic import Field, model_validator
+from pydantic import Field, model_validator, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger("prescient_sdk")
@@ -32,7 +32,7 @@ class Settings(BaseSettings):
         description="Base URL of the Prescient API endpoint."
     )
 
-    prescient_api_key: Optional[str] | None = Field(
+    prescient_api_key: Optional[str] = Field(
         default=None,
         description=(
             "Static API key for authenticating to Prescient endpoints. When set, "
@@ -55,14 +55,14 @@ class Settings(BaseSettings):
         default="microsoft",
         description="OAuth2 authentication provider. Determines which provider-specific fields are required.",
     )
-    prescient_client_id: Optional[str] | None = Field(
+    prescient_client_id: Optional[str] = Field(
         default=None,
         description=(
             "OAuth2 client ID issued by the selected authentication provider. "
             "Required when `prescient_api_key` is not set."
         ),
     )
-    prescient_auth_url: Optional[str] | None = Field(
+    prescient_auth_url: Optional[str] = Field(
         default=None,
         description=(
             "OAuth2 token endpoint URL used to exchange credentials for access tokens. "
@@ -110,20 +110,23 @@ class Settings(BaseSettings):
     prescient_upload_role: Optional[str] = Field(
         default=None,
         min_length=20,
-        description="Optional AWS IAM role ARN used by the upload helpers to write to the upload bucket.",
+        description=(
+            "Optional AWS IAM role ARN used by the upload helpers to write to the "
+            "upload bucket. When set (and an api key is not), the client assumes this "
+            "role via STS to obtain upload credentials. When unset, the client fetches "
+            "temporary upload credentials from the Prescient API's "
+            "`/fileproxy/credentials` endpoint instead."
+        ),
     )
     prescient_upload_bucket: Optional[str] = Field(
         default=None,
         description="Optional AWS S3 bucket name targeted by the upload helpers.",
     )
-    prescient_upload_prefix: Optional[str] = Field(
-        default=None,
-        description=(
-            "Optional key prefix under `prescient_upload_bucket` for staged source "
-            "files (e.g. 'user-uploads'). When unset, staged files are keyed from the "
-            "bucket root."
-        ),
-    )
+
+    @computed_field
+    @property
+    def prescient_upload_prefix(self) -> Literal["uploads"]:
+        return "uploads"
 
     model_config = SettingsConfigDict(
         env_file="config.env",
@@ -140,6 +143,12 @@ class Settings(BaseSettings):
                     "prescient_aws_role cannot be used with prescient_api_key; "
                     "STS requires an IDP id_token. Unset one of them. "
                     "prescient_aws_role will be ignored."
+                )
+            if self.prescient_upload_role:
+                logger.warning(
+                    "prescient_upload_role cannot be used with prescient_api_key; "
+                    "STS requires an IDP id_token. Unset one of them. "
+                    "prescient_upload_role will be ignored."
                 )
             return self
 

@@ -21,6 +21,25 @@ from prescient_sdk.config import Settings
 logger = logging.getLogger("prescient_sdk")
 
 
+def _normalize_expiration(credentials: dict) -> dict:
+    """Coerce a credentials dict's ``Expiration`` to a timezone-aware UTC datetime.
+
+    Fileproxy responses return an ISO 8601 string; STS responses already return
+    a ``datetime``. Mutates ``credentials`` in place and also returns it.
+
+    Args:
+        credentials (dict): A credentials dict with an ``Expiration`` key.
+
+    Returns:
+        dict: The same ``credentials`` dict, with ``Expiration`` normalized.
+    """
+    expiration = credentials["Expiration"]
+    if isinstance(expiration, str):
+        expiration = datetime.datetime.fromisoformat(expiration.replace("Z", "+00:00"))
+    credentials["Expiration"] = expiration.astimezone(datetime.timezone.utc)
+    return credentials
+
+
 class PrescientClient:
     """
     Client for interacting with the Prescient API.
@@ -329,14 +348,7 @@ class PrescientClient:
         else:
             self._bucket_credentials = self._fetch_fileproxy_credentials()
 
-        expiration = self._bucket_credentials["Expiration"]
-        if isinstance(expiration, str):
-            expiration = datetime.datetime.fromisoformat(
-                expiration.replace("Z", "+00:00")
-            )
-        self._bucket_credentials["Expiration"] = expiration.astimezone(
-            datetime.timezone.utc
-        )
+        self._bucket_credentials = _normalize_expiration(self._bucket_credentials)
 
         return self._bucket_credentials
 
@@ -380,9 +392,7 @@ class PrescientClient:
     @property
     def upload_bucket_credentials(self):
         """Get upload bucket credentials using an auth access token
-
-        Note: uploads use STS ``assume_role_with_web_identity`` which requires
-        an IDP id_token. Not supported in API-key mode.
+        or API key.
 
         Returns:
             dict: bucket temporary credentials::
@@ -395,27 +405,29 @@ class PrescientClient:
                 }
 
         Raises:
-            NotImplementedError: If the client is configured with an API key.
             ValueError: If the credentials response is empty
         """
-        if self.settings.prescient_api_key:
-            raise NotImplementedError(
-                "The upload feature is not supported when using an API key; "
-                "uploads require an IDP id_token for STS assume_role_with_web_identity. "
-                "Unset prescient_api_key and configure OAuth2/IDP credentials to use uploads."
+        if self._upload_bucket_credentials:
+            if self.settings.prescient_api_key:
+                if (
+                    datetime.datetime.now(datetime.timezone.utc)
+                    < self._upload_bucket_credentials["Expiration"]
+                ):
+                    return self._upload_bucket_credentials
+            elif not self.credentials_expired:
+                return self._upload_bucket_credentials
+
+        if self.settings.prescient_upload_role and not self.settings.prescient_api_key:
+            logger.info("Fetching upload bucket credentials via STS assume-role")
+            self._upload_bucket_credentials = self._get_bucket_credentials(
+                role=self.settings.prescient_upload_role
             )
+        else:
+            logger.info("Fetching upload bucket credentials via fileproxy")
+            self._upload_bucket_credentials = self._fetch_fileproxy_credentials()
 
-        if self._upload_bucket_credentials and not self.credentials_expired:
-            return self._upload_bucket_credentials
-
-        if not self.settings.prescient_upload_role:
-            raise ValueError(
-                "prescient_upload_role is not configured; set PRESCIENT_UPLOAD_ROLE "
-                "to use the upload bucket."
-            )
-
-        self._upload_bucket_credentials = self._get_bucket_credentials(
-            role=self.settings.prescient_upload_role
+        self._upload_bucket_credentials = _normalize_expiration(
+            self._upload_bucket_credentials
         )
 
         return self._upload_bucket_credentials
@@ -491,5 +503,4 @@ class PrescientClient:
             self._auth_credentials.pop("expiration", None)
 
         _ = self.bucket_credentials  # Will call self.auth_credentials
-        if self.settings.prescient_upload_role:
-            _ = self.upload_bucket_credentials
+        _ = self.upload_bucket_credentials
