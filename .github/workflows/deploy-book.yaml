@@ -1,19 +1,39 @@
 name: deploy-book
 
-# Run this when a new release tag is pushed
+# Run this when a new release tag is pushed.
+# Final tags deploy to the site root; pre-release tags (a/b/rc) deploy to /dev/.
 on:
   push:
-    tags: ['*.*.*']
+    tags: ['*.*.*', 'v*.*.*']
+  # Manual run from main seeds/refreshes the root site without cutting a tag.
+  workflow_dispatch:
 
 # This job installs dependencies, builds the book, and pushes it to `gh-pages`
 jobs:
   deploy-book:
     runs-on: ubuntu-latest
     permissions:
-      pages: write
-      id-token: write
+      contents: write
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Choose destination
+      id: dest
+      run: |
+        set -e
+        TAG="${GITHUB_REF_NAME}"
+        if [[ "$TAG" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+(a|b|rc)\.[0-9]+$ ]]; then
+          echo "Pre-release tag '$TAG' — deploying to /dev/."
+          echo "dir=dev" >> "$GITHUB_OUTPUT"
+        elif git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+          echo "Final release tag '$TAG' is on main — deploying to the site root."
+          echo "dir=" >> "$GITHUB_OUTPUT"
+        else
+          echo "::error::Final release tag '$TAG' must be created from a commit on main to deploy the book. Use a pre-release suffix (a/b/rc, e.g. v1.2.3rc.1) to deploy to /dev/."
+          exit 1
+        fi
 
     - name: Install uv
       uses: astral-sh/setup-uv@v2
@@ -41,13 +61,15 @@ jobs:
       run: |
         uv run jupyter-book build docs/
 
-    # Upload the book's HTML as an artifact
-    - name: Upload artifact
-      uses: actions/upload-pages-artifact@v3
-      with:
-        path: "docs/_build/html"
-
-    # Deploy the book's HTML to GitHub Pages
+    # Deploy the book's HTML to the gh-pages branch.
+    # ponytail: keep_files stops a root deploy wiping /dev/, at the cost of
+    # never removing deleted pages. Delete stale files by hand on gh-pages, or
+    # split stable/dev into two branches if that ever becomes a real problem.
     - name: Deploy to GitHub Pages
-      id: deployment
-      uses: actions/deploy-pages@v4
+      uses: peaceiris/actions-gh-pages@v4
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: docs/_build/html
+        destination_dir: ${{ steps.dest.outputs.dir }}
+        keep_files: true
+        full_commit_message: "docs: deploy ${{ github.ref_name }}"
