@@ -5,7 +5,8 @@ name: deploy-book
 on:
   push:
     tags: ['*.*.*', 'v*.*.*']
-  # Manual run from main seeds/refreshes the root site without cutting a tag.
+  # Manual run: from main it refreshes the root site, from any other branch it
+  # refreshes /dev/ — neither needs a tag.
   workflow_dispatch:
 
 # This job installs dependencies, builds the book, and pushes it to `gh-pages`
@@ -23,15 +24,23 @@ jobs:
       id: dest
       run: |
         set -e
-        TAG="${GITHUB_REF_NAME}"
-        if [[ "$TAG" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+(a|b|rc)\.[0-9]+$ ]]; then
-          echo "Pre-release tag '$TAG' — deploying to /dev/."
+        REF="${GITHUB_REF_NAME}"
+        if [[ "$GITHUB_REF_TYPE" == "branch" ]]; then
+          if [[ "$REF" == "main" ]]; then
+            echo "Manual run from main — deploying to the site root."
+            echo "dir=" >> "$GITHUB_OUTPUT"
+          else
+            echo "Manual run from '$REF' — deploying to /dev/."
+            echo "dir=dev" >> "$GITHUB_OUTPUT"
+          fi
+        elif [[ "$REF" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+(a|b|rc)\.[0-9]+$ ]]; then
+          echo "Pre-release tag '$REF' — deploying to /dev/."
           echo "dir=dev" >> "$GITHUB_OUTPUT"
         elif git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
-          echo "Final release tag '$TAG' is on main — deploying to the site root."
+          echo "Final release tag '$REF' is on main — deploying to the site root."
           echo "dir=" >> "$GITHUB_OUTPUT"
         else
-          echo "::error::Final release tag '$TAG' must be created from a commit on main to deploy the book. Use a pre-release suffix (a/b/rc, e.g. v1.2.3rc.1) to deploy to /dev/."
+          echo "::error::Final release tag '$REF' must be created from a commit on main to deploy the book. Use a pre-release suffix (a/b/rc, e.g. v1.2.3rc.1) to deploy to /dev/."
           exit 1
         fi
 
