@@ -1,0 +1,917 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>prescient_sdk.client &#8212; Prescient SDK</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../../_static/togglebutton.css?v=9c3e77be" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/mystnb.11b39860a7a0cbfd473a3ad8a317855267ff0bd372690045ca344a6b62be495e.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sphinx-thebe.css?v=4fa983c6" />
+    <link rel="stylesheet" type="text/css" href="../../_static/autodoc_pydantic.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="../../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="../../_static/documentation_options.js?v=9eb32ce0"></script>
+    <script src="../../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../_static/copybutton.js?v=f281be69"></script>
+    <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
+    <script>let toggleHintShow = 'Click to show';</script>
+    <script>let toggleHintHide = 'Click to hide';</script>
+    <script>let toggleOpenOnPrint = 'true';</script>
+    <script src="../../_static/togglebutton.js?v=b8b12719"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script src="../../_static/design-tabs.js?v=f930bc37"></script>
+    <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"; const thebe_selector = ".thebe,.cell"; const thebe_selector_input = "pre"; const thebe_selector_output = ".output, .cell_output"</script>
+    <script async="async" src="../../_static/sphinx-thebe.js?v=c100c467"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"; const thebe_selector = ".thebe,.cell"; const thebe_selector_input = "pre"; const thebe_selector_output = ".output, .cell_output"</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = '_modules/prescient_sdk/client';</script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search this book..."
+         aria-label="Search this book..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+        
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../../_static/PE-1.png" class="logo__image only-light" alt="Prescient SDK - Home"/>
+    <img src="../../_static/PE-1.png" class="logo__image only-dark pst-js-only" alt="Prescient SDK - Home"/>
+  
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        
+        <ul class="nav bd-sidenav bd-sidenav__home-link">
+            <li class="toctree-l1">
+                <a class="reference internal" href="../../index.html">
+                    Prescient SDK
+                </a>
+            </li>
+        </ul>
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/configuration.html">Handling Configuration</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../examples/stac_search.html">STAC Search</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/upload.html">Upload</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/ingest.html">Ingest</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">SDK Reference</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../client-sdk.html">Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ingest-client.html">Ingest Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ingest-resources.html">Ingest Resources</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ingest-models.html">Ingest Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../upload.html">Upload</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../config.html">Config</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/sparkgeo/prescient-sdk" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/sparkgeo/prescient-sdk/issues/new?title=Issue%20on%20page%20%2F_modules/prescient_sdk/client.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button pst-navbar-icon"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button>
+
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1></h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <h1>Source code for prescient_sdk.client</h1><div class="highlight"><pre>
+<span></span><span class="c1"># `from __future__ import annotations` defers annotation evaluation so the</span>
+<span class="c1"># PEP 604 `X | Y` union syntax below works on Python 3.9. Remove this import</span>
+<span class="c1"># once Python 3.9 support is dropped.</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">datetime</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">urllib.parse</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">boto3</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">google.auth.transport.requests</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">google.oauth2.credentials</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">msal</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">requests</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">google_auth_oauthlib.flow</span><span class="w"> </span><span class="kn">import</span> <span class="n">InstalledAppFlow</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">prescient_sdk</span><span class="w"> </span><span class="kn">import</span> <span class="n">_logging</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">prescient_sdk.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">Settings</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">&quot;prescient_sdk&quot;</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_normalize_expiration</span><span class="p">(</span><span class="n">credentials</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Coerce a credentials dict&#39;s ``Expiration`` to a timezone-aware UTC datetime.</span>
+
+<span class="sd">    Fileproxy responses return an ISO 8601 string; STS responses already return</span>
+<span class="sd">    a ``datetime``. Mutates ``credentials`` in place and also returns it.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        credentials (dict): A credentials dict with an ``Expiration`` key.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        dict: The same ``credentials`` dict, with ``Expiration`` normalized.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">expiration</span> <span class="o">=</span> <span class="n">credentials</span><span class="p">[</span><span class="s2">&quot;Expiration&quot;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">expiration</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">expiration</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">fromisoformat</span><span class="p">(</span><span class="n">expiration</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;Z&quot;</span><span class="p">,</span> <span class="s2">&quot;+00:00&quot;</span><span class="p">))</span>
+    <span class="n">credentials</span><span class="p">[</span><span class="s2">&quot;Expiration&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">expiration</span><span class="o">.</span><span class="n">astimezone</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">credentials</span>
+
+
+<div class="viewcode-block" id="PrescientClient">
+<a class="viewcode-back" href="../../client-sdk.html#prescient_sdk.client.PrescientClient">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">PrescientClient</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Client for interacting with the Prescient API.</span>
+
+<span class="sd">    This client is used to authenticate, and for obtaining bucket</span>
+<span class="sd">    credentials using the authenticated token. The client also provides helpers such as</span>
+<span class="sd">    provding the STAC URL for the Prescient API, and authentication headers for making</span>
+<span class="sd">    requests to the STAC API.</span>
+
+<span class="sd">    Token expiration is handled automatically for long running instances</span>
+<span class="sd">    of the client (in a notebook for example).</span>
+
+<span class="sd">    Configuration Options:</span>
+<span class="sd">        1. Construct the `prescient_sdk.config.Settings` object directly</span>
+<span class="sd">        2. Specify the path to an environment file containing configuration values</span>
+<span class="sd">        3. Do neither, and allow the client to build the `Settings` object using default</span>
+<span class="sd">           methods (env variables, config.env file location in the working directory)</span>
+
+<span class="sd">        Note that you cannot specify the env_file location AND provide a `Settings` object.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        env_file (str | Path, optional): Path to a configuration file. Defaults to None.</span>
+<span class="sd">        settings (Settings, optional): Configuration settings for the client. Defaults to None.</span>
+<span class="sd">        debug (bool, optional): When True, emit DEBUG/INFO/WARNING/ERROR logs;</span>
+<span class="sd">            otherwise only WARNING/ERROR. Defaults to False.</span>
+<span class="sd">        log_file (str | Path, optional): Destination for log output. When None</span>
+<span class="sd">            (default), logs go to stdout; when set, logs go to this file.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If both an environment file and a settings object are provided.</span>
+<span class="sd">        ValueError: If the provided configuration file is not found.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">env_file</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">settings</span><span class="p">:</span> <span class="n">Settings</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">debug</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">log_file</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="n">_logging</span><span class="o">.</span><span class="n">configure</span><span class="p">(</span><span class="n">debug</span><span class="p">,</span> <span class="n">log_file</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">env_file</span> <span class="ow">and</span> <span class="n">settings</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Cannot provide both an environment file and a settings object&quot;</span>
+            <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">env_file</span><span class="p">:</span>
+            <span class="n">env_file</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">env_file</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">env_file</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loading configuration variables from </span><span class="si">{</span><span class="n">env_file</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Configuration file not found: </span><span class="si">{</span><span class="n">env_file</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># default configuration values are set in the Settings class (prescient_sdk.config.py)</span>
+        <span class="k">if</span> <span class="n">settings</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">env_file</span><span class="p">:</span>
+                <span class="n">settings</span> <span class="o">=</span> <span class="n">Settings</span><span class="p">(</span><span class="n">_env_file</span><span class="o">=</span><span class="n">env_file</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># if no env file is present, we use default settings</span>
+                <span class="c1"># which can be sourced from a config.env file in the working</span>
+                <span class="c1"># directory, or env variables</span>
+                <span class="n">settings</span> <span class="o">=</span> <span class="n">Settings</span><span class="p">()</span>  <span class="c1"># type: ignore</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">:</span> <span class="n">Settings</span> <span class="o">=</span> <span class="n">settings</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+            <span class="s2">&quot;Settings loaded: endpoint=</span><span class="si">%s</span><span class="s2"> provider=</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="n">settings</span><span class="o">.</span><span class="n">prescient_endpoint_url</span><span class="p">,</span>
+            <span class="n">settings</span><span class="o">.</span><span class="n">prescient_auth_provider</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_expiration_duration</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">*</span> <span class="mi">60</span> <span class="o">*</span> <span class="mi">60</span>  <span class="c1"># Fixed to 1hr</span>
+        <span class="c1"># initialize empty credentials</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_auth_credentials</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_bucket_credentials</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_upload_bucket_credentials</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">stac_catalog_url</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the STAC URL.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            str: The STAC URL.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">urllib</span><span class="o">.</span><span class="n">parse</span><span class="o">.</span><span class="n">urljoin</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">prescient_endpoint_url</span><span class="p">,</span> <span class="s2">&quot;stac&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_fetch_microsoft_credentials</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Acquire or refresh credentials using Microsoft MSAL.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            dict: Raw MSAL token response containing ``id_token`` and ``refresh_token``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">authority_url</span> <span class="o">=</span> <span class="n">urllib</span><span class="o">.</span><span class="n">parse</span><span class="o">.</span><span class="n">urljoin</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">prescient_auth_url</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">prescient_tenant_id</span>
+        <span class="p">)</span>
+        <span class="n">app</span> <span class="o">=</span> <span class="n">msal</span><span class="o">.</span><span class="n">PublicClientApplication</span><span class="p">(</span>
+            <span class="n">client_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">prescient_client_id</span><span class="p">,</span> <span class="n">authority</span><span class="o">=</span><span class="n">authority_url</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_auth_credentials</span>
+            <span class="ow">or</span> <span class="s2">&quot;refresh_token&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_auth_credentials</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+        <span class="p">):</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Starting interactive Microsoft sign-in&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">app</span><span class="o">.</span><span class="n">acquire_token_interactive</span><span class="p">(</span>
+                <span class="n">scopes</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;https://graph.microsoft.com/.default&quot;</span><span class="p">]</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Refreshing Microsoft auth token via refresh_token&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">app</span><span class="o">.</span><span class="n">acquire_token_by_refresh_token</span><span class="p">(</span>
+                <span class="n">refresh_token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_auth_credentials</span><span class="p">[</span><span class="s2">&quot;refresh_token&quot;</span><span class="p">],</span>
+                <span class="n">scopes</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;https://graph.microsoft.com/.default&quot;</span><span class="p">],</span>
+            <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_fetch_google_credentials</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Acquire or refresh credentials using Google OAuth2.</span>
+
+<span class="sd">        Uses ``google-auth-oauthlib`` for the interactive browser flow and</span>
+<span class="sd">        ``google-auth`` for silent token refresh. The returned dict is</span>
+<span class="sd">        normalized to include the same ``id_token`` and ``refresh_token`` keys</span>
+<span class="sd">        used by the Microsoft flow so that all downstream code is unaffected.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            dict: Normalized credential dict containing ``id_token``, ``refresh_token``,</span>
+<span class="sd">                and ``access_token``.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">token_uri</span> <span class="o">=</span> <span class="n">urllib</span><span class="o">.</span><span class="n">parse</span><span class="o">.</span><span class="n">urljoin</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">prescient_auth_url</span><span class="p">,</span> <span class="s2">&quot;/o/oauth2/token&quot;</span>
+        <span class="p">)</span>
+        <span class="n">scopes</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;openid&quot;</span><span class="p">,</span> <span class="s2">&quot;https://www.googleapis.com/auth/userinfo.email&quot;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_auth_credentials</span> <span class="ow">or</span> <span class="s2">&quot;refresh_token&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_auth_credentials</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;Starting interactive Google sign-in on port </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">prescient_google_redirect_port</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">flow</span> <span class="o">=</span> <span class="n">InstalledAppFlow</span><span class="o">.</span><span class="n">from_client_config</span><span class="p">(</span>
+                <span class="n">client_config</span><span class="o">=</span><span class="p">{</span>
+                    <span class="s2">&quot;installed&quot;</span><span class="p">:</span> <span class="p">{</span>
+                        <span class="s2">&quot;client_id&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">prescient_client_id</span><span class="p">,</span>
+                        <span class="s2">&quot;client_secret&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">prescient_google_client_secret</span><span class="p">,</span>
+                        <span class="s2">&quot;auth_uri&quot;</span><span class="p">:</span> <span class="n">urllib</span><span class="o">.</span><span class="n">parse</span><span class="o">.</span><span class="n">urljoin</span><span class="p">(</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">prescient_auth_url</span><span class="p">,</span> <span class="s2">&quot;/o/oauth2/auth&quot;</span>
+                        <span class="p">),</span>
+                        <span class="s2">&quot;token_uri&quot;</span><span class="p">:</span> <span class="n">token_uri</span><span class="p">,</span>
+                    <span class="p">}</span>
+                <span class="p">},</span>
+                <span class="n">scopes</span><span class="o">=</span><span class="n">scopes</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">credentials</span> <span class="o">=</span> <span class="n">flow</span><span class="o">.</span><span class="n">run_local_server</span><span class="p">(</span>
+                <span class="n">port</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">prescient_google_redirect_port</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Refreshing Google auth token&quot;</span><span class="p">)</span>
+            <span class="n">credentials</span> <span class="o">=</span> <span class="n">google</span><span class="o">.</span><span class="n">oauth2</span><span class="o">.</span><span class="n">credentials</span><span class="o">.</span><span class="n">Credentials</span><span class="p">(</span>
+                <span class="n">token</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                <span class="n">refresh_token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_auth_credentials</span><span class="p">[</span><span class="s2">&quot;refresh_token&quot;</span><span class="p">],</span>
+                <span class="n">token_uri</span><span class="o">=</span><span class="n">token_uri</span><span class="p">,</span>
+                <span class="n">client_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">prescient_client_id</span><span class="p">,</span>
+                <span class="n">client_secret</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">prescient_google_client_secret</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">credentials</span><span class="o">.</span><span class="n">refresh</span><span class="p">(</span><span class="n">google</span><span class="o">.</span><span class="n">auth</span><span class="o">.</span><span class="n">transport</span><span class="o">.</span><span class="n">requests</span><span class="o">.</span><span class="n">Request</span><span class="p">())</span>
+
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;id_token&quot;</span><span class="p">:</span> <span class="n">credentials</span><span class="o">.</span><span class="n">id_token</span><span class="p">,</span>
+            <span class="s2">&quot;refresh_token&quot;</span><span class="p">:</span> <span class="n">credentials</span><span class="o">.</span><span class="n">refresh_token</span><span class="p">,</span>
+            <span class="s2">&quot;access_token&quot;</span><span class="p">:</span> <span class="n">credentials</span><span class="o">.</span><span class="n">token</span><span class="p">,</span>
+        <span class="p">}</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">auth_credentials</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the authorization credentials for the client.</span>
+
+<span class="sd">        When ``prescient_api_key`` is configured, returns a static dict</span>
+<span class="sd">        ``{&quot;api_key&quot;: &quot;&lt;key&gt;&quot;}`` and the IDP flow is skipped entirely. Otherwise</span>
+<span class="sd">        returns the IDP token response, refreshing if expired.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            dict: Token response containing at minimum::</span>
+
+<span class="sd">                {</span>
+<span class="sd">                    &quot;id_token&quot;: &quot;string&quot;,</span>
+<span class="sd">                    &quot;refresh_token&quot;: &quot;string&quot;,</span>
+<span class="sd">                    &quot;access_token&quot;: &quot;string&quot;,</span>
+<span class="sd">                }</span>
+
+<span class="sd">            or, in API-key mode::</span>
+
+<span class="sd">                {&quot;api_key&quot;: &quot;string&quot;}</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ValueError: If a valid id_token cannot be obtained.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">prescient_api_key</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;api_key&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">prescient_api_key</span><span class="p">}</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">credentials_expired</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                <span class="s2">&quot;Using cached auth credentials (expires </span><span class="si">%s</span><span class="s2">)&quot;</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_auth_credentials</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;expiration&quot;</span><span class="p">),</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_auth_credentials</span>
+
+        <span class="n">time_zero</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">prescient_auth_provider</span> <span class="o">==</span> <span class="s2">&quot;google&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_auth_credentials</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fetch_google_credentials</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_auth_credentials</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fetch_microsoft_credentials</span><span class="p">()</span>
+
+        <span class="n">token</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_auth_credentials</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;id_token&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">token</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to obtain Auth token: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_auth_credentials</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_auth_credentials</span><span class="p">[</span><span class="s2">&quot;expiration&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">time_zero</span> <span class="o">+</span> <span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">(</span>
+            <span class="n">seconds</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_expiration_duration</span>
+        <span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;Obtained auth credentials from provider=</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">prescient_auth_provider</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_auth_credentials</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">headers</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get headers for a request.</span>
+
+<span class="sd">        When ``prescient_api_key`` is configured, key is sent as an ``api-key``</span>
+<span class="sd">        header. Otherwise an ``Authorization: Bearer &lt;id_token&gt;`` header is used.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            dict: The headers.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">prescient_api_key</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span>
+                <span class="s2">&quot;Content-Type&quot;</span><span class="p">:</span> <span class="s2">&quot;application/json&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Accept&quot;</span><span class="p">:</span> <span class="s2">&quot;application/json&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;api-key&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">prescient_api_key</span><span class="p">,</span>
+            <span class="p">}</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;Content-Type&quot;</span><span class="p">:</span> <span class="s2">&quot;application/json&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;Accept&quot;</span><span class="p">:</span> <span class="s2">&quot;application/json&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;Authorization&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Bearer </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">auth_credentials</span><span class="p">[</span><span class="s1">&#39;id_token&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_bucket_credentials</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">role</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">access_token</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">auth_credentials</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;id_token&quot;</span><span class="p">)</span>
+        <span class="n">sts_client</span> <span class="o">=</span> <span class="n">boto3</span><span class="o">.</span><span class="n">client</span><span class="p">(</span><span class="s2">&quot;sts&quot;</span><span class="p">,</span> <span class="n">region_name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">prescient_aws_region</span><span class="p">)</span>
+
+        <span class="c1"># assume arn string, otherwise last 10 characters of role string</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">role_name_stub</span> <span class="o">=</span> <span class="n">role</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+            <span class="n">role_name_stub</span> <span class="o">=</span> <span class="n">role</span><span class="p">[</span><span class="o">-</span><span class="mi">10</span><span class="p">:]</span>
+        <span class="n">role_session_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;prescient-s3-access-</span><span class="si">{</span><span class="n">role_name_stub</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Assuming role </span><span class="si">%s</span><span class="s2"> as </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">role</span><span class="p">,</span> <span class="n">role_session_name</span><span class="p">)</span>
+
+        <span class="c1"># exchange token with aws temp creds</span>
+        <span class="n">response</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="n">sts_client</span><span class="o">.</span><span class="n">assume_role_with_web_identity</span><span class="p">(</span>
+            <span class="n">DurationSeconds</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_expiration_duration</span><span class="p">,</span>
+            <span class="n">RoleArn</span><span class="o">=</span><span class="n">role</span><span class="p">,</span>
+            <span class="n">RoleSessionName</span><span class="o">=</span><span class="n">role_session_name</span><span class="p">,</span>
+            <span class="n">WebIdentityToken</span><span class="o">=</span><span class="n">access_token</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">credentials</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;Credentials&quot;</span><span class="p">,</span> <span class="p">{})</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">credentials</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to obtain creds: </span><span class="si">{</span><span class="n">response</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># convert datetime to UTC for later comparison</span>
+        <span class="n">credentials</span><span class="p">[</span><span class="s2">&quot;Expiration&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">credentials</span><span class="p">[</span><span class="s2">&quot;Expiration&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">astimezone</span><span class="p">(</span>
+            <span class="n">datetime</span><span class="o">.</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">credentials</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">bucket_credentials</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get bucket credentials using an auth access token</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            dict: bucket temporary credentials::</span>
+
+<span class="sd">                {</span>
+<span class="sd">                    &quot;AccessKeyId&quot;: &quot;string&quot;,</span>
+<span class="sd">                    &quot;SecretAccessKey&quot;: &quot;string&quot;,</span>
+<span class="sd">                    &quot;SessionToken&quot;: &quot;string&quot;,</span>
+<span class="sd">                    &quot;Expiration&quot;: datetime(2015, 1, 1)</span>
+<span class="sd">                }</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ValueError: If the credentials response is empty</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bucket_credentials</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">credentials_expired</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bucket_credentials</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;Fetching bucket credentials via </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;STS assume-role&quot;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">prescient_aws_role</span> <span class="k">else</span> <span class="s2">&quot;fileproxy&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">prescient_aws_role</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">prescient_api_key</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_bucket_credentials</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fetch_sts_credentials</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_bucket_credentials</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fetch_fileproxy_credentials</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_bucket_credentials</span> <span class="o">=</span> <span class="n">_normalize_expiration</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_bucket_credentials</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bucket_credentials</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_fetch_sts_credentials</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Exchange the auth id_token for AWS credentials via STS.&quot;&quot;&quot;</span>
+        <span class="n">access_token</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">auth_credentials</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;id_token&quot;</span><span class="p">)</span>
+        <span class="n">sts_client</span> <span class="o">=</span> <span class="n">boto3</span><span class="o">.</span><span class="n">client</span><span class="p">(</span><span class="s2">&quot;sts&quot;</span><span class="p">,</span> <span class="n">region_name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">prescient_aws_region</span><span class="p">)</span>
+        <span class="n">response</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="n">sts_client</span><span class="o">.</span><span class="n">assume_role_with_web_identity</span><span class="p">(</span>
+            <span class="n">DurationSeconds</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_expiration_duration</span><span class="p">,</span>
+            <span class="n">RoleArn</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">prescient_aws_role</span><span class="p">,</span>
+            <span class="n">RoleSessionName</span><span class="o">=</span><span class="s2">&quot;prescient-s3-access&quot;</span><span class="p">,</span>
+            <span class="n">WebIdentityToken</span><span class="o">=</span><span class="n">access_token</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">creds</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;Credentials&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">creds</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to obtain creds: </span><span class="si">{</span><span class="n">response</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">creds</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_fetch_fileproxy_credentials</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fetch temporary bucket credentials from the Prescient fileproxy endpoint.</span>
+
+<span class="sd">        The endpoint returns snake_case keys; map them to the PascalCase shape</span>
+<span class="sd">        used by the rest of the client (matching the boto3 STS response).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="n">urllib</span><span class="o">.</span><span class="n">parse</span><span class="o">.</span><span class="n">urljoin</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">prescient_endpoint_url</span><span class="p">,</span> <span class="s2">&quot;fileproxy/credentials&quot;</span>
+        <span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;GET </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">headers</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">response</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;fileproxy returned </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">)</span>
+        <span class="n">response</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+        <span class="n">payload</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;AccessKeyId&quot;</span><span class="p">:</span> <span class="n">payload</span><span class="p">[</span><span class="s2">&quot;access_key_id&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;SecretAccessKey&quot;</span><span class="p">:</span> <span class="n">payload</span><span class="p">[</span><span class="s2">&quot;secret_access_key&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;SessionToken&quot;</span><span class="p">:</span> <span class="n">payload</span><span class="p">[</span><span class="s2">&quot;session_token&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;Expiration&quot;</span><span class="p">:</span> <span class="n">payload</span><span class="p">[</span><span class="s2">&quot;expiration&quot;</span><span class="p">],</span>
+        <span class="p">}</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">upload_bucket_credentials</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get upload bucket credentials using an auth access token</span>
+<span class="sd">        or API key.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            dict: bucket temporary credentials::</span>
+
+<span class="sd">                {</span>
+<span class="sd">                    &quot;AccessKeyId&quot;: &quot;string&quot;,</span>
+<span class="sd">                    &quot;SecretAccessKey&quot;: &quot;string&quot;,</span>
+<span class="sd">                    &quot;SessionToken&quot;: &quot;string&quot;,</span>
+<span class="sd">                    &quot;Expiration&quot;: datetime(2015, 1, 1)</span>
+<span class="sd">                }</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ValueError: If the credentials response is empty</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_upload_bucket_credentials</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">prescient_api_key</span><span class="p">:</span>
+                <span class="k">if</span> <span class="p">(</span>
+                    <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">)</span>
+                    <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_upload_bucket_credentials</span><span class="p">[</span><span class="s2">&quot;Expiration&quot;</span><span class="p">]</span>
+                <span class="p">):</span>
+                    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_upload_bucket_credentials</span>
+            <span class="k">elif</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">credentials_expired</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_upload_bucket_credentials</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">prescient_upload_role</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">prescient_api_key</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Fetching upload bucket credentials via STS assume-role&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_upload_bucket_credentials</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_bucket_credentials</span><span class="p">(</span>
+                <span class="n">role</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">prescient_upload_role</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Fetching upload bucket credentials via fileproxy&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_upload_bucket_credentials</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fetch_fileproxy_credentials</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_upload_bucket_credentials</span> <span class="o">=</span> <span class="n">_normalize_expiration</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_upload_bucket_credentials</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_upload_bucket_credentials</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">session</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">boto3</span><span class="o">.</span><span class="n">Session</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get an AWS session for authenticating to the bucket</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            boto3.session.Session: boto3 Session object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">boto3</span><span class="o">.</span><span class="n">Session</span><span class="p">(</span>
+            <span class="n">aws_access_key_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bucket_credentials</span><span class="p">[</span><span class="s2">&quot;AccessKeyId&quot;</span><span class="p">],</span>
+            <span class="n">aws_secret_access_key</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bucket_credentials</span><span class="p">[</span><span class="s2">&quot;SecretAccessKey&quot;</span><span class="p">],</span>
+            <span class="n">aws_session_token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bucket_credentials</span><span class="p">[</span><span class="s2">&quot;SessionToken&quot;</span><span class="p">],</span>
+        <span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">upload_session</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">boto3</span><span class="o">.</span><span class="n">Session</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get an AWS session for authenticating to the upload bucket</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            boto3.session.Session: boto3 Session object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">boto3</span><span class="o">.</span><span class="n">Session</span><span class="p">(</span>
+            <span class="n">aws_access_key_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">upload_bucket_credentials</span><span class="p">[</span><span class="s2">&quot;AccessKeyId&quot;</span><span class="p">],</span>
+            <span class="n">aws_secret_access_key</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">upload_bucket_credentials</span><span class="p">[</span><span class="s2">&quot;SecretAccessKey&quot;</span><span class="p">],</span>
+            <span class="n">aws_session_token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">upload_bucket_credentials</span><span class="p">[</span><span class="s2">&quot;SessionToken&quot;</span><span class="p">],</span>
+            <span class="n">region_name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">prescient_aws_region</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">credentials_expired</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Checks to see if the client credentials have expired.</span>
+<span class="sd">        Note: if auth credentials have expired, all credentials are considered</span>
+<span class="sd">        expired as they all depend on auth credentials. When ``prescient_api_key``</span>
+<span class="sd">        is configured the key is static and is treated as never expiring.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            bool: True - credentials are expired, False - credentials have NOT expired.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">prescient_api_key</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">if</span> <span class="s2">&quot;expiration&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_auth_credentials</span> <span class="ow">and</span> <span class="p">(</span>
+            <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">)</span>
+            <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_auth_credentials</span><span class="p">[</span><span class="s2">&quot;expiration&quot;</span><span class="p">]</span>
+        <span class="p">):</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">True</span>
+
+<div class="viewcode-block" id="PrescientClient.refresh_credentials">
+<a class="viewcode-back" href="../../client-sdk.html#prescient_sdk.client.PrescientClient.refresh_credentials">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">refresh_credentials</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Will refresh all the client credentials.</span>
+
+<span class="sd">        When ``prescient_api_key`` is configured there is nothing to refresh; the call is a no-op.</span>
+
+<span class="sd">        param force: If True will force the creds to be refreshed.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            force (bool): When True, drop the cached expiration so credentials</span>
+<span class="sd">                are re-fetched even if they have not yet expired. Defaults to</span>
+<span class="sd">                False.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">prescient_api_key</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Refreshing all credentials (force=</span><span class="si">%s</span><span class="s2">)&quot;</span><span class="p">,</span> <span class="n">force</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">force</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_auth_credentials</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;expiration&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+        <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bucket_credentials</span>  <span class="c1"># Will call self.auth_credentials</span>
+        <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">upload_bucket_credentials</span></div>
+</div>
+
+</pre></div>
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Sparkgeo Consulting Inc
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2023.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

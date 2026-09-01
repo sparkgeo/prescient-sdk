@@ -1,0 +1,680 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>prescient_sdk.upload &#8212; Prescient SDK</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../../_static/togglebutton.css?v=9c3e77be" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/mystnb.11b39860a7a0cbfd473a3ad8a317855267ff0bd372690045ca344a6b62be495e.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sphinx-thebe.css?v=4fa983c6" />
+    <link rel="stylesheet" type="text/css" href="../../_static/autodoc_pydantic.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="../../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="../../_static/documentation_options.js?v=9eb32ce0"></script>
+    <script src="../../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../_static/copybutton.js?v=f281be69"></script>
+    <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
+    <script>let toggleHintShow = 'Click to show';</script>
+    <script>let toggleHintHide = 'Click to hide';</script>
+    <script>let toggleOpenOnPrint = 'true';</script>
+    <script src="../../_static/togglebutton.js?v=b8b12719"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script src="../../_static/design-tabs.js?v=f930bc37"></script>
+    <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"; const thebe_selector = ".thebe,.cell"; const thebe_selector_input = "pre"; const thebe_selector_output = ".output, .cell_output"</script>
+    <script async="async" src="../../_static/sphinx-thebe.js?v=c100c467"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"; const thebe_selector = ".thebe,.cell"; const thebe_selector_input = "pre"; const thebe_selector_output = ".output, .cell_output"</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = '_modules/prescient_sdk/upload';</script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search this book..."
+         aria-label="Search this book..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+        
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../../_static/PE-1.png" class="logo__image only-light" alt="Prescient SDK - Home"/>
+    <img src="../../_static/PE-1.png" class="logo__image only-dark pst-js-only" alt="Prescient SDK - Home"/>
+  
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        
+        <ul class="nav bd-sidenav bd-sidenav__home-link">
+            <li class="toctree-l1">
+                <a class="reference internal" href="../../index.html">
+                    Prescient SDK
+                </a>
+            </li>
+        </ul>
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/configuration.html">Handling Configuration</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../examples/stac_search.html">STAC Search</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/upload.html">Upload</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/ingest.html">Ingest</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">SDK Reference</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../client-sdk.html">Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ingest-client.html">Ingest Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ingest-resources.html">Ingest Resources</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ingest-models.html">Ingest Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../upload.html">Upload</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../config.html">Config</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/sparkgeo/prescient-sdk" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/sparkgeo/prescient-sdk/issues/new?title=Issue%20on%20page%20%2F_modules/prescient_sdk/upload.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button pst-navbar-icon"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button>
+
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1></h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <h1>Source code for prescient_sdk.upload</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Upload files to bucket.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Iterator</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span><span class="p">,</span> <span class="n">PurePath</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Optional</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">boto3</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">botocore.exceptions</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">prescient_sdk.client</span><span class="w"> </span><span class="kn">import</span> <span class="n">PrescientClient</span>
+
+<span class="n">FileList</span> <span class="o">=</span> <span class="nb">list</span><span class="p">[</span><span class="n">PurePath</span><span class="p">]</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="iter_files">
+<a class="viewcode-back" href="../../upload.html#prescient_sdk.upload.iter_files">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">iter_files</span><span class="p">(</span><span class="n">input_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">exclude</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="n">Path</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Recursively yield files under ``input_dir``, skipping directories.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        input_dir: Directory to walk recursively.</span>
+<span class="sd">        exclude: Optional list of glob patterns; any file whose path matches a</span>
+<span class="sd">            pattern is skipped.</span>
+
+<span class="sd">    Yields:</span>
+<span class="sd">        Each file path that survives the ``exclude`` filter.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">glob_pattern</span> <span class="o">=</span> <span class="s2">&quot;**/*&quot;</span>
+
+    <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">input_dir</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">glob_pattern</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
+            <span class="k">continue</span>
+        <span class="k">if</span> <span class="n">exclude</span><span class="p">:</span>
+            <span class="n">matched</span> <span class="o">=</span> <span class="nb">next</span><span class="p">((</span><span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">exclude</span> <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">e</span><span class="p">)),</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">matched</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Excluded </span><span class="si">%s</span><span class="s2"> (matched </span><span class="si">%s</span><span class="s2">)&quot;</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">matched</span><span class="p">)</span>
+                <span class="k">continue</span>
+
+        <span class="k">yield</span> <span class="n">path</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_upload</span><span class="p">(</span>
+    <span class="n">file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">bucket</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">session</span><span class="p">:</span> <span class="n">boto3</span><span class="o">.</span><span class="n">Session</span><span class="p">,</span> <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">s3</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">client</span><span class="p">(</span><span class="s2">&quot;s3&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">overwrite</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Pre-flight head_object on s3://</span><span class="si">%s</span><span class="s2">/</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">bucket</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">_</span> <span class="o">=</span> <span class="n">s3</span><span class="o">.</span><span class="n">head_object</span><span class="p">(</span><span class="n">Bucket</span><span class="o">=</span><span class="n">bucket</span><span class="p">,</span> <span class="n">Key</span><span class="o">=</span><span class="n">key</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;skipping file </span><span class="si">%s</span><span class="s2"> as it already exists at s3://</span><span class="si">%s</span><span class="s2">/</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">file</span><span class="p">,</span> <span class="n">bucket</span><span class="p">,</span> <span class="n">key</span>
+            <span class="p">)</span>
+            <span class="k">return</span>
+        <span class="k">except</span> <span class="n">botocore</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">ClientError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;Not Found&quot;</span> <span class="ow">in</span> <span class="n">e</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="k">pass</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">e</span>
+
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;uploading file </span><span class="si">%s</span><span class="s2"> to s3://</span><span class="si">%s</span><span class="s2">/</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">file</span><span class="p">,</span> <span class="n">bucket</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
+    <span class="n">s3</span><span class="o">.</span><span class="n">upload_file</span><span class="p">(</span><span class="n">Filename</span><span class="o">=</span><span class="n">file</span><span class="p">,</span> <span class="n">Bucket</span><span class="o">=</span><span class="n">bucket</span><span class="p">,</span> <span class="n">Key</span><span class="o">=</span><span class="n">key</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_make_s3_key</span><span class="p">(</span><span class="n">file</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">root</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute an S3 key for `file` relative to the `root` directory, including</span>
+<span class="sd">    the root directory name itself as the top-level folder.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        file (Path): The full path to the file being uploaded.</span>
+<span class="sd">        root (Path): The root input directory passed to `upload`.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        str: The normalized S3 key.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">root_name</span> <span class="o">=</span> <span class="n">root</span><span class="o">.</span><span class="n">name</span> <span class="ow">or</span> <span class="n">root</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span><span class="o">.</span><span class="n">name</span>
+    <span class="n">relative_part</span> <span class="o">=</span> <span class="n">file</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span><span class="n">root</span><span class="p">)</span><span class="o">.</span><span class="n">as_posix</span><span class="p">()</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">root_name</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">relative_part</span><span class="si">}</span><span class="s2">&quot;</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_split_s3_uri</span><span class="p">(</span><span class="n">uri</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Split an ``s3://bucket/key/prefix`` URI into ``(bucket, key_prefix)``.</span>
+
+<span class="sd">    The returned key prefix is normalized to end with ``/`` (unless empty) so</span>
+<span class="sd">    it can be concatenated directly with a relative path to form an object key.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        uri (str): An ``s3://`` URI.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        tuple[str, str]: The bucket name and the (possibly empty) key prefix.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If ``uri`` is not an ``s3://`` URI or has no bucket.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">uri</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;s3://&quot;</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Destination must be an s3:// URI, got </span><span class="si">{</span><span class="n">uri</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">bucket</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">key_prefix</span> <span class="o">=</span> <span class="n">uri</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="s2">&quot;s3://&quot;</span><span class="p">)</span> <span class="p">:]</span><span class="o">.</span><span class="n">partition</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">bucket</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Destination s3:// URI is missing a bucket: </span><span class="si">{</span><span class="n">uri</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">key_prefix</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">key_prefix</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">):</span>
+        <span class="n">key_prefix</span> <span class="o">+=</span> <span class="s2">&quot;/&quot;</span>
+    <span class="k">return</span> <span class="n">bucket</span><span class="p">,</span> <span class="n">key_prefix</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_relative_posix</span><span class="p">(</span><span class="n">file</span><span class="p">:</span> <span class="n">PurePath</span><span class="p">,</span> <span class="n">root</span><span class="p">:</span> <span class="n">PurePath</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return ``file``&#39;s path relative to ``root`` using forward slashes.</span>
+
+<span class="sd">    ``as_posix`` normalizes separators so S3 keys and pattern matching are</span>
+<span class="sd">    identical on Windows and POSIX — e.g. a Windows ``nested\\image.tif``</span>
+<span class="sd">    becomes ``nested/image.tif``. S3 keys always use ``/``, so the local OS</span>
+<span class="sd">    separator must never leak into a key.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        file (PurePath): The file path, under ``root``.</span>
+<span class="sd">        root (PurePath): The directory ``file`` is relative to.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        str: The forward-slash relative path.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">file</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span><span class="n">root</span><span class="p">)</span><span class="o">.</span><span class="n">as_posix</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="upload_source_files">
+<a class="viewcode-back" href="../../upload.html#prescient_sdk.upload.upload_source_files">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">upload_source_files</span><span class="p">(</span>
+    <span class="n">local_dir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">,</span>
+    <span class="n">dest_prefix</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">pattern</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">session</span><span class="p">:</span> <span class="n">boto3</span><span class="o">.</span><span class="n">Session</span><span class="p">,</span>
+    <span class="n">on_file</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span> <span class="kc">None</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Upload the files under ``local_dir`` that a source file set&#39;s pattern selects.</span>
+
+<span class="sd">    Only files whose path *relative to* ``local_dir`` matches ``pattern`` are</span>
+<span class="sd">    uploaded, and each is written to ``dest_prefix`` + that same relative path —</span>
+<span class="sd">    verbatim, with no directory-name segment injected. This preserves every</span>
+<span class="sd">    file&#39;s path relative to its location, so the spec&#39;s ``pattern`` still matches</span>
+<span class="sd">    after the files move to S3 (the Ingest API strips the location prefix and</span>
+<span class="sd">    applies ``re.match`` to the remaining relative path).</span>
+
+<span class="sd">    ``pattern`` is applied with ``re.match`` (anchored at the start of the</span>
+<span class="sd">    relative path), matching the Ingest API&#39;s own file selection.</span>
+
+<span class="sd">    Example::</span>
+
+<span class="sd">        session = prescient_client.upload_session</span>
+<span class="sd">        upload_source_files(</span>
+<span class="sd">            &quot;/data/scenes&quot;,</span>
+<span class="sd">            &quot;s3://uploads/user-uploads/3f9.../&quot;,</span>
+<span class="sd">            r&quot;.*\\.tif$&quot;,</span>
+<span class="sd">            session,</span>
+<span class="sd">        )</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        local_dir (str | os.PathLike): Local directory to scan recursively.</span>
+<span class="sd">        dest_prefix (str): Destination ``s3://bucket/key/prefix/`` URI. Uploaded</span>
+<span class="sd">            keys are ``dest_prefix`` joined with each file&#39;s relative path.</span>
+<span class="sd">        pattern (str): Regex applied (``re.match``) to each file&#39;s posix path</span>
+<span class="sd">            relative to ``local_dir``.</span>
+<span class="sd">        session (boto3.Session): AWS session authorized to write to the bucket</span>
+<span class="sd">            (typically ``PrescientClient.upload_session``).</span>
+<span class="sd">        on_file (Callable[[int, int, Path], None], optional): Called after each</span>
+<span class="sd">            upload with ``(index, total, path)`` where ``index`` is 1-based.</span>
+<span class="sd">            Useful for progress display. Defaults to None.</span>
+<span class="sd">        overwrite (bool, optional): When False, skip files that already exist at</span>
+<span class="sd">            the destination key. Defaults to True.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        FileNotFoundError: If ``local_dir`` does not exist.</span>
+<span class="sd">        ValueError: If ``dest_prefix`` is not a valid ``s3://`` URI.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">local_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">local_dir</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">local_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="n">local_dir</span><span class="p">)</span>
+
+    <span class="n">bucket</span><span class="p">,</span> <span class="n">key_prefix</span> <span class="o">=</span> <span class="n">_split_s3_uri</span><span class="p">(</span><span class="n">dest_prefix</span><span class="p">)</span>
+    <span class="n">regex</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">pattern</span><span class="p">)</span>
+    <span class="n">matched</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">file</span>
+        <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">iter_files</span><span class="p">(</span><span class="n">local_path</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">regex</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">_relative_posix</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">local_path</span><span class="p">))</span>
+    <span class="p">]</span>
+    <span class="n">total</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">matched</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+        <span class="s2">&quot;staging </span><span class="si">%s</span><span class="s2"> file(s) matching </span><span class="si">%r</span><span class="s2"> from </span><span class="si">%s</span><span class="s2"> to </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+        <span class="n">total</span><span class="p">,</span>
+        <span class="n">pattern</span><span class="p">,</span>
+        <span class="n">local_path</span><span class="p">,</span>
+        <span class="n">dest_prefix</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">file</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">matched</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+        <span class="n">_upload</span><span class="p">(</span>
+            <span class="n">file</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">file</span><span class="p">),</span>
+            <span class="n">bucket</span><span class="o">=</span><span class="n">bucket</span><span class="p">,</span>
+            <span class="n">key</span><span class="o">=</span><span class="n">key_prefix</span> <span class="o">+</span> <span class="n">_relative_posix</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">local_path</span><span class="p">),</span>
+            <span class="n">session</span><span class="o">=</span><span class="n">session</span><span class="p">,</span>
+            <span class="n">overwrite</span><span class="o">=</span><span class="n">overwrite</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">on_file</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">on_file</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">total</span><span class="p">,</span> <span class="n">file</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="upload">
+<a class="viewcode-back" href="../../upload.html#prescient_sdk.upload.upload">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">upload</span><span class="p">(</span>
+    <span class="n">input_dir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">,</span>
+    <span class="n">exclude</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">prescient_client</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">PrescientClient</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Upload files from input directory to the location defined by PRESCIENT_UPLOAD_BUCKET</span>
+
+
+<span class="sd">    Args:</span>
+<span class="sd">        input_dir (str | os.PathLike): Input directory containing file(s) to be uploaded.</span>
+<span class="sd">            By default will upload all files contained in input directory. This can be an</span>
+<span class="sd">            absolute or relative path, the final path component will be included as part</span>
+<span class="sd">            of the object key e.g. /path/to/data_dir -&gt; s3://bucket/data_dir/file.txt.</span>
+<span class="sd">            When input_dir is a relative path, this should be relative to the current working</span>
+<span class="sd">            directory used to execute this function.</span>
+<span class="sd">        exclude (Optional[list[str]]): A list of glob patterns to exclude from uploading.</span>
+<span class="sd">            For example ``exclude=[&quot;*.txt&quot;, &quot;*.csv&quot;]`` would skip any matched files that end</span>
+<span class="sd">            with a ``.txt`` or ``.csv`` suffix. If not provided, by default all files will</span>
+<span class="sd">            be uploaded.</span>
+<span class="sd">        prescient_client (Optional[PrescientClient]): A PrescientClient instance. If not provided</span>
+<span class="sd">            a default PrescientClient instance will be created.</span>
+<span class="sd">        overwrite (bool): Whether to overwrite objects if they already exist. If False, upload</span>
+<span class="sd">            is skipped. Useful for continuing an upload that was started previously. Defaults to True.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">overwrite</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;overwrite=</span><span class="si">%s</span><span class="s2">, thus will overwrite any existing objects&quot;</span><span class="p">,</span> <span class="n">overwrite</span><span class="p">)</span>
+    <span class="n">input_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">input_dir</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">input_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="n">input_dir</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">prescient_client</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+            <span class="s2">&quot;No prescient_client provided; constructing default PrescientClient&quot;</span>
+        <span class="p">)</span>
+        <span class="n">prescient_client</span> <span class="o">=</span> <span class="n">PrescientClient</span><span class="p">()</span>
+
+    <span class="n">bucket</span> <span class="o">=</span> <span class="n">prescient_client</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">prescient_upload_bucket</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">bucket</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;prescient_upload_bucket is not configured; set PRESCIENT_UPLOAD_BUCKET &quot;</span>
+            <span class="s2">&quot;to upload files.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="n">files</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">iter_files</span><span class="p">(</span><span class="n">input_path</span><span class="p">,</span> <span class="n">exclude</span><span class="o">=</span><span class="n">exclude</span><span class="p">))</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;found </span><span class="si">%s</span><span class="s2"> files to upload&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">files</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
+        <span class="n">relative_key</span> <span class="o">=</span> <span class="n">_make_s3_key</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">input_path</span><span class="p">)</span>
+
+        <span class="n">_upload</span><span class="p">(</span>
+            <span class="n">file</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">file</span><span class="p">),</span>
+            <span class="n">bucket</span><span class="o">=</span><span class="n">bucket</span><span class="p">,</span>
+            <span class="n">key</span><span class="o">=</span><span class="n">relative_key</span><span class="p">,</span>
+            <span class="n">session</span><span class="o">=</span><span class="n">prescient_client</span><span class="o">.</span><span class="n">upload_session</span><span class="p">,</span>
+            <span class="n">overwrite</span><span class="o">=</span><span class="n">overwrite</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Upload complete: </span><span class="si">%s</span><span class="s2"> files to s3://</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">files</span><span class="p">),</span> <span class="n">bucket</span><span class="p">)</span></div>
+
+</pre></div>
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Sparkgeo Consulting Inc
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2023.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

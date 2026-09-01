@@ -1,0 +1,1225 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>prescient_sdk.ingest_resources &#8212; Prescient SDK</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../../_static/togglebutton.css?v=9c3e77be" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/mystnb.11b39860a7a0cbfd473a3ad8a317855267ff0bd372690045ca344a6b62be495e.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sphinx-thebe.css?v=4fa983c6" />
+    <link rel="stylesheet" type="text/css" href="../../_static/autodoc_pydantic.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="../../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="../../_static/documentation_options.js?v=9eb32ce0"></script>
+    <script src="../../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../_static/copybutton.js?v=f281be69"></script>
+    <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
+    <script>let toggleHintShow = 'Click to show';</script>
+    <script>let toggleHintHide = 'Click to hide';</script>
+    <script>let toggleOpenOnPrint = 'true';</script>
+    <script src="../../_static/togglebutton.js?v=b8b12719"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script src="../../_static/design-tabs.js?v=f930bc37"></script>
+    <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"; const thebe_selector = ".thebe,.cell"; const thebe_selector_input = "pre"; const thebe_selector_output = ".output, .cell_output"</script>
+    <script async="async" src="../../_static/sphinx-thebe.js?v=c100c467"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"; const thebe_selector = ".thebe,.cell"; const thebe_selector_input = "pre"; const thebe_selector_output = ".output, .cell_output"</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = '_modules/prescient_sdk/ingest_resources';</script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search this book..."
+         aria-label="Search this book..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+        
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../../_static/PE-1.png" class="logo__image only-light" alt="Prescient SDK - Home"/>
+    <img src="../../_static/PE-1.png" class="logo__image only-dark pst-js-only" alt="Prescient SDK - Home"/>
+  
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        
+        <ul class="nav bd-sidenav bd-sidenav__home-link">
+            <li class="toctree-l1">
+                <a class="reference internal" href="../../index.html">
+                    Prescient SDK
+                </a>
+            </li>
+        </ul>
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/configuration.html">Handling Configuration</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../examples/stac_search.html">STAC Search</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/upload.html">Upload</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/ingest.html">Ingest</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">SDK Reference</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../client-sdk.html">Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ingest-client.html">Ingest Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ingest-resources.html">Ingest Resources</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ingest-models.html">Ingest Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../upload.html">Upload</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../config.html">Config</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/sparkgeo/prescient-sdk" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/sparkgeo/prescient-sdk/issues/new?title=Issue%20on%20page%20%2F_modules/prescient_sdk/ingest_resources.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button pst-navbar-icon"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button>
+
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1></h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <h1>Source code for prescient_sdk.ingest_resources</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;High-level resource classes built on top of :class:`IngestClient`.</span>
+
+<span class="sd">These wrap an ingestion (and its batches) as stateful Python objects with</span>
+<span class="sd">a small observer hook so external code can react to state changes.</span>
+<span class="sd">Construction goes through the classmethods ``create`` / ``from_id`` /</span>
+<span class="sd">``from_number`` so the network call is visible at the call site.</span>
+
+<span class="sd">For a live, auto-updating Rich progress display, wrap a resource in</span>
+<span class="sd">:class:`LiveStatus` — display lifecycle lives there, not on the resource.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="c1"># `from __future__ import annotations` defers annotation evaluation so the</span>
+<span class="c1"># PEP 604 `X | Y` union syntax used below works on Python 3.9. Remove this</span>
+<span class="c1"># import once Python 3.9 support is dropped.</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">io</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Iterable</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">rich.console</span><span class="w"> </span><span class="kn">import</span> <span class="n">Console</span><span class="p">,</span> <span class="n">Group</span><span class="p">,</span> <span class="n">RenderableType</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rich.live</span><span class="w"> </span><span class="kn">import</span> <span class="n">Live</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rich.panel</span><span class="w"> </span><span class="kn">import</span> <span class="n">Panel</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rich.table</span><span class="w"> </span><span class="kn">import</span> <span class="n">Table</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rich.text</span><span class="w"> </span><span class="kn">import</span> <span class="n">Text</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">prescient_sdk</span><span class="w"> </span><span class="kn">import</span> <span class="n">ingest_models</span> <span class="k">as</span> <span class="n">models</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">prescient_sdk.ingest_client</span><span class="w"> </span><span class="kn">import</span> <span class="n">IngestClient</span><span class="p">,</span> <span class="n">_poll_for_status</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">prescient_sdk.ingest_spec</span><span class="w"> </span><span class="kn">import</span> <span class="n">IngestSpec</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">prescient_sdk.ingest_models</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">DONE_STATUSES</span><span class="p">,</span>
+    <span class="n">READY_STATUSES</span><span class="p">,</span>
+    <span class="n">Error</span><span class="p">,</span>
+    <span class="n">ErrorSeverity</span><span class="p">,</span>
+    <span class="n">InputFile</span><span class="p">,</span>
+    <span class="n">OutputFile</span><span class="p">,</span>
+    <span class="n">Status</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">&quot;prescient_sdk&quot;</span><span class="p">)</span>
+
+
+<span class="n">STATUS_STYLES</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="n">Status</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">Status</span><span class="o">.</span><span class="n">SCANNING</span><span class="p">:</span> <span class="s2">&quot;yellow&quot;</span><span class="p">,</span>
+    <span class="n">Status</span><span class="o">.</span><span class="n">READY</span><span class="p">:</span> <span class="s2">&quot;bold green&quot;</span><span class="p">,</span>
+    <span class="n">Status</span><span class="o">.</span><span class="n">PLANNING</span><span class="p">:</span> <span class="s2">&quot;yellow&quot;</span><span class="p">,</span>
+    <span class="n">Status</span><span class="o">.</span><span class="n">INGESTING</span><span class="p">:</span> <span class="s2">&quot;bold cyan&quot;</span><span class="p">,</span>
+    <span class="n">Status</span><span class="o">.</span><span class="n">DONE</span><span class="p">:</span> <span class="s2">&quot;bold green&quot;</span><span class="p">,</span>
+    <span class="n">Status</span><span class="o">.</span><span class="n">FAILED</span><span class="p">:</span> <span class="s2">&quot;bold red&quot;</span><span class="p">,</span>
+    <span class="n">Status</span><span class="o">.</span><span class="n">INCOMPLETE</span><span class="p">:</span> <span class="s2">&quot;bold yellow&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="n">SEVERITY_STYLES</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="n">ErrorSeverity</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">ErrorSeverity</span><span class="o">.</span><span class="n">CRITICAL</span><span class="p">:</span> <span class="s2">&quot;bold red&quot;</span><span class="p">,</span>
+    <span class="n">ErrorSeverity</span><span class="o">.</span><span class="n">INGESTION_FAILURE</span><span class="p">:</span> <span class="s2">&quot;bold red&quot;</span><span class="p">,</span>
+    <span class="n">ErrorSeverity</span><span class="o">.</span><span class="n">LOCATION_FAILURE</span><span class="p">:</span> <span class="s2">&quot;red&quot;</span><span class="p">,</span>
+    <span class="n">ErrorSeverity</span><span class="o">.</span><span class="n">FILE_FAILURE</span><span class="p">:</span> <span class="s2">&quot;red&quot;</span><span class="p">,</span>
+    <span class="n">ErrorSeverity</span><span class="o">.</span><span class="n">TASK_FAILURE</span><span class="p">:</span> <span class="s2">&quot;yellow&quot;</span><span class="p">,</span>
+    <span class="n">ErrorSeverity</span><span class="o">.</span><span class="n">TASK_ERROR</span><span class="p">:</span> <span class="s2">&quot;yellow&quot;</span><span class="p">,</span>
+    <span class="n">ErrorSeverity</span><span class="o">.</span><span class="n">WARNING</span><span class="p">:</span> <span class="s2">&quot;dim&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_status_badge</span><span class="p">(</span><span class="n">status</span><span class="p">:</span> <span class="n">Status</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Text</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">Text</span><span class="p">(</span><span class="n">status</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="n">STATUS_STYLES</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">))</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_errors_panel</span><span class="p">(</span><span class="n">errors</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Error</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Panel</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Build a small table summarizing errors by severity.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        errors (list[Error]): Errors to summarize.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Panel | None: A Rich ``Panel`` containing the summary, or ``None``</span>
+<span class="sd">        when ``errors`` is empty.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">errors</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="n">counts</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="n">ErrorSeverity</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">last_by_severity</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="n">ErrorSeverity</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">err</span> <span class="ow">in</span> <span class="n">errors</span><span class="p">:</span>
+        <span class="n">counts</span><span class="p">[</span><span class="n">err</span><span class="o">.</span><span class="n">severity</span><span class="p">]</span> <span class="o">=</span> <span class="n">counts</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">err</span><span class="o">.</span><span class="n">severity</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="n">last_by_severity</span><span class="p">[</span><span class="n">err</span><span class="o">.</span><span class="n">severity</span><span class="p">]</span> <span class="o">=</span> <span class="n">err</span><span class="o">.</span><span class="n">description</span>
+
+    <span class="n">table</span> <span class="o">=</span> <span class="n">Table</span><span class="p">(</span><span class="n">show_header</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">header_style</span><span class="o">=</span><span class="s2">&quot;bold&quot;</span><span class="p">,</span> <span class="n">box</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pad_edge</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">table</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s2">&quot;Severity&quot;</span><span class="p">)</span>
+    <span class="n">table</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s2">&quot;Count&quot;</span><span class="p">,</span> <span class="n">justify</span><span class="o">=</span><span class="s2">&quot;right&quot;</span><span class="p">)</span>
+    <span class="n">table</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s2">&quot;Latest&quot;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">severity</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">counts</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="n">s</span><span class="o">.</span><span class="n">value</span><span class="p">):</span>
+        <span class="n">table</span><span class="o">.</span><span class="n">add_row</span><span class="p">(</span>
+            <span class="n">Text</span><span class="p">(</span><span class="n">severity</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="n">SEVERITY_STYLES</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">severity</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)),</span>
+            <span class="nb">str</span><span class="p">(</span><span class="n">counts</span><span class="p">[</span><span class="n">severity</span><span class="p">]),</span>
+            <span class="n">last_by_severity</span><span class="p">[</span><span class="n">severity</span><span class="p">][:</span><span class="mi">80</span><span class="p">],</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="n">Panel</span><span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Errors&quot;</span><span class="p">,</span> <span class="n">title_align</span><span class="o">=</span><span class="s2">&quot;left&quot;</span><span class="p">,</span> <span class="n">border_style</span><span class="o">=</span><span class="s2">&quot;red&quot;</span><span class="p">)</span>
+
+
+<span class="n">_RefreshCallback</span> <span class="o">=</span> <span class="n">Callable</span><span class="p">[[</span><span class="s2">&quot;_IngestResource&quot;</span><span class="p">],</span> <span class="kc">None</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="_IngestResource">
+<a class="viewcode-back" href="../../ingest-resources.html#prescient_sdk.ingest_resources._IngestResource">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">_IngestResource</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Shared state + observer machinery for :class:`IngestResource` and :class:`BatchResource`.</span>
+
+<span class="sd">    Subclasses cache a pydantic model, expose status/listings, and notify</span>
+<span class="sd">    registered observers each time the model changes (via ``refresh()`` or</span>
+<span class="sd">    ``start()``). The class is intentionally display-agnostic — wrap it in</span>
+<span class="sd">    :class:`LiveStatus` to get a Rich live progress display.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client</span><span class="p">:</span> <span class="n">IngestClient</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_client</span> <span class="o">=</span> <span class="n">client</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_errors</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Error</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_observers</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">_RefreshCallback</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="c1"># -- Subclass hooks --------------------------------------------------</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">status</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Status</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_fetch_model</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_set_model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_fetch_errors</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Error</span><span class="p">]:</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_render</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RenderableType</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_fetch_status_carrier</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the object whose ``.status`` is checked by the poller.</span>
+
+<span class="sd">        Subclasses return their cached pydantic model.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+    <span class="c1"># -- Observers -------------------------------------------------------</span>
+
+<div class="viewcode-block" id="_IngestResource.on_refresh">
+<a class="viewcode-back" href="../../ingest-resources.html#prescient_sdk.ingest_resources._IngestResource.on_refresh">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">on_refresh</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">callback</span><span class="p">:</span> <span class="n">_RefreshCallback</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_RefreshCallback</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Register a callback fired after every ``refresh()`` and ``start()``.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            callback (Callable[[_IngestResource], None]): Function invoked with</span>
+<span class="sd">                this resource each time its state changes.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Callable[[_IngestResource], None]: The same callback, returned so it</span>
+<span class="sd">            can be passed to :meth:`off_refresh` when unsubscribing.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_observers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">callback</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">callback</span></div>
+
+
+<div class="viewcode-block" id="_IngestResource.off_refresh">
+<a class="viewcode-back" href="../../ingest-resources.html#prescient_sdk.ingest_resources._IngestResource.off_refresh">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">off_refresh</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">callback</span><span class="p">:</span> <span class="n">_RefreshCallback</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Unregister a callback previously passed to :meth:`on_refresh`.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            callback (Callable[[_IngestResource], None]): The callback to remove.</span>
+<span class="sd">                A no-op if it was never registered.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">callback</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_observers</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_observers</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">callback</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_notify</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">cb</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_observers</span><span class="p">:</span>
+            <span class="n">cb</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+    <span class="c1"># -- Lifecycle -------------------------------------------------------</span>
+
+<div class="viewcode-block" id="_IngestResource.refresh">
+<a class="viewcode-back" href="../../ingest-resources.html#prescient_sdk.ingest_resources._IngestResource.refresh">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">refresh</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;_IngestResource&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Re-fetch the underlying model + errors and notify observers.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            _IngestResource: This resource, for chaining.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Refreshing </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_model</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_fetch_model</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_errors</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fetch_errors</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_notify</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_wait</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">target_statuses</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">Status</span><span class="p">],</span>
+        <span class="n">poll_interval</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;_IngestResource&quot;</span><span class="p">:</span>
+        <span class="c1"># Drive the shared polling helper with a fetcher that refreshes this</span>
+        <span class="c1"># resource on every iteration. Observers (e.g. LiveStatus) fire via</span>
+        <span class="c1"># refresh() each tick.</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;Waiting for </span><span class="si">%s</span><span class="s2"> to reach </span><span class="si">%s</span><span class="s2"> (timeout=</span><span class="si">%s</span><span class="s2">s)&quot;</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
+            <span class="nb">sorted</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">value</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">target_statuses</span><span class="p">),</span>
+            <span class="n">timeout</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">fetcher</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fetch_status_carrier</span><span class="p">()</span>
+
+        <span class="n">_poll_for_status</span><span class="p">(</span><span class="n">fetcher</span><span class="p">,</span> <span class="n">target_statuses</span><span class="p">,</span> <span class="n">poll_interval</span><span class="p">,</span> <span class="n">timeout</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="c1"># -- Rich integrations (cheap, no lifecycle) -------------------------</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">__rich__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RenderableType</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_render</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_repr_html_</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Render to HTML for Jupyter when displayed bare (no LiveStatus).&quot;&quot;&quot;</span>
+        <span class="n">console</span> <span class="o">=</span> <span class="n">Console</span><span class="p">(</span><span class="n">record</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">(),</span> <span class="n">force_jupyter</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">console</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_render</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">console</span><span class="o">.</span><span class="n">export_html</span><span class="p">(</span><span class="n">inline_styles</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="IngestResource">
+<a class="viewcode-back" href="../../ingest-resources.html#prescient_sdk.ingest_resources.IngestResource">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">IngestResource</span><span class="p">(</span><span class="n">_IngestResource</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A Prescient ingestion as a stateful Python resource.</span>
+
+<span class="sd">    Construct via :meth:`create` (POST a new ingestion) or :meth:`from_id`</span>
+<span class="sd">    (attach to an existing one). Wrap in :class:`LiveStatus` for a live</span>
+<span class="sd">    progress display::</span>
+
+<span class="sd">        ing = IngestResource.create(client, spec=&quot;spec.yaml&quot;)</span>
+<span class="sd">        with LiveStatus(ing):</span>
+<span class="sd">            ing.wait_until_ready()</span>
+<span class="sd">            if not ing.errors():</span>
+<span class="sd">                ing.start().wait_until_done()</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client</span><span class="p">:</span> <span class="n">IngestClient</span><span class="p">,</span> <span class="n">model</span><span class="p">:</span> <span class="n">models</span><span class="o">.</span><span class="n">Ingestion</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">client</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="p">:</span> <span class="n">models</span><span class="o">.</span><span class="n">Ingestion</span> <span class="o">=</span> <span class="n">model</span>
+
+    <span class="c1"># -- Constructors ----------------------------------------------------</span>
+
+<div class="viewcode-block" id="IngestResource.create">
+<a class="viewcode-back" href="../../ingest-resources.html#prescient_sdk.ingest_resources.IngestResource.create">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">create</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">client</span><span class="p">:</span> <span class="n">IngestClient</span><span class="p">,</span> <span class="n">spec</span><span class="p">:</span> <span class="n">IngestSpec</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;IngestResource&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;POST a new ingestion from ``spec`` and wrap the result.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            client (IngestClient): Client used for the API call and subsequent</span>
+<span class="sd">                state transitions.</span>
+<span class="sd">            spec (IngestSpec): The specification to submit.</span>
+<span class="sd">                A :class:`~prescient_sdk.ingest_spec.IngestSpec` is serialized to</span>
+<span class="sd">                YAML and submitted, but only after checking that every location</span>
+<span class="sd">                is an ``s3://`` path — the Ingest API cannot read local paths.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            IngestResource: A resource wrapping the newly created ingestion.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ValueError: If ``spec`` is an :class:`IngestSpec` with one or more</span>
+<span class="sd">                locations still pointing at a local (non-``s3://``) path. Upload</span>
+<span class="sd">                those sources first (see ``IngestSpec.with_uploaded_sources``).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">spec</span><span class="p">,</span> <span class="n">invalid_type</span><span class="p">)</span> <span class="k">for</span> <span class="n">invalid_type</span> <span class="ow">in</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Expected IngestSpec, got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">spec</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">spec</span><span class="p">,</span> <span class="n">IngestSpec</span><span class="p">):</span>
+            <span class="n">local</span> <span class="o">=</span> <span class="n">spec</span><span class="o">.</span><span class="n">local_locations</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">local</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;Cannot create an ingestion: these locations have non-s3:// &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;paths and must be uploaded first: </span><span class="si">{</span><span class="n">local</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="p">)</span>
+            <span class="n">spec</span> <span class="o">=</span> <span class="n">spec</span><span class="o">.</span><span class="n">to_bytes</span><span class="p">()</span>
+
+        <span class="n">ingestion</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">create_ingestion</span><span class="p">(</span><span class="n">spec</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;IngestResource created id=</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">ingestion</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">ingestion</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="IngestResource.from_id">
+<a class="viewcode-back" href="../../ingest-resources.html#prescient_sdk.ingest_resources.IngestResource.from_id">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_id</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">client</span><span class="p">:</span> <span class="n">IngestClient</span><span class="p">,</span> <span class="nb">id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;IngestResource&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;GET an existing ingestion by ID and wrap it.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            client (IngestClient): Client used for the API call and subsequent</span>
+<span class="sd">                state transitions.</span>
+<span class="sd">            id (int): The ingestion&#39;s server-assigned ID.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            IngestResource: A resource wrapping the existing ingestion.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">client</span><span class="o">.</span><span class="n">get_ingestion</span><span class="p">(</span><span class="nb">id</span><span class="p">))</span></div>
+
+
+    <span class="c1"># -- Identity / state ------------------------------------------------</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">id</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;The ingestion&#39;s server-assigned ID.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            int: The ingestion ID.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="o">.</span><span class="n">id</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">status</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Status</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Current ingestion status from the most recently fetched model.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Status: The cached ingestion status.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="o">.</span><span class="n">status</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">spec</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;The parsed ingestion specification submitted on creation.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            dict[str, Any]: The ingestion specification.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="o">.</span><span class="n">spec</span>
+
+    <span class="c1"># -- Listings (always fresh) -----------------------------------------</span>
+
+<div class="viewcode-block" id="IngestResource.input_files">
+<a class="viewcode-back" href="../../ingest-resources.html#prescient_sdk.ingest_resources.IngestResource.input_files">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">input_files</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">InputFile</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fetch all input files across every batch in this ingestion.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            list[InputFile]: Input files across every batch.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">get_ingestion_input_files</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="IngestResource.output_files">
+<a class="viewcode-back" href="../../ingest-resources.html#prescient_sdk.ingest_resources.IngestResource.output_files">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">output_files</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">OutputFile</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fetch all output files across every batch in this ingestion.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            list[OutputFile]: Output files across every batch.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">get_ingestion_output_files</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="IngestResource.errors">
+<a class="viewcode-back" href="../../ingest-resources.html#prescient_sdk.ingest_resources.IngestResource.errors">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">errors</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Error</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fetch all errors recorded against this ingestion.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            list[Error]: Errors recorded against this ingestion.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">get_ingestion_errors</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span></div>
+
+
+    <span class="c1"># -- State transitions -----------------------------------------------</span>
+
+<div class="viewcode-block" id="IngestResource.start">
+<a class="viewcode-back" href="../../ingest-resources.html#prescient_sdk.ingest_resources.IngestResource.start">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;IngestResource&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Start the latest batch (must be ``READY``) and refresh the model.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            IngestResource: This resource, for chaining.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Starting ingestion id=</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_model</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">start_ingestion</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_notify</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="IngestResource.wait_until_ready">
+<a class="viewcode-back" href="../../ingest-resources.html#prescient_sdk.ingest_resources.IngestResource.wait_until_ready">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">wait_until_ready</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">poll_interval</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">5.0</span><span class="p">,</span> <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">300.0</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;IngestResource&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Block until the ingestion enters a ``READY`` (or terminal) state.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            poll_interval (float, optional): Seconds between polls. Defaults</span>
+<span class="sd">                to 5.0.</span>
+<span class="sd">            timeout (float, optional): Total seconds to wait before raising.</span>
+<span class="sd">                Defaults to 300.0.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            IngestResource: This resource, for chaining.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            TimeoutError: If ``timeout`` elapses first.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_wait</span><span class="p">(</span><span class="n">READY_STATUSES</span><span class="p">,</span> <span class="n">poll_interval</span><span class="p">,</span> <span class="n">timeout</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="IngestResource.wait_until_done">
+<a class="viewcode-back" href="../../ingest-resources.html#prescient_sdk.ingest_resources.IngestResource.wait_until_done">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">wait_until_done</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">poll_interval</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">10.0</span><span class="p">,</span> <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">3600.0</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;IngestResource&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Block until the ingestion reaches ``DONE``, ``FAILED``, or ``INCOMPLETE``.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            poll_interval (float, optional): Seconds between polls. Defaults</span>
+<span class="sd">                to 10.0.</span>
+<span class="sd">            timeout (float, optional): Total seconds to wait before raising.</span>
+<span class="sd">                Defaults to 3600.0.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            IngestResource: This resource, for chaining.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            TimeoutError: If ``timeout`` elapses first.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_wait</span><span class="p">(</span><span class="n">DONE_STATUSES</span><span class="p">,</span> <span class="n">poll_interval</span><span class="p">,</span> <span class="n">timeout</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+    <span class="c1"># -- Batches ---------------------------------------------------------</span>
+
+<div class="viewcode-block" id="IngestResource.create_batch">
+<a class="viewcode-back" href="../../ingest-resources.html#prescient_sdk.ingest_resources.IngestResource.create_batch">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">create_batch</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;BatchResource&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;POST a new batch under this ingestion.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            BatchResource: A resource wrapping the newly created batch.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">BatchResource</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="IngestResource.list_batches">
+<a class="viewcode-back" href="../../ingest-resources.html#prescient_sdk.ingest_resources.IngestResource.list_batches">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">list_batches</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="s2">&quot;BatchResource&quot;</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return ``BatchResource`` wrappers for every batch under this ingestion.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            list[BatchResource]: One resource per batch in this ingestion.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[</span>
+            <span class="n">BatchResource</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="p">,</span> <span class="n">m</span><span class="p">)</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">list_batches</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+        <span class="p">]</span></div>
+
+
+    <span class="c1"># -- Internals -------------------------------------------------------</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_set_model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">:</span> <span class="n">models</span><span class="o">.</span><span class="n">Ingestion</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_model</span> <span class="o">=</span> <span class="n">model</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_fetch_model</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">models</span><span class="o">.</span><span class="n">Ingestion</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">get_ingestion</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_fetch_errors</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Error</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">get_ingestion_errors</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_fetch_status_carrier</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">models</span><span class="o">.</span><span class="n">Ingestion</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_render</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RenderableType</span><span class="p">:</span>
+        <span class="n">header</span> <span class="o">=</span> <span class="n">Table</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="n">padding</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="n">header</span><span class="o">.</span><span class="n">add_column</span><span class="p">()</span>
+        <span class="n">header</span><span class="o">.</span><span class="n">add_column</span><span class="p">()</span>
+        <span class="n">header</span><span class="o">.</span><span class="n">add_row</span><span class="p">(</span>
+            <span class="n">Text</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Ingestion #</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s2">&quot;bold&quot;</span><span class="p">),</span>
+            <span class="n">_status_badge</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">status</span><span class="p">),</span>
+        <span class="p">)</span>
+
+        <span class="n">spec</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">spec</span>
+        <span class="n">spec_table</span> <span class="o">=</span> <span class="n">Table</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="n">padding</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="n">spec_table</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="n">style</span><span class="o">=</span><span class="s2">&quot;dim&quot;</span><span class="p">)</span>
+        <span class="n">spec_table</span><span class="o">.</span><span class="n">add_column</span><span class="p">()</span>
+        <span class="n">spec_table</span><span class="o">.</span><span class="n">add_row</span><span class="p">(</span><span class="s2">&quot;User&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">spec</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;—&quot;</span><span class="p">)))</span>
+        <span class="n">spec_table</span><span class="o">.</span><span class="n">add_row</span><span class="p">(</span><span class="s2">&quot;Tasks&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">spec</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;tasks&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{})))</span>
+        <span class="n">spec_table</span><span class="o">.</span><span class="n">add_row</span><span class="p">(</span><span class="s2">&quot;Locations&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">spec</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;locations&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{})))</span>
+        <span class="n">spec_table</span><span class="o">.</span><span class="n">add_row</span><span class="p">(</span>
+            <span class="s2">&quot;Source file sets&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">spec</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;source_file_sets&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{}))</span>
+        <span class="p">)</span>
+
+        <span class="n">renderables</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">RenderableType</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">header</span><span class="p">,</span> <span class="n">spec_table</span><span class="p">]</span>
+        <span class="n">errs_panel</span> <span class="o">=</span> <span class="n">_errors_panel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_errors</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">errs_panel</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">renderables</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">errs_panel</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Panel</span><span class="p">(</span><span class="n">Group</span><span class="p">(</span><span class="o">*</span><span class="n">renderables</span><span class="p">),</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Ingestion&quot;</span><span class="p">,</span> <span class="n">title_align</span><span class="o">=</span><span class="s2">&quot;left&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="BatchResource">
+<a class="viewcode-back" href="../../ingest-resources.html#prescient_sdk.ingest_resources.BatchResource">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">BatchResource</span><span class="p">(</span><span class="n">_IngestResource</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A single ingestion batch as a stateful Python resource.</span>
+
+<span class="sd">    Construct via :meth:`create` (POST a new batch under an ingestion) or</span>
+<span class="sd">    :meth:`from_number` (attach to an existing batch). Most users will get</span>
+<span class="sd">    a ``BatchResource`` back from :meth:`IngestResource.create_batch`.</span>
+<span class="sd">    Wrap in :class:`LiveStatus` for a live progress display.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client</span><span class="p">:</span> <span class="n">IngestClient</span><span class="p">,</span> <span class="n">model</span><span class="p">:</span> <span class="n">models</span><span class="o">.</span><span class="n">Batch</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">client</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="p">:</span> <span class="n">models</span><span class="o">.</span><span class="n">Batch</span> <span class="o">=</span> <span class="n">model</span>
+
+    <span class="c1"># -- Constructors ----------------------------------------------------</span>
+
+<div class="viewcode-block" id="BatchResource.create">
+<a class="viewcode-back" href="../../ingest-resources.html#prescient_sdk.ingest_resources.BatchResource.create">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">create</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">client</span><span class="p">:</span> <span class="n">IngestClient</span><span class="p">,</span> <span class="n">ingestion_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;BatchResource&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;POST a new batch under ``ingestion_id`` and wrap the result.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            client (IngestClient): Client used for the API call and subsequent</span>
+<span class="sd">                state transitions.</span>
+<span class="sd">            ingestion_id (int): The parent ingestion ID.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            BatchResource: A resource wrapping the newly created batch.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">batch</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">create_batch</span><span class="p">(</span><span class="n">ingestion_id</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;BatchResource created ingestion=</span><span class="si">%s</span><span class="s2"> batch=</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="n">ingestion_id</span><span class="p">,</span>
+            <span class="n">batch</span><span class="o">.</span><span class="n">batch_number</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">batch</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BatchResource.from_number">
+<a class="viewcode-back" href="../../ingest-resources.html#prescient_sdk.ingest_resources.BatchResource.from_number">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_number</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span> <span class="n">client</span><span class="p">:</span> <span class="n">IngestClient</span><span class="p">,</span> <span class="n">ingestion_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">batch_number</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;BatchResource&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;GET an existing batch and wrap it.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            client (IngestClient): Client used for the API call and subsequent</span>
+<span class="sd">                state transitions.</span>
+<span class="sd">            ingestion_id (int): The parent ingestion ID.</span>
+<span class="sd">            batch_number (int): 1-based batch number within the ingestion.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            BatchResource: A resource wrapping the existing batch.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">client</span><span class="o">.</span><span class="n">get_batch</span><span class="p">(</span><span class="n">ingestion_id</span><span class="p">,</span> <span class="n">batch_number</span><span class="p">))</span></div>
+
+
+    <span class="c1"># -- Identity / state ------------------------------------------------</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">ingestion_id</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;ID of the parent ingestion this batch belongs to.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            int: The parent ingestion ID.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="o">.</span><span class="n">ingestion_id</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">batch_number</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;1-based batch number within the parent ingestion.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            int: The batch number.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="o">.</span><span class="n">batch_number</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">status</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Status</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Current batch status from the most recently fetched model.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Status: The cached batch status.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="o">.</span><span class="n">status</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">created</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">datetime</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Timestamp the batch was created on the server.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            datetime.datetime: Batch creation time.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="o">.</span><span class="n">created</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">started</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">datetime</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Timestamp the batch began ingesting, or ``None`` if not yet started.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            datetime.datetime | None: Time the batch started, or ``None`` if not started.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="o">.</span><span class="n">started</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">finalized</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">datetime</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Timestamp the batch reached a terminal state, or ``None`` if still running.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            datetime.datetime | None: Time the batch finalized, or ``None`` if</span>
+<span class="sd">            still running.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="o">.</span><span class="n">finalized</span>
+
+    <span class="c1"># -- Listings --------------------------------------------------------</span>
+
+<div class="viewcode-block" id="BatchResource.input_files">
+<a class="viewcode-back" href="../../ingest-resources.html#prescient_sdk.ingest_resources.BatchResource.input_files">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">input_files</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">InputFile</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fetch the input files belonging to this batch.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            list[InputFile]: Input files belonging to this batch.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">get_batch_input_files</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ingestion_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch_number</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BatchResource.output_files">
+<a class="viewcode-back" href="../../ingest-resources.html#prescient_sdk.ingest_resources.BatchResource.output_files">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">output_files</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">OutputFile</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fetch the output files produced by this batch.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            list[OutputFile]: Output files produced by this batch.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">get_batch_output_files</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ingestion_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch_number</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BatchResource.errors">
+<a class="viewcode-back" href="../../ingest-resources.html#prescient_sdk.ingest_resources.BatchResource.errors">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">errors</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Error</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fetch the errors recorded against this batch.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            list[Error]: Errors recorded against this batch.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">get_batch_errors</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ingestion_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch_number</span><span class="p">)</span></div>
+
+
+    <span class="c1"># -- State transitions -----------------------------------------------</span>
+
+<div class="viewcode-block" id="BatchResource.start">
+<a class="viewcode-back" href="../../ingest-resources.html#prescient_sdk.ingest_resources.BatchResource.start">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;BatchResource&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Start this batch (must be ``READY``) and refresh the model.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            BatchResource: This resource, for chaining.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;Starting batch ingestion=</span><span class="si">%s</span><span class="s2"> batch=</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ingestion_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch_number</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_model</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">start_batch</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ingestion_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch_number</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_notify</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="BatchResource.wait_until_ready">
+<a class="viewcode-back" href="../../ingest-resources.html#prescient_sdk.ingest_resources.BatchResource.wait_until_ready">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">wait_until_ready</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">poll_interval</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">5.0</span><span class="p">,</span> <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">300.0</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;BatchResource&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Block until the batch enters a ``READY`` (or terminal) state.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            poll_interval (float, optional): Seconds between polls. Defaults</span>
+<span class="sd">                to 5.0.</span>
+<span class="sd">            timeout (float, optional): Total seconds to wait before raising.</span>
+<span class="sd">                Defaults to 300.0.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            BatchResource: This resource, for chaining.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            TimeoutError: If ``timeout`` elapses first.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_wait</span><span class="p">(</span><span class="n">READY_STATUSES</span><span class="p">,</span> <span class="n">poll_interval</span><span class="p">,</span> <span class="n">timeout</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="BatchResource.wait_until_done">
+<a class="viewcode-back" href="../../ingest-resources.html#prescient_sdk.ingest_resources.BatchResource.wait_until_done">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">wait_until_done</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">poll_interval</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">10.0</span><span class="p">,</span> <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">3600.0</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;BatchResource&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Block until the batch reaches ``DONE``, ``FAILED``, or ``INCOMPLETE``.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            poll_interval (float, optional): Seconds between polls. Defaults</span>
+<span class="sd">                to 10.0.</span>
+<span class="sd">            timeout (float, optional): Total seconds to wait before raising.</span>
+<span class="sd">                Defaults to 3600.0.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            BatchResource: This resource, for chaining.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            TimeoutError: If ``timeout`` elapses first.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_wait</span><span class="p">(</span><span class="n">DONE_STATUSES</span><span class="p">,</span> <span class="n">poll_interval</span><span class="p">,</span> <span class="n">timeout</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+    <span class="c1"># -- Internals -------------------------------------------------------</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_set_model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">:</span> <span class="n">models</span><span class="o">.</span><span class="n">Batch</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_model</span> <span class="o">=</span> <span class="n">model</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_fetch_model</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">models</span><span class="o">.</span><span class="n">Batch</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">get_batch</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ingestion_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch_number</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_fetch_errors</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Error</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">get_batch_errors</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ingestion_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch_number</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_fetch_status_carrier</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">models</span><span class="o">.</span><span class="n">Batch</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_render</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RenderableType</span><span class="p">:</span>
+        <span class="n">header</span> <span class="o">=</span> <span class="n">Table</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="n">padding</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="n">header</span><span class="o">.</span><span class="n">add_column</span><span class="p">()</span>
+        <span class="n">header</span><span class="o">.</span><span class="n">add_column</span><span class="p">()</span>
+        <span class="n">header</span><span class="o">.</span><span class="n">add_row</span><span class="p">(</span>
+            <span class="n">Text</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Ingestion #</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">ingestion_id</span><span class="si">}</span><span class="s2"> · Batch #</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">batch_number</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="n">style</span><span class="o">=</span><span class="s2">&quot;bold&quot;</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="n">_status_badge</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">status</span><span class="p">),</span>
+        <span class="p">)</span>
+
+        <span class="n">ts_table</span> <span class="o">=</span> <span class="n">Table</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="n">padding</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="n">ts_table</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="n">style</span><span class="o">=</span><span class="s2">&quot;dim&quot;</span><span class="p">)</span>
+        <span class="n">ts_table</span><span class="o">.</span><span class="n">add_column</span><span class="p">()</span>
+        <span class="n">ts_table</span><span class="o">.</span><span class="n">add_row</span><span class="p">(</span><span class="s2">&quot;Created&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">created</span><span class="o">.</span><span class="n">isoformat</span><span class="p">())</span>
+        <span class="n">ts_table</span><span class="o">.</span><span class="n">add_row</span><span class="p">(</span><span class="s2">&quot;Started&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">started</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">started</span> <span class="k">else</span> <span class="s2">&quot;—&quot;</span><span class="p">)</span>
+        <span class="n">ts_table</span><span class="o">.</span><span class="n">add_row</span><span class="p">(</span>
+            <span class="s2">&quot;Finalized&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">finalized</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">finalized</span> <span class="k">else</span> <span class="s2">&quot;—&quot;</span>
+        <span class="p">)</span>
+
+        <span class="n">renderables</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">RenderableType</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">header</span><span class="p">,</span> <span class="n">ts_table</span><span class="p">]</span>
+        <span class="n">errs_panel</span> <span class="o">=</span> <span class="n">_errors_panel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_errors</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">errs_panel</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">renderables</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">errs_panel</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Panel</span><span class="p">(</span><span class="n">Group</span><span class="p">(</span><span class="o">*</span><span class="n">renderables</span><span class="p">),</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Batch&quot;</span><span class="p">,</span> <span class="n">title_align</span><span class="o">=</span><span class="s2">&quot;left&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="LiveStatus">
+<a class="viewcode-back" href="../../ingest-resources.html#prescient_sdk.ingest_resources.LiveStatus">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">LiveStatus</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Render a live, auto-updating Rich display of a resource&#39;s status.</span>
+
+<span class="sd">    Wraps any :class:`IngestResource` or :class:`BatchResource`. Use as a</span>
+<span class="sd">    context manager — the display starts on ``__enter__``, refreshes after</span>
+<span class="sd">    every ``refresh()`` and ``start()`` on the wrapped resource, and</span>
+<span class="sd">    finalizes on ``__exit__``. The resource itself remains fully usable</span>
+<span class="sd">    outside the block (without the live display)::</span>
+
+<span class="sd">        ing = IngestResource.create(client, spec=&quot;spec.yaml&quot;)</span>
+<span class="sd">        with LiveStatus(ing):</span>
+<span class="sd">            ing.wait_until_ready()</span>
+<span class="sd">            if not ing.errors():</span>
+<span class="sd">                ing.start().wait_until_done()</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">resource</span><span class="p">:</span> <span class="n">_IngestResource</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">console</span><span class="p">:</span> <span class="n">Console</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">refresh_per_second</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_resource</span> <span class="o">=</span> <span class="n">resource</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_live</span> <span class="o">=</span> <span class="n">Live</span><span class="p">(</span>
+            <span class="n">resource</span><span class="o">.</span><span class="n">_render</span><span class="p">(),</span>
+            <span class="n">console</span><span class="o">=</span><span class="n">console</span> <span class="ow">or</span> <span class="n">Console</span><span class="p">(),</span>
+            <span class="n">refresh_per_second</span><span class="o">=</span><span class="n">refresh_per_second</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_IngestResource</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;LiveStatus started for </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resource</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_live</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_resource</span><span class="o">.</span><span class="n">on_refresh</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_on_refresh</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resource</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exc_type</span><span class="p">,</span> <span class="n">exc_val</span><span class="p">,</span> <span class="n">exc_tb</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_resource</span><span class="o">.</span><span class="n">off_refresh</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_on_refresh</span><span class="p">)</span>
+        <span class="c1"># Best-effort final refresh; never mask the caller&#39;s exception.</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_resource</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">pass</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_live</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_resource</span><span class="o">.</span><span class="n">_render</span><span class="p">(),</span> <span class="n">refresh</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_live</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;LiveStatus stopped&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_on_refresh</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">_resource</span><span class="p">:</span> <span class="n">_IngestResource</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_live</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_resource</span><span class="o">.</span><span class="n">_render</span><span class="p">(),</span> <span class="n">refresh</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+
+</pre></div>
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Sparkgeo Consulting Inc
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2023.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

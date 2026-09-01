@@ -1,0 +1,1266 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="./" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Ingest Resources &#8212; Prescient SDK</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="_static/togglebutton.css?v=9c3e77be" />
+    <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="_static/mystnb.11b39860a7a0cbfd473a3ad8a317855267ff0bd372690045ca344a6b62be495e.css" />
+    <link rel="stylesheet" type="text/css" href="_static/sphinx-thebe.css?v=4fa983c6" />
+    <link rel="stylesheet" type="text/css" href="_static/autodoc_pydantic.css" />
+    <link rel="stylesheet" type="text/css" href="_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="_static/documentation_options.js?v=9eb32ce0"></script>
+    <script src="_static/doctools.js?v=9a2dae69"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="_static/copybutton.js?v=f281be69"></script>
+    <script src="_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
+    <script>let toggleHintShow = 'Click to show';</script>
+    <script>let toggleHintHide = 'Click to hide';</script>
+    <script>let toggleOpenOnPrint = 'true';</script>
+    <script src="_static/togglebutton.js?v=b8b12719"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script src="_static/design-tabs.js?v=f930bc37"></script>
+    <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"; const thebe_selector = ".thebe,.cell"; const thebe_selector_input = "pre"; const thebe_selector_output = ".output, .cell_output"</script>
+    <script async="async" src="_static/sphinx-thebe.js?v=c100c467"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"; const thebe_selector = ".thebe,.cell"; const thebe_selector_input = "pre"; const thebe_selector_output = ".output, .cell_output"</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'ingest-resources';</script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Ingest Models" href="ingest-models.html" />
+    <link rel="prev" title="Ingest Client" href="ingest-client.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search this book..."
+         aria-label="Search this book..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="_static/PE-1.png" class="logo__image only-light" alt="Prescient SDK - Home"/>
+    <img src="_static/PE-1.png" class="logo__image only-dark pst-js-only" alt="Prescient SDK - Home"/>
+  
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        
+        <ul class="nav bd-sidenav bd-sidenav__home-link">
+            <li class="toctree-l1">
+                <a class="reference internal" href="index.html">
+                    Prescient SDK
+                </a>
+            </li>
+        </ul>
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="examples/configuration.html">Handling Configuration</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="examples/stac_search.html">STAC Search</a></li>
+<li class="toctree-l1"><a class="reference internal" href="examples/upload.html">Upload</a></li>
+<li class="toctree-l1"><a class="reference internal" href="examples/ingest.html">Ingest</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">SDK Reference</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="client-sdk.html">Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ingest-client.html">Ingest Client</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">Ingest Resources</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ingest-models.html">Ingest Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="upload.html">Upload</a></li>
+<li class="toctree-l1"><a class="reference internal" href="config.html">Config</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/sparkgeo/prescient-sdk" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/sparkgeo/prescient-sdk/issues/new?title=Issue%20on%20page%20%2Fingest-resources.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="_sources/ingest-resources.rst" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.rst</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button pst-navbar-icon"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button>
+
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+<button class="sidebar-toggle secondary-toggle btn btn-sm pst-navbar-icon" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>Ingest Resources</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.BatchResource"><code class="docutils literal notranslate"><span class="pre">BatchResource</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.BatchResource.batch_number"><code class="docutils literal notranslate"><span class="pre">BatchResource.batch_number</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.BatchResource.create"><code class="docutils literal notranslate"><span class="pre">BatchResource.create()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.BatchResource.created"><code class="docutils literal notranslate"><span class="pre">BatchResource.created</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.BatchResource.errors"><code class="docutils literal notranslate"><span class="pre">BatchResource.errors()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.BatchResource.finalized"><code class="docutils literal notranslate"><span class="pre">BatchResource.finalized</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.BatchResource.from_number"><code class="docutils literal notranslate"><span class="pre">BatchResource.from_number()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.BatchResource.ingestion_id"><code class="docutils literal notranslate"><span class="pre">BatchResource.ingestion_id</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.BatchResource.input_files"><code class="docutils literal notranslate"><span class="pre">BatchResource.input_files()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.BatchResource.off_refresh"><code class="docutils literal notranslate"><span class="pre">BatchResource.off_refresh()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.BatchResource.on_refresh"><code class="docutils literal notranslate"><span class="pre">BatchResource.on_refresh()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.BatchResource.output_files"><code class="docutils literal notranslate"><span class="pre">BatchResource.output_files()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.BatchResource.refresh"><code class="docutils literal notranslate"><span class="pre">BatchResource.refresh()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.BatchResource.start"><code class="docutils literal notranslate"><span class="pre">BatchResource.start()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.BatchResource.started"><code class="docutils literal notranslate"><span class="pre">BatchResource.started</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.BatchResource.status"><code class="docutils literal notranslate"><span class="pre">BatchResource.status</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.BatchResource.wait_until_done"><code class="docutils literal notranslate"><span class="pre">BatchResource.wait_until_done()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.BatchResource.wait_until_ready"><code class="docutils literal notranslate"><span class="pre">BatchResource.wait_until_ready()</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.IngestResource"><code class="docutils literal notranslate"><span class="pre">IngestResource</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.IngestResource.create"><code class="docutils literal notranslate"><span class="pre">IngestResource.create()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.IngestResource.create_batch"><code class="docutils literal notranslate"><span class="pre">IngestResource.create_batch()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.IngestResource.errors"><code class="docutils literal notranslate"><span class="pre">IngestResource.errors()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.IngestResource.from_id"><code class="docutils literal notranslate"><span class="pre">IngestResource.from_id()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.IngestResource.id"><code class="docutils literal notranslate"><span class="pre">IngestResource.id</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.IngestResource.input_files"><code class="docutils literal notranslate"><span class="pre">IngestResource.input_files()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.IngestResource.list_batches"><code class="docutils literal notranslate"><span class="pre">IngestResource.list_batches()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.IngestResource.off_refresh"><code class="docutils literal notranslate"><span class="pre">IngestResource.off_refresh()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.IngestResource.on_refresh"><code class="docutils literal notranslate"><span class="pre">IngestResource.on_refresh()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.IngestResource.output_files"><code class="docutils literal notranslate"><span class="pre">IngestResource.output_files()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.IngestResource.refresh"><code class="docutils literal notranslate"><span class="pre">IngestResource.refresh()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.IngestResource.spec"><code class="docutils literal notranslate"><span class="pre">IngestResource.spec</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.IngestResource.start"><code class="docutils literal notranslate"><span class="pre">IngestResource.start()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.IngestResource.status"><code class="docutils literal notranslate"><span class="pre">IngestResource.status</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.IngestResource.wait_until_done"><code class="docutils literal notranslate"><span class="pre">IngestResource.wait_until_done()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.IngestResource.wait_until_ready"><code class="docutils literal notranslate"><span class="pre">IngestResource.wait_until_ready()</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.LiveStatus"><code class="docutils literal notranslate"><span class="pre">LiveStatus</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources._IngestResource"><code class="docutils literal notranslate"><span class="pre">_IngestResource</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources._IngestResource.off_refresh"><code class="docutils literal notranslate"><span class="pre">_IngestResource.off_refresh()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources._IngestResource.on_refresh"><code class="docutils literal notranslate"><span class="pre">_IngestResource.on_refresh()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources._IngestResource.refresh"><code class="docutils literal notranslate"><span class="pre">_IngestResource.refresh()</span></code></a></li>
+</ul>
+</li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="module-prescient_sdk.ingest_resources">
+<span id="ingest-resources"></span><h1>Ingest Resources<a class="headerlink" href="#module-prescient_sdk.ingest_resources" title="Link to this heading">#</a></h1>
+<p>High-level resource classes built on top of <code class="xref py py-class docutils literal notranslate"><span class="pre">IngestClient</span></code>.</p>
+<p>These wrap an ingestion (and its batches) as stateful Python objects with
+a small observer hook so external code can react to state changes.
+Construction goes through the classmethods <code class="docutils literal notranslate"><span class="pre">create</span></code> / <code class="docutils literal notranslate"><span class="pre">from_id</span></code> /
+<code class="docutils literal notranslate"><span class="pre">from_number</span></code> so the network call is visible at the call site.</p>
+<p>For a live, auto-updating Rich progress display, wrap a resource in
+<a class="reference internal" href="#prescient_sdk.ingest_resources.LiveStatus" title="prescient_sdk.ingest_resources.LiveStatus"><code class="xref py py-class docutils literal notranslate"><span class="pre">LiveStatus</span></code></a> — display lifecycle lives there, not on the resource.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="prescient_sdk.ingest_resources.BatchResource">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">BatchResource</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">client</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="ingest-client.html#prescient_sdk.ingest_client.IngestClient" title="prescient_sdk.ingest_client.IngestClient"><span class="pre">IngestClient</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">model</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="ingest-models.html#prescient_sdk.ingest_models.Batch" title="prescient_sdk.ingest_models.Batch"><span class="pre">Batch</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/prescient_sdk/ingest_resources.html#BatchResource"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#prescient_sdk.ingest_resources.BatchResource" title="Link to this definition">#</a></dt>
+<dd><p>A single ingestion batch as a stateful Python resource.</p>
+<p>Construct via <a class="reference internal" href="#prescient_sdk.ingest_resources.BatchResource.create" title="prescient_sdk.ingest_resources.BatchResource.create"><code class="xref py py-meth docutils literal notranslate"><span class="pre">create()</span></code></a> (POST a new batch under an ingestion) or
+<a class="reference internal" href="#prescient_sdk.ingest_resources.BatchResource.from_number" title="prescient_sdk.ingest_resources.BatchResource.from_number"><code class="xref py py-meth docutils literal notranslate"><span class="pre">from_number()</span></code></a> (attach to an existing batch). Most users will get
+a <code class="docutils literal notranslate"><span class="pre">BatchResource</span></code> back from <a class="reference internal" href="#prescient_sdk.ingest_resources.IngestResource.create_batch" title="prescient_sdk.ingest_resources.IngestResource.create_batch"><code class="xref py py-meth docutils literal notranslate"><span class="pre">IngestResource.create_batch()</span></code></a>.
+Wrap in <a class="reference internal" href="#prescient_sdk.ingest_resources.LiveStatus" title="prescient_sdk.ingest_resources.LiveStatus"><code class="xref py py-class docutils literal notranslate"><span class="pre">LiveStatus</span></code></a> for a live progress display.</p>
+<dl class="py property">
+<dt class="sig sig-object py" id="prescient_sdk.ingest_resources.BatchResource.batch_number">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">batch_number</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#prescient_sdk.ingest_resources.BatchResource.batch_number" title="Link to this definition">#</a></dt>
+<dd><p>1-based batch number within the parent ingestion.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The batch number.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="prescient_sdk.ingest_resources.BatchResource.create">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">create</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">client</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="ingest-client.html#prescient_sdk.ingest_client.IngestClient" title="prescient_sdk.ingest_client.IngestClient"><span class="pre">IngestClient</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">ingestion_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#prescient_sdk.ingest_resources.BatchResource" title="prescient_sdk.ingest_resources.BatchResource"><span class="pre">BatchResource</span></a></span></span><a class="reference internal" href="_modules/prescient_sdk/ingest_resources.html#BatchResource.create"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#prescient_sdk.ingest_resources.BatchResource.create" title="Link to this definition">#</a></dt>
+<dd><p>POST a new batch under <code class="docutils literal notranslate"><span class="pre">ingestion_id</span></code> and wrap the result.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>client</strong> (<a class="reference internal" href="ingest-client.html#prescient_sdk.ingest_client.IngestClient" title="prescient_sdk.ingest_client.IngestClient"><em>IngestClient</em></a>) – Client used for the API call and subsequent
+state transitions.</p></li>
+<li><p><strong>ingestion_id</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – The parent ingestion ID.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A resource wrapping the newly created batch.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#prescient_sdk.ingest_resources.BatchResource" title="prescient_sdk.ingest_resources.BatchResource"><em>BatchResource</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="prescient_sdk.ingest_resources.BatchResource.created">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">created</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/datetime.html#datetime.datetime" title="(in Python v3.14)"><span class="pre">datetime</span></a></em><a class="headerlink" href="#prescient_sdk.ingest_resources.BatchResource.created" title="Link to this definition">#</a></dt>
+<dd><p>Timestamp the batch was created on the server.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Batch creation time.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/datetime.html#datetime.datetime" title="(in Python v3.14)"><em>datetime</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="prescient_sdk.ingest_resources.BatchResource.errors">
+<span class="sig-name descname"><span class="pre">errors</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="ingest-models.html#prescient_sdk.ingest_models.Error" title="prescient_sdk.ingest_models.Error"><span class="pre">Error</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/prescient_sdk/ingest_resources.html#BatchResource.errors"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#prescient_sdk.ingest_resources.BatchResource.errors" title="Link to this definition">#</a></dt>
+<dd><p>Fetch the errors recorded against this batch.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Errors recorded against this batch.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a>[<a class="reference internal" href="ingest-models.html#prescient_sdk.ingest_models.Error" title="prescient_sdk.ingest_models.Error"><em>Error</em></a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="prescient_sdk.ingest_resources.BatchResource.finalized">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">finalized</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/datetime.html#datetime.datetime" title="(in Python v3.14)"><span class="pre">datetime</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></em><a class="headerlink" href="#prescient_sdk.ingest_resources.BatchResource.finalized" title="Link to this definition">#</a></dt>
+<dd><p>Timestamp the batch reached a terminal state, or <code class="docutils literal notranslate"><span class="pre">None</span></code> if still running.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Time the batch finalized, or <code class="docutils literal notranslate"><span class="pre">None</span></code> if
+still running.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/datetime.html#datetime.datetime" title="(in Python v3.14)"><em>datetime</em></a> | <em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="prescient_sdk.ingest_resources.BatchResource.from_number">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_number</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">client</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="ingest-client.html#prescient_sdk.ingest_client.IngestClient" title="prescient_sdk.ingest_client.IngestClient"><span class="pre">IngestClient</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">ingestion_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_number</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#prescient_sdk.ingest_resources.BatchResource" title="prescient_sdk.ingest_resources.BatchResource"><span class="pre">BatchResource</span></a></span></span><a class="reference internal" href="_modules/prescient_sdk/ingest_resources.html#BatchResource.from_number"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#prescient_sdk.ingest_resources.BatchResource.from_number" title="Link to this definition">#</a></dt>
+<dd><p>GET an existing batch and wrap it.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>client</strong> (<a class="reference internal" href="ingest-client.html#prescient_sdk.ingest_client.IngestClient" title="prescient_sdk.ingest_client.IngestClient"><em>IngestClient</em></a>) – Client used for the API call and subsequent
+state transitions.</p></li>
+<li><p><strong>ingestion_id</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – The parent ingestion ID.</p></li>
+<li><p><strong>batch_number</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – 1-based batch number within the ingestion.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A resource wrapping the existing batch.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#prescient_sdk.ingest_resources.BatchResource" title="prescient_sdk.ingest_resources.BatchResource"><em>BatchResource</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="prescient_sdk.ingest_resources.BatchResource.ingestion_id">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">ingestion_id</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#prescient_sdk.ingest_resources.BatchResource.ingestion_id" title="Link to this definition">#</a></dt>
+<dd><p>ID of the parent ingestion this batch belongs to.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The parent ingestion ID.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="prescient_sdk.ingest_resources.BatchResource.input_files">
+<span class="sig-name descname"><span class="pre">input_files</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="ingest-models.html#prescient_sdk.ingest_models.InputFile" title="prescient_sdk.ingest_models.InputFile"><span class="pre">InputFile</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/prescient_sdk/ingest_resources.html#BatchResource.input_files"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#prescient_sdk.ingest_resources.BatchResource.input_files" title="Link to this definition">#</a></dt>
+<dd><p>Fetch the input files belonging to this batch.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Input files belonging to this batch.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a>[<a class="reference internal" href="ingest-models.html#prescient_sdk.ingest_models.InputFile" title="prescient_sdk.ingest_models.InputFile"><em>InputFile</em></a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="prescient_sdk.ingest_resources.BatchResource.off_refresh">
+<span class="sig-name descname"><span class="pre">off_refresh</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">callback</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.14)"><span class="pre">Callable</span></a><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#prescient_sdk.ingest_resources._IngestResource" title="prescient_sdk.ingest_resources._IngestResource"><span class="pre">_IngestResource</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#prescient_sdk.ingest_resources.BatchResource.off_refresh" title="Link to this definition">#</a></dt>
+<dd><p>Unregister a callback previously passed to <a class="reference internal" href="#prescient_sdk.ingest_resources.BatchResource.on_refresh" title="prescient_sdk.ingest_resources.BatchResource.on_refresh"><code class="xref py py-meth docutils literal notranslate"><span class="pre">on_refresh()</span></code></a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>callback</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">Callable[[_IngestResource],</span> <span class="pre">None]</span></code>) – The callback to remove.
+A no-op if it was never registered.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="prescient_sdk.ingest_resources.BatchResource.on_refresh">
+<span class="sig-name descname"><span class="pre">on_refresh</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">callback</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.14)"><span class="pre">Callable</span></a><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#prescient_sdk.ingest_resources._IngestResource" title="prescient_sdk.ingest_resources._IngestResource"><span class="pre">_IngestResource</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.14)"><span class="pre">Callable</span></a><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#prescient_sdk.ingest_resources._IngestResource" title="prescient_sdk.ingest_resources._IngestResource"><span class="pre">_IngestResource</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#prescient_sdk.ingest_resources.BatchResource.on_refresh" title="Link to this definition">#</a></dt>
+<dd><p>Register a callback fired after every <code class="docutils literal notranslate"><span class="pre">refresh()</span></code> and <code class="docutils literal notranslate"><span class="pre">start()</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>callback</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">Callable[[_IngestResource],</span> <span class="pre">None]</span></code>) – Function invoked with
+this resource each time its state changes.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The same callback, returned so it
+can be passed to <a class="reference internal" href="#prescient_sdk.ingest_resources.BatchResource.off_refresh" title="prescient_sdk.ingest_resources.BatchResource.off_refresh"><code class="xref py py-meth docutils literal notranslate"><span class="pre">off_refresh()</span></code></a> when unsubscribing.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>Callable</em>[[<a class="reference internal" href="#prescient_sdk.ingest_resources._IngestResource" title="prescient_sdk.ingest_resources._IngestResource"><em>_IngestResource</em></a>], <em>None</em>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="prescient_sdk.ingest_resources.BatchResource.output_files">
+<span class="sig-name descname"><span class="pre">output_files</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="ingest-models.html#prescient_sdk.ingest_models.OutputFile" title="prescient_sdk.ingest_models.OutputFile"><span class="pre">OutputFile</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/prescient_sdk/ingest_resources.html#BatchResource.output_files"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#prescient_sdk.ingest_resources.BatchResource.output_files" title="Link to this definition">#</a></dt>
+<dd><p>Fetch the output files produced by this batch.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Output files produced by this batch.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a>[<a class="reference internal" href="ingest-models.html#prescient_sdk.ingest_models.OutputFile" title="prescient_sdk.ingest_models.OutputFile"><em>OutputFile</em></a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="prescient_sdk.ingest_resources.BatchResource.refresh">
+<span class="sig-name descname"><span class="pre">refresh</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#prescient_sdk.ingest_resources._IngestResource" title="prescient_sdk.ingest_resources._IngestResource"><span class="pre">_IngestResource</span></a></span></span><a class="headerlink" href="#prescient_sdk.ingest_resources.BatchResource.refresh" title="Link to this definition">#</a></dt>
+<dd><p>Re-fetch the underlying model + errors and notify observers.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>This resource, for chaining.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#prescient_sdk.ingest_resources._IngestResource" title="prescient_sdk.ingest_resources._IngestResource"><em>_IngestResource</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="prescient_sdk.ingest_resources.BatchResource.start">
+<span class="sig-name descname"><span class="pre">start</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#prescient_sdk.ingest_resources.BatchResource" title="prescient_sdk.ingest_resources.BatchResource"><span class="pre">BatchResource</span></a></span></span><a class="reference internal" href="_modules/prescient_sdk/ingest_resources.html#BatchResource.start"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#prescient_sdk.ingest_resources.BatchResource.start" title="Link to this definition">#</a></dt>
+<dd><p>Start this batch (must be <code class="docutils literal notranslate"><span class="pre">READY</span></code>) and refresh the model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>This resource, for chaining.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#prescient_sdk.ingest_resources.BatchResource" title="prescient_sdk.ingest_resources.BatchResource"><em>BatchResource</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="prescient_sdk.ingest_resources.BatchResource.started">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">started</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/datetime.html#datetime.datetime" title="(in Python v3.14)"><span class="pre">datetime</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></em><a class="headerlink" href="#prescient_sdk.ingest_resources.BatchResource.started" title="Link to this definition">#</a></dt>
+<dd><p>Timestamp the batch began ingesting, or <code class="docutils literal notranslate"><span class="pre">None</span></code> if not yet started.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Time the batch started, or <code class="docutils literal notranslate"><span class="pre">None</span></code> if not started.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/datetime.html#datetime.datetime" title="(in Python v3.14)"><em>datetime</em></a> | <em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="prescient_sdk.ingest_resources.BatchResource.status">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">status</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="ingest-models.html#prescient_sdk.ingest_models.Status" title="prescient_sdk.ingest_models.Status"><span class="pre">Status</span></a></em><a class="headerlink" href="#prescient_sdk.ingest_resources.BatchResource.status" title="Link to this definition">#</a></dt>
+<dd><p>Current batch status from the most recently fetched model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The cached batch status.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="ingest-models.html#prescient_sdk.ingest_models.Status" title="prescient_sdk.ingest_models.Status"><em>Status</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="prescient_sdk.ingest_resources.BatchResource.wait_until_done">
+<span class="sig-name descname"><span class="pre">wait_until_done</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">poll_interval</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">10.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeout</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">3600.0</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#prescient_sdk.ingest_resources.BatchResource" title="prescient_sdk.ingest_resources.BatchResource"><span class="pre">BatchResource</span></a></span></span><a class="reference internal" href="_modules/prescient_sdk/ingest_resources.html#BatchResource.wait_until_done"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#prescient_sdk.ingest_resources.BatchResource.wait_until_done" title="Link to this definition">#</a></dt>
+<dd><p>Block until the batch reaches <code class="docutils literal notranslate"><span class="pre">DONE</span></code>, <code class="docutils literal notranslate"><span class="pre">FAILED</span></code>, or <code class="docutils literal notranslate"><span class="pre">INCOMPLETE</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>poll_interval</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">float,</span> <span class="pre">optional</span></code>) – Seconds between polls. Defaults
+to 10.0.</p></li>
+<li><p><strong>timeout</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">float,</span> <span class="pre">optional</span></code>) – Total seconds to wait before raising.
+Defaults to 3600.0.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>This resource, for chaining.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#prescient_sdk.ingest_resources.BatchResource" title="prescient_sdk.ingest_resources.BatchResource"><em>BatchResource</em></a></p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#TimeoutError" title="(in Python v3.14)"><strong>TimeoutError</strong></a> – If <code class="docutils literal notranslate"><span class="pre">timeout</span></code> elapses first.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="prescient_sdk.ingest_resources.BatchResource.wait_until_ready">
+<span class="sig-name descname"><span class="pre">wait_until_ready</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">poll_interval</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">5.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeout</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">300.0</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#prescient_sdk.ingest_resources.BatchResource" title="prescient_sdk.ingest_resources.BatchResource"><span class="pre">BatchResource</span></a></span></span><a class="reference internal" href="_modules/prescient_sdk/ingest_resources.html#BatchResource.wait_until_ready"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#prescient_sdk.ingest_resources.BatchResource.wait_until_ready" title="Link to this definition">#</a></dt>
+<dd><p>Block until the batch enters a <code class="docutils literal notranslate"><span class="pre">READY</span></code> (or terminal) state.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>poll_interval</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">float,</span> <span class="pre">optional</span></code>) – Seconds between polls. Defaults
+to 5.0.</p></li>
+<li><p><strong>timeout</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">float,</span> <span class="pre">optional</span></code>) – Total seconds to wait before raising.
+Defaults to 300.0.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>This resource, for chaining.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#prescient_sdk.ingest_resources.BatchResource" title="prescient_sdk.ingest_resources.BatchResource"><em>BatchResource</em></a></p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#TimeoutError" title="(in Python v3.14)"><strong>TimeoutError</strong></a> – If <code class="docutils literal notranslate"><span class="pre">timeout</span></code> elapses first.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="prescient_sdk.ingest_resources.IngestResource">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">IngestResource</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">client</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="ingest-client.html#prescient_sdk.ingest_client.IngestClient" title="prescient_sdk.ingest_client.IngestClient"><span class="pre">IngestClient</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">model</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="ingest-models.html#prescient_sdk.ingest_models.Ingestion" title="prescient_sdk.ingest_models.Ingestion"><span class="pre">Ingestion</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/prescient_sdk/ingest_resources.html#IngestResource"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#prescient_sdk.ingest_resources.IngestResource" title="Link to this definition">#</a></dt>
+<dd><p>A Prescient ingestion as a stateful Python resource.</p>
+<p>Construct via <a class="reference internal" href="#prescient_sdk.ingest_resources.IngestResource.create" title="prescient_sdk.ingest_resources.IngestResource.create"><code class="xref py py-meth docutils literal notranslate"><span class="pre">create()</span></code></a> (POST a new ingestion) or <a class="reference internal" href="#prescient_sdk.ingest_resources.IngestResource.from_id" title="prescient_sdk.ingest_resources.IngestResource.from_id"><code class="xref py py-meth docutils literal notranslate"><span class="pre">from_id()</span></code></a>
+(attach to an existing one). Wrap in <a class="reference internal" href="#prescient_sdk.ingest_resources.LiveStatus" title="prescient_sdk.ingest_resources.LiveStatus"><code class="xref py py-class docutils literal notranslate"><span class="pre">LiveStatus</span></code></a> for a live
+progress display:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">ing</span> <span class="o">=</span> <span class="n">IngestResource</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">spec</span><span class="o">=</span><span class="s2">&quot;spec.yaml&quot;</span><span class="p">)</span>
+<span class="k">with</span> <span class="n">LiveStatus</span><span class="p">(</span><span class="n">ing</span><span class="p">):</span>
+    <span class="n">ing</span><span class="o">.</span><span class="n">wait_until_ready</span><span class="p">()</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">ing</span><span class="o">.</span><span class="n">errors</span><span class="p">():</span>
+        <span class="n">ing</span><span class="o">.</span><span class="n">start</span><span class="p">()</span><span class="o">.</span><span class="n">wait_until_done</span><span class="p">()</span>
+</pre></div>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="prescient_sdk.ingest_resources.IngestResource.create">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">create</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">client</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="ingest-client.html#prescient_sdk.ingest_client.IngestClient" title="prescient_sdk.ingest_client.IngestClient"><span class="pre">IngestClient</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">spec</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">IngestSpec</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#prescient_sdk.ingest_resources.IngestResource" title="prescient_sdk.ingest_resources.IngestResource"><span class="pre">IngestResource</span></a></span></span><a class="reference internal" href="_modules/prescient_sdk/ingest_resources.html#IngestResource.create"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#prescient_sdk.ingest_resources.IngestResource.create" title="Link to this definition">#</a></dt>
+<dd><p>POST a new ingestion from <code class="docutils literal notranslate"><span class="pre">spec</span></code> and wrap the result.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>client</strong> (<a class="reference internal" href="ingest-client.html#prescient_sdk.ingest_client.IngestClient" title="prescient_sdk.ingest_client.IngestClient"><em>IngestClient</em></a>) – Client used for the API call and subsequent
+state transitions.</p></li>
+<li><p><strong>spec</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">IngestSpec</span></code>) – The specification to submit.
+A <code class="xref py py-class docutils literal notranslate"><span class="pre">IngestSpec</span></code> is serialized to
+YAML and submitted, but only after checking that every location
+is an <code class="docutils literal notranslate"><span class="pre">s3://</span></code> path — the Ingest API cannot read local paths.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A resource wrapping the newly created ingestion.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#prescient_sdk.ingest_resources.IngestResource" title="prescient_sdk.ingest_resources.IngestResource"><em>IngestResource</em></a></p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If <code class="docutils literal notranslate"><span class="pre">spec</span></code> is an <code class="xref py py-class docutils literal notranslate"><span class="pre">IngestSpec</span></code> with one or more
+    locations still pointing at a local (non-<code class="docutils literal notranslate"><span class="pre">s3://</span></code>) path. Upload
+    those sources first (see <code class="docutils literal notranslate"><span class="pre">IngestSpec.with_uploaded_sources</span></code>).</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="prescient_sdk.ingest_resources.IngestResource.create_batch">
+<span class="sig-name descname"><span class="pre">create_batch</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#prescient_sdk.ingest_resources.BatchResource" title="prescient_sdk.ingest_resources.BatchResource"><span class="pre">BatchResource</span></a></span></span><a class="reference internal" href="_modules/prescient_sdk/ingest_resources.html#IngestResource.create_batch"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#prescient_sdk.ingest_resources.IngestResource.create_batch" title="Link to this definition">#</a></dt>
+<dd><p>POST a new batch under this ingestion.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>A resource wrapping the newly created batch.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#prescient_sdk.ingest_resources.BatchResource" title="prescient_sdk.ingest_resources.BatchResource"><em>BatchResource</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="prescient_sdk.ingest_resources.IngestResource.errors">
+<span class="sig-name descname"><span class="pre">errors</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="ingest-models.html#prescient_sdk.ingest_models.Error" title="prescient_sdk.ingest_models.Error"><span class="pre">Error</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/prescient_sdk/ingest_resources.html#IngestResource.errors"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#prescient_sdk.ingest_resources.IngestResource.errors" title="Link to this definition">#</a></dt>
+<dd><p>Fetch all errors recorded against this ingestion.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Errors recorded against this ingestion.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a>[<a class="reference internal" href="ingest-models.html#prescient_sdk.ingest_models.Error" title="prescient_sdk.ingest_models.Error"><em>Error</em></a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="prescient_sdk.ingest_resources.IngestResource.from_id">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_id</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">client</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="ingest-client.html#prescient_sdk.ingest_client.IngestClient" title="prescient_sdk.ingest_client.IngestClient"><span class="pre">IngestClient</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#prescient_sdk.ingest_resources.IngestResource" title="prescient_sdk.ingest_resources.IngestResource"><span class="pre">IngestResource</span></a></span></span><a class="reference internal" href="_modules/prescient_sdk/ingest_resources.html#IngestResource.from_id"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#prescient_sdk.ingest_resources.IngestResource.from_id" title="Link to this definition">#</a></dt>
+<dd><p>GET an existing ingestion by ID and wrap it.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>client</strong> (<a class="reference internal" href="ingest-client.html#prescient_sdk.ingest_client.IngestClient" title="prescient_sdk.ingest_client.IngestClient"><em>IngestClient</em></a>) – Client used for the API call and subsequent
+state transitions.</p></li>
+<li><p><strong>id</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – The ingestion’s server-assigned ID.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A resource wrapping the existing ingestion.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#prescient_sdk.ingest_resources.IngestResource" title="prescient_sdk.ingest_resources.IngestResource"><em>IngestResource</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="prescient_sdk.ingest_resources.IngestResource.id">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">id</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#prescient_sdk.ingest_resources.IngestResource.id" title="Link to this definition">#</a></dt>
+<dd><p>The ingestion’s server-assigned ID.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The ingestion ID.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="prescient_sdk.ingest_resources.IngestResource.input_files">
+<span class="sig-name descname"><span class="pre">input_files</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="ingest-models.html#prescient_sdk.ingest_models.InputFile" title="prescient_sdk.ingest_models.InputFile"><span class="pre">InputFile</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/prescient_sdk/ingest_resources.html#IngestResource.input_files"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#prescient_sdk.ingest_resources.IngestResource.input_files" title="Link to this definition">#</a></dt>
+<dd><p>Fetch all input files across every batch in this ingestion.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Input files across every batch.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a>[<a class="reference internal" href="ingest-models.html#prescient_sdk.ingest_models.InputFile" title="prescient_sdk.ingest_models.InputFile"><em>InputFile</em></a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="prescient_sdk.ingest_resources.IngestResource.list_batches">
+<span class="sig-name descname"><span class="pre">list_batches</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#prescient_sdk.ingest_resources.BatchResource" title="prescient_sdk.ingest_resources.BatchResource"><span class="pre">BatchResource</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/prescient_sdk/ingest_resources.html#IngestResource.list_batches"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#prescient_sdk.ingest_resources.IngestResource.list_batches" title="Link to this definition">#</a></dt>
+<dd><p>Return <code class="docutils literal notranslate"><span class="pre">BatchResource</span></code> wrappers for every batch under this ingestion.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>One resource per batch in this ingestion.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a>[<a class="reference internal" href="#prescient_sdk.ingest_resources.BatchResource" title="prescient_sdk.ingest_resources.BatchResource"><em>BatchResource</em></a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="prescient_sdk.ingest_resources.IngestResource.off_refresh">
+<span class="sig-name descname"><span class="pre">off_refresh</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">callback</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.14)"><span class="pre">Callable</span></a><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#prescient_sdk.ingest_resources._IngestResource" title="prescient_sdk.ingest_resources._IngestResource"><span class="pre">_IngestResource</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#prescient_sdk.ingest_resources.IngestResource.off_refresh" title="Link to this definition">#</a></dt>
+<dd><p>Unregister a callback previously passed to <a class="reference internal" href="#prescient_sdk.ingest_resources.IngestResource.on_refresh" title="prescient_sdk.ingest_resources.IngestResource.on_refresh"><code class="xref py py-meth docutils literal notranslate"><span class="pre">on_refresh()</span></code></a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>callback</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">Callable[[_IngestResource],</span> <span class="pre">None]</span></code>) – The callback to remove.
+A no-op if it was never registered.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="prescient_sdk.ingest_resources.IngestResource.on_refresh">
+<span class="sig-name descname"><span class="pre">on_refresh</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">callback</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.14)"><span class="pre">Callable</span></a><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#prescient_sdk.ingest_resources._IngestResource" title="prescient_sdk.ingest_resources._IngestResource"><span class="pre">_IngestResource</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.14)"><span class="pre">Callable</span></a><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#prescient_sdk.ingest_resources._IngestResource" title="prescient_sdk.ingest_resources._IngestResource"><span class="pre">_IngestResource</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#prescient_sdk.ingest_resources.IngestResource.on_refresh" title="Link to this definition">#</a></dt>
+<dd><p>Register a callback fired after every <code class="docutils literal notranslate"><span class="pre">refresh()</span></code> and <code class="docutils literal notranslate"><span class="pre">start()</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>callback</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">Callable[[_IngestResource],</span> <span class="pre">None]</span></code>) – Function invoked with
+this resource each time its state changes.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The same callback, returned so it
+can be passed to <a class="reference internal" href="#prescient_sdk.ingest_resources.IngestResource.off_refresh" title="prescient_sdk.ingest_resources.IngestResource.off_refresh"><code class="xref py py-meth docutils literal notranslate"><span class="pre">off_refresh()</span></code></a> when unsubscribing.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>Callable</em>[[<a class="reference internal" href="#prescient_sdk.ingest_resources._IngestResource" title="prescient_sdk.ingest_resources._IngestResource"><em>_IngestResource</em></a>], <em>None</em>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="prescient_sdk.ingest_resources.IngestResource.output_files">
+<span class="sig-name descname"><span class="pre">output_files</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="ingest-models.html#prescient_sdk.ingest_models.OutputFile" title="prescient_sdk.ingest_models.OutputFile"><span class="pre">OutputFile</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/prescient_sdk/ingest_resources.html#IngestResource.output_files"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#prescient_sdk.ingest_resources.IngestResource.output_files" title="Link to this definition">#</a></dt>
+<dd><p>Fetch all output files across every batch in this ingestion.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Output files across every batch.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a>[<a class="reference internal" href="ingest-models.html#prescient_sdk.ingest_models.OutputFile" title="prescient_sdk.ingest_models.OutputFile"><em>OutputFile</em></a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="prescient_sdk.ingest_resources.IngestResource.refresh">
+<span class="sig-name descname"><span class="pre">refresh</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#prescient_sdk.ingest_resources._IngestResource" title="prescient_sdk.ingest_resources._IngestResource"><span class="pre">_IngestResource</span></a></span></span><a class="headerlink" href="#prescient_sdk.ingest_resources.IngestResource.refresh" title="Link to this definition">#</a></dt>
+<dd><p>Re-fetch the underlying model + errors and notify observers.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>This resource, for chaining.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#prescient_sdk.ingest_resources._IngestResource" title="prescient_sdk.ingest_resources._IngestResource"><em>_IngestResource</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="prescient_sdk.ingest_resources.IngestResource.spec">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">spec</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#prescient_sdk.ingest_resources.IngestResource.spec" title="Link to this definition">#</a></dt>
+<dd><p>The parsed ingestion specification submitted on creation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The ingestion specification.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>, <em>Any</em>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="prescient_sdk.ingest_resources.IngestResource.start">
+<span class="sig-name descname"><span class="pre">start</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#prescient_sdk.ingest_resources.IngestResource" title="prescient_sdk.ingest_resources.IngestResource"><span class="pre">IngestResource</span></a></span></span><a class="reference internal" href="_modules/prescient_sdk/ingest_resources.html#IngestResource.start"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#prescient_sdk.ingest_resources.IngestResource.start" title="Link to this definition">#</a></dt>
+<dd><p>Start the latest batch (must be <code class="docutils literal notranslate"><span class="pre">READY</span></code>) and refresh the model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>This resource, for chaining.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#prescient_sdk.ingest_resources.IngestResource" title="prescient_sdk.ingest_resources.IngestResource"><em>IngestResource</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="prescient_sdk.ingest_resources.IngestResource.status">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">status</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="ingest-models.html#prescient_sdk.ingest_models.Status" title="prescient_sdk.ingest_models.Status"><span class="pre">Status</span></a></em><a class="headerlink" href="#prescient_sdk.ingest_resources.IngestResource.status" title="Link to this definition">#</a></dt>
+<dd><p>Current ingestion status from the most recently fetched model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The cached ingestion status.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="ingest-models.html#prescient_sdk.ingest_models.Status" title="prescient_sdk.ingest_models.Status"><em>Status</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="prescient_sdk.ingest_resources.IngestResource.wait_until_done">
+<span class="sig-name descname"><span class="pre">wait_until_done</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">poll_interval</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">10.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeout</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">3600.0</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#prescient_sdk.ingest_resources.IngestResource" title="prescient_sdk.ingest_resources.IngestResource"><span class="pre">IngestResource</span></a></span></span><a class="reference internal" href="_modules/prescient_sdk/ingest_resources.html#IngestResource.wait_until_done"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#prescient_sdk.ingest_resources.IngestResource.wait_until_done" title="Link to this definition">#</a></dt>
+<dd><p>Block until the ingestion reaches <code class="docutils literal notranslate"><span class="pre">DONE</span></code>, <code class="docutils literal notranslate"><span class="pre">FAILED</span></code>, or <code class="docutils literal notranslate"><span class="pre">INCOMPLETE</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>poll_interval</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">float,</span> <span class="pre">optional</span></code>) – Seconds between polls. Defaults
+to 10.0.</p></li>
+<li><p><strong>timeout</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">float,</span> <span class="pre">optional</span></code>) – Total seconds to wait before raising.
+Defaults to 3600.0.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>This resource, for chaining.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#prescient_sdk.ingest_resources.IngestResource" title="prescient_sdk.ingest_resources.IngestResource"><em>IngestResource</em></a></p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#TimeoutError" title="(in Python v3.14)"><strong>TimeoutError</strong></a> – If <code class="docutils literal notranslate"><span class="pre">timeout</span></code> elapses first.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="prescient_sdk.ingest_resources.IngestResource.wait_until_ready">
+<span class="sig-name descname"><span class="pre">wait_until_ready</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">poll_interval</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">5.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeout</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">300.0</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#prescient_sdk.ingest_resources.IngestResource" title="prescient_sdk.ingest_resources.IngestResource"><span class="pre">IngestResource</span></a></span></span><a class="reference internal" href="_modules/prescient_sdk/ingest_resources.html#IngestResource.wait_until_ready"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#prescient_sdk.ingest_resources.IngestResource.wait_until_ready" title="Link to this definition">#</a></dt>
+<dd><p>Block until the ingestion enters a <code class="docutils literal notranslate"><span class="pre">READY</span></code> (or terminal) state.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>poll_interval</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">float,</span> <span class="pre">optional</span></code>) – Seconds between polls. Defaults
+to 5.0.</p></li>
+<li><p><strong>timeout</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">float,</span> <span class="pre">optional</span></code>) – Total seconds to wait before raising.
+Defaults to 300.0.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>This resource, for chaining.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#prescient_sdk.ingest_resources.IngestResource" title="prescient_sdk.ingest_resources.IngestResource"><em>IngestResource</em></a></p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#TimeoutError" title="(in Python v3.14)"><strong>TimeoutError</strong></a> – If <code class="docutils literal notranslate"><span class="pre">timeout</span></code> elapses first.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="prescient_sdk.ingest_resources.LiveStatus">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">LiveStatus</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">resource</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#prescient_sdk.ingest_resources._IngestResource" title="prescient_sdk.ingest_resources._IngestResource"><span class="pre">_IngestResource</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">console</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Console</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">refresh_per_second</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">4</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/prescient_sdk/ingest_resources.html#LiveStatus"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#prescient_sdk.ingest_resources.LiveStatus" title="Link to this definition">#</a></dt>
+<dd><p>Render a live, auto-updating Rich display of a resource’s status.</p>
+<p>Wraps any <a class="reference internal" href="#prescient_sdk.ingest_resources.IngestResource" title="prescient_sdk.ingest_resources.IngestResource"><code class="xref py py-class docutils literal notranslate"><span class="pre">IngestResource</span></code></a> or <a class="reference internal" href="#prescient_sdk.ingest_resources.BatchResource" title="prescient_sdk.ingest_resources.BatchResource"><code class="xref py py-class docutils literal notranslate"><span class="pre">BatchResource</span></code></a>. Use as a
+context manager — the display starts on <code class="docutils literal notranslate"><span class="pre">__enter__</span></code>, refreshes after
+every <code class="docutils literal notranslate"><span class="pre">refresh()</span></code> and <code class="docutils literal notranslate"><span class="pre">start()</span></code> on the wrapped resource, and
+finalizes on <code class="docutils literal notranslate"><span class="pre">__exit__</span></code>. The resource itself remains fully usable
+outside the block (without the live display):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">ing</span> <span class="o">=</span> <span class="n">IngestResource</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">spec</span><span class="o">=</span><span class="s2">&quot;spec.yaml&quot;</span><span class="p">)</span>
+<span class="k">with</span> <span class="n">LiveStatus</span><span class="p">(</span><span class="n">ing</span><span class="p">):</span>
+    <span class="n">ing</span><span class="o">.</span><span class="n">wait_until_ready</span><span class="p">()</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">ing</span><span class="o">.</span><span class="n">errors</span><span class="p">():</span>
+        <span class="n">ing</span><span class="o">.</span><span class="n">start</span><span class="p">()</span><span class="o">.</span><span class="n">wait_until_done</span><span class="p">()</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="prescient_sdk.ingest_resources._IngestResource">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">_IngestResource</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">client</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="ingest-client.html#prescient_sdk.ingest_client.IngestClient" title="prescient_sdk.ingest_client.IngestClient"><span class="pre">IngestClient</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/prescient_sdk/ingest_resources.html#_IngestResource"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#prescient_sdk.ingest_resources._IngestResource" title="Link to this definition">#</a></dt>
+<dd><p>Shared state + observer machinery for <a class="reference internal" href="#prescient_sdk.ingest_resources.IngestResource" title="prescient_sdk.ingest_resources.IngestResource"><code class="xref py py-class docutils literal notranslate"><span class="pre">IngestResource</span></code></a> and <a class="reference internal" href="#prescient_sdk.ingest_resources.BatchResource" title="prescient_sdk.ingest_resources.BatchResource"><code class="xref py py-class docutils literal notranslate"><span class="pre">BatchResource</span></code></a>.</p>
+<p>Subclasses cache a pydantic model, expose status/listings, and notify
+registered observers each time the model changes (via <code class="docutils literal notranslate"><span class="pre">refresh()</span></code> or
+<code class="docutils literal notranslate"><span class="pre">start()</span></code>). The class is intentionally display-agnostic — wrap it in
+<a class="reference internal" href="#prescient_sdk.ingest_resources.LiveStatus" title="prescient_sdk.ingest_resources.LiveStatus"><code class="xref py py-class docutils literal notranslate"><span class="pre">LiveStatus</span></code></a> to get a Rich live progress display.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="prescient_sdk.ingest_resources._IngestResource.off_refresh">
+<span class="sig-name descname"><span class="pre">off_refresh</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">callback</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.14)"><span class="pre">Callable</span></a><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#prescient_sdk.ingest_resources._IngestResource" title="prescient_sdk.ingest_resources._IngestResource"><span class="pre">_IngestResource</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/prescient_sdk/ingest_resources.html#_IngestResource.off_refresh"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#prescient_sdk.ingest_resources._IngestResource.off_refresh" title="Link to this definition">#</a></dt>
+<dd><p>Unregister a callback previously passed to <a class="reference internal" href="#prescient_sdk.ingest_resources._IngestResource.on_refresh" title="prescient_sdk.ingest_resources._IngestResource.on_refresh"><code class="xref py py-meth docutils literal notranslate"><span class="pre">on_refresh()</span></code></a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>callback</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">Callable[[_IngestResource],</span> <span class="pre">None]</span></code>) – The callback to remove.
+A no-op if it was never registered.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="prescient_sdk.ingest_resources._IngestResource.on_refresh">
+<span class="sig-name descname"><span class="pre">on_refresh</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">callback</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.14)"><span class="pre">Callable</span></a><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#prescient_sdk.ingest_resources._IngestResource" title="prescient_sdk.ingest_resources._IngestResource"><span class="pre">_IngestResource</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.14)"><span class="pre">Callable</span></a><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#prescient_sdk.ingest_resources._IngestResource" title="prescient_sdk.ingest_resources._IngestResource"><span class="pre">_IngestResource</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/prescient_sdk/ingest_resources.html#_IngestResource.on_refresh"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#prescient_sdk.ingest_resources._IngestResource.on_refresh" title="Link to this definition">#</a></dt>
+<dd><p>Register a callback fired after every <code class="docutils literal notranslate"><span class="pre">refresh()</span></code> and <code class="docutils literal notranslate"><span class="pre">start()</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>callback</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">Callable[[_IngestResource],</span> <span class="pre">None]</span></code>) – Function invoked with
+this resource each time its state changes.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The same callback, returned so it
+can be passed to <a class="reference internal" href="#prescient_sdk.ingest_resources._IngestResource.off_refresh" title="prescient_sdk.ingest_resources._IngestResource.off_refresh"><code class="xref py py-meth docutils literal notranslate"><span class="pre">off_refresh()</span></code></a> when unsubscribing.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>Callable</em>[[<a class="reference internal" href="#prescient_sdk.ingest_resources._IngestResource" title="prescient_sdk.ingest_resources._IngestResource"><em>_IngestResource</em></a>], <em>None</em>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="prescient_sdk.ingest_resources._IngestResource.refresh">
+<span class="sig-name descname"><span class="pre">refresh</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#prescient_sdk.ingest_resources._IngestResource" title="prescient_sdk.ingest_resources._IngestResource"><span class="pre">_IngestResource</span></a></span></span><a class="reference internal" href="_modules/prescient_sdk/ingest_resources.html#_IngestResource.refresh"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#prescient_sdk.ingest_resources._IngestResource.refresh" title="Link to this definition">#</a></dt>
+<dd><p>Re-fetch the underlying model + errors and notify observers.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>This resource, for chaining.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#prescient_sdk.ingest_resources._IngestResource" title="prescient_sdk.ingest_resources._IngestResource"><em>_IngestResource</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+    <script type="text/x-thebe-config">
+    {
+        requestKernel: true,
+        binderOptions: {
+            repo: "binder-examples/jupyter-stacks-datascience",
+            ref: "master",
+        },
+        codeMirrorConfig: {
+            theme: "abcdef",
+            mode: "python"
+        },
+        kernelOptions: {
+            name: "python3",
+            path: "./."
+        },
+        predefinedOutput: true
+    }
+    </script>
+    <script>kernelName = 'python3'</script>
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="ingest-client.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Ingest Client</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="ingest-models.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Ingest Models</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item"><div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.BatchResource"><code class="docutils literal notranslate"><span class="pre">BatchResource</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.BatchResource.batch_number"><code class="docutils literal notranslate"><span class="pre">BatchResource.batch_number</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.BatchResource.create"><code class="docutils literal notranslate"><span class="pre">BatchResource.create()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.BatchResource.created"><code class="docutils literal notranslate"><span class="pre">BatchResource.created</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.BatchResource.errors"><code class="docutils literal notranslate"><span class="pre">BatchResource.errors()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.BatchResource.finalized"><code class="docutils literal notranslate"><span class="pre">BatchResource.finalized</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.BatchResource.from_number"><code class="docutils literal notranslate"><span class="pre">BatchResource.from_number()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.BatchResource.ingestion_id"><code class="docutils literal notranslate"><span class="pre">BatchResource.ingestion_id</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.BatchResource.input_files"><code class="docutils literal notranslate"><span class="pre">BatchResource.input_files()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.BatchResource.off_refresh"><code class="docutils literal notranslate"><span class="pre">BatchResource.off_refresh()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.BatchResource.on_refresh"><code class="docutils literal notranslate"><span class="pre">BatchResource.on_refresh()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.BatchResource.output_files"><code class="docutils literal notranslate"><span class="pre">BatchResource.output_files()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.BatchResource.refresh"><code class="docutils literal notranslate"><span class="pre">BatchResource.refresh()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.BatchResource.start"><code class="docutils literal notranslate"><span class="pre">BatchResource.start()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.BatchResource.started"><code class="docutils literal notranslate"><span class="pre">BatchResource.started</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.BatchResource.status"><code class="docutils literal notranslate"><span class="pre">BatchResource.status</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.BatchResource.wait_until_done"><code class="docutils literal notranslate"><span class="pre">BatchResource.wait_until_done()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.BatchResource.wait_until_ready"><code class="docutils literal notranslate"><span class="pre">BatchResource.wait_until_ready()</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.IngestResource"><code class="docutils literal notranslate"><span class="pre">IngestResource</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.IngestResource.create"><code class="docutils literal notranslate"><span class="pre">IngestResource.create()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.IngestResource.create_batch"><code class="docutils literal notranslate"><span class="pre">IngestResource.create_batch()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.IngestResource.errors"><code class="docutils literal notranslate"><span class="pre">IngestResource.errors()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.IngestResource.from_id"><code class="docutils literal notranslate"><span class="pre">IngestResource.from_id()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.IngestResource.id"><code class="docutils literal notranslate"><span class="pre">IngestResource.id</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.IngestResource.input_files"><code class="docutils literal notranslate"><span class="pre">IngestResource.input_files()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.IngestResource.list_batches"><code class="docutils literal notranslate"><span class="pre">IngestResource.list_batches()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.IngestResource.off_refresh"><code class="docutils literal notranslate"><span class="pre">IngestResource.off_refresh()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.IngestResource.on_refresh"><code class="docutils literal notranslate"><span class="pre">IngestResource.on_refresh()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.IngestResource.output_files"><code class="docutils literal notranslate"><span class="pre">IngestResource.output_files()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.IngestResource.refresh"><code class="docutils literal notranslate"><span class="pre">IngestResource.refresh()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.IngestResource.spec"><code class="docutils literal notranslate"><span class="pre">IngestResource.spec</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.IngestResource.start"><code class="docutils literal notranslate"><span class="pre">IngestResource.start()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.IngestResource.status"><code class="docutils literal notranslate"><span class="pre">IngestResource.status</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.IngestResource.wait_until_done"><code class="docutils literal notranslate"><span class="pre">IngestResource.wait_until_done()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.IngestResource.wait_until_ready"><code class="docutils literal notranslate"><span class="pre">IngestResource.wait_until_ready()</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources.LiveStatus"><code class="docutils literal notranslate"><span class="pre">LiveStatus</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources._IngestResource"><code class="docutils literal notranslate"><span class="pre">_IngestResource</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources._IngestResource.off_refresh"><code class="docutils literal notranslate"><span class="pre">_IngestResource.off_refresh()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources._IngestResource.on_refresh"><code class="docutils literal notranslate"><span class="pre">_IngestResource.on_refresh()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescient_sdk.ingest_resources._IngestResource.refresh"><code class="docutils literal notranslate"><span class="pre">_IngestResource.refresh()</span></code></a></li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Sparkgeo Consulting Inc
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2023.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>
