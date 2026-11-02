@@ -1,51 +1,90 @@
-import datetime
 import logging
-import urllib.parse
+import time
 from pathlib import Path
+from typing import Callable
 
-import boto3
-import google.auth.transport.requests
-import google.oauth2.credentials
-import msal
 import requests
-from google_auth_oauthlib.flow import InstalledAppFlow
+from requests.auth import AuthBase
 
 from prescient_sdk import _logging
 from prescient_sdk.config import Settings
 
 logger = logging.getLogger("prescient_sdk")
 
+# Re-exchange the API key when the cached token has less than this many seconds left.
+_TOKEN_REFRESH_MARGIN = 60
+_EXCHANGE_TIMEOUT = 30
 
-def _normalize_expiration(credentials: dict) -> dict:
-    """Coerce a credentials dict's ``Expiration`` to a timezone-aware UTC datetime.
 
-    Fileproxy responses return an ISO 8601 string; STS responses already return
-    a ``datetime``. Mutates ``credentials`` in place and also returns it.
+class PrescientAuthError(Exception):
+    """Raised when Keycloak refuses to exchange the API key for a token.
 
     Args:
-        credentials (dict): A credentials dict with an ``Expiration`` key.
+        message (str): Description of the failure.
+        retry_after (int, optional): Seconds to wait before trying again, from
+            the `Retry-After` header of a 429 response. Defaults to None.
 
-    Returns:
-        dict: The same ``credentials`` dict, with ``Expiration`` normalized.
+    Attributes:
+        retry_after (int | None): Seconds to wait before trying again, or None.
     """
-    expiration = credentials["Expiration"]
-    if isinstance(expiration, str):
-        expiration = datetime.datetime.fromisoformat(expiration.replace("Z", "+00:00"))
-    credentials["Expiration"] = expiration.astimezone(datetime.timezone.utc)
-    return credentials
+
+    def __init__(self, message: str, retry_after: int | None = None):
+        super().__init__(message)
+        self.retry_after = retry_after
+
+
+class _BearerAuth(AuthBase):
+    """Sets `Authorization: Bearer <token>` with a fresh token on each request."""
+
+    def __init__(self, token: Callable[[], str]):
+        self._token = token
+
+    def __call__(self, request):
+        request.headers["Authorization"] = f"Bearer {self._token()}"
+        return request
+
+
+class _ReauthSession(requests.Session):
+    """A `requests.Session` that retries once with a new token after a 401."""
+
+    def __init__(self, auth: AuthBase, reauthenticate: Callable[[], str]):
+        super().__init__()
+        self.auth = auth
+        self._reauthenticate = reauthenticate
+
+    def send(self, request, **kwargs):
+        response = super().send(request, **kwargs)
+        # Resend the prepared request only when:
+        # - its body is in memory (None, str or bytes, which includes `json=` and
+        #   `files=`). A file object or generator passed as `data=` has been read.
+        # - it carried an Authorization header. requests strips it on a redirect
+        #   to another host, and the token must not go to that host.
+        # - the 401 is not the end of a redirect chain. The hop that got the 401
+        #   has already retried.
+        body = request.body
+        if (
+            response.status_code != 401
+            or response.history
+            or "Authorization" not in request.headers
+            or not (body is None or isinstance(body, (str, bytes)))
+        ):
+            return response
+        logger.info("Got 401 from %s; exchanging the API key again", request.url)
+        response.close()
+        retry = request.copy()
+        retry.headers["Authorization"] = f"Bearer {self._reauthenticate()}"
+        return super().send(retry, **kwargs)
 
 
 class PrescientClient:
     """
-    Client for interacting with the Prescient API.
+    Client for signing in to the Prescient platform with an API key.
 
-    This client is used to authenticate, and for obtaining bucket
-    credentials using the authenticated token. The client also provides helpers such as
-    provding the STAC URL for the Prescient API, and authentication headers for making
-    requests to the STAC API.
-
-    Token expiration is handled automatically for long running instances
-    of the client (in a notebook for example).
+    The client exchanges your API key (`prescient_api_key`) with your
+    Organization's Keycloak realm for a short-lived access token. It caches the
+    token and exchanges the key again shortly before the token expires. Use
+    `session`, `auth`, `headers` or `request_modifier` to send the token to the
+    platform APIs.
 
     Configuration Options:
         1. Construct the `prescient_sdk.config.Settings` object directly
@@ -66,8 +105,22 @@ class PrescientClient:
     Raises:
         ValueError: If both an environment file and a settings object are provided.
         ValueError: If the provided configuration file is not found.
-
+        ValueError: If the configuration contains settings removed in 1.0.
     """
+
+    settings: Settings
+    """The configuration the client was built with."""
+
+    auth: AuthBase
+    """A `requests` auth object that sets `Authorization: Bearer <token>` with
+    a fresh token on each request. Use it with other libraries that accept
+    `requests` auth. It does not retry after a 401."""
+
+    session: requests.Session
+    """A `requests.Session` that sends `Authorization: Bearer <token>` with a
+    fresh token. After a 401 response it exchanges the API key again and retries
+    the request once. A request whose body is a file object or generator is not
+    retried."""
 
     def __init__(
         self,
@@ -98,404 +151,109 @@ class PrescientClient:
                 # which can be sourced from a config.env file in the working
                 # directory, or env variables
                 settings = Settings()  # type: ignore
-        self.settings: Settings = settings
+        self.settings = settings
         logger.debug(
-            "Settings loaded: endpoint=%s provider=%s",
+            "Settings loaded: endpoint=%s realm=%s keycloak=%s",
             settings.prescient_endpoint_url,
-            settings.prescient_auth_provider,
+            settings.realm,
+            settings.keycloak_url,
         )
-        self._expiration_duration = 1 * 60 * 60  # Fixed to 1hr
-        # initialize empty credentials
-        self._auth_credentials: dict = {}
-        self._bucket_credentials: dict = {}
-        self._upload_bucket_credentials: dict = {}
+        # ponytail: single-threaded use assumed; concurrent threads may each
+        # exchange the key at expiry. Add a lock if that becomes a problem.
+        self._token: str | None = None
+        self._token_expiry = 0.0  # time.monotonic() value
+        self.auth = _BearerAuth(self._access_token)
+        self.session = _ReauthSession(self.auth, self._exchange)
 
-    @property
-    def stac_catalog_url(self) -> str:
-        """
-        Get the STAC URL.
+    def _exchange(self) -> str:
+        """Exchange the API key for a new access token and cache it.
 
         Returns:
-            str: The STAC URL.
-        """
-        return urllib.parse.urljoin(self.settings.prescient_endpoint_url, "stac")
-
-    def _fetch_microsoft_credentials(self) -> dict:
-        """Acquire or refresh credentials using Microsoft MSAL.
-
-        Returns:
-            dict: Raw MSAL token response containing ``id_token`` and ``refresh_token``.
-        """
-        authority_url = urllib.parse.urljoin(
-            self.settings.prescient_auth_url, self.settings.prescient_tenant_id
-        )
-        app = msal.PublicClientApplication(
-            client_id=self.settings.prescient_client_id, authority=authority_url
-        )
-
-        if (
-            not self._auth_credentials
-            or "refresh_token" not in self._auth_credentials.keys()
-        ):
-            logger.info("Starting interactive Microsoft sign-in")
-            return app.acquire_token_interactive(
-                scopes=["https://graph.microsoft.com/.default"]
-            )
-        else:
-            logger.debug("Refreshing Microsoft auth token via refresh_token")
-            return app.acquire_token_by_refresh_token(
-                refresh_token=self._auth_credentials["refresh_token"],
-                scopes=["https://graph.microsoft.com/.default"],
-            )
-
-    def _fetch_google_credentials(self) -> dict:
-        """Acquire or refresh credentials using Google OAuth2.
-
-        Uses ``google-auth-oauthlib`` for the interactive browser flow and
-        ``google-auth`` for silent token refresh. The returned dict is
-        normalized to include the same ``id_token`` and ``refresh_token`` keys
-        used by the Microsoft flow so that all downstream code is unaffected.
-
-        Returns:
-            dict: Normalized credential dict containing ``id_token``, ``refresh_token``,
-                and ``access_token``.
-
-        """
-        token_uri = urllib.parse.urljoin(
-            self.settings.prescient_auth_url, "/o/oauth2/token"
-        )
-        scopes = ["openid", "https://www.googleapis.com/auth/userinfo.email"]
-
-        if not self._auth_credentials or "refresh_token" not in self._auth_credentials:
-            logger.info(
-                "Starting interactive Google sign-in on port %s",
-                self.settings.prescient_google_redirect_port,
-            )
-            flow = InstalledAppFlow.from_client_config(
-                client_config={
-                    "installed": {
-                        "client_id": self.settings.prescient_client_id,
-                        "client_secret": self.settings.prescient_google_client_secret,
-                        "auth_uri": urllib.parse.urljoin(
-                            self.settings.prescient_auth_url, "/o/oauth2/auth"
-                        ),
-                        "token_uri": token_uri,
-                    }
-                },
-                scopes=scopes,
-            )
-            credentials = flow.run_local_server(
-                port=self.settings.prescient_google_redirect_port
-            )
-        else:
-            logger.debug("Refreshing Google auth token")
-            credentials = google.oauth2.credentials.Credentials(
-                token=None,
-                refresh_token=self._auth_credentials["refresh_token"],
-                token_uri=token_uri,
-                client_id=self.settings.prescient_client_id,
-                client_secret=self.settings.prescient_google_client_secret,
-            )
-            credentials.refresh(google.auth.transport.requests.Request())
-
-        return {
-            "id_token": credentials.id_token,
-            "refresh_token": credentials.refresh_token,
-            "access_token": credentials.token,
-        }
-
-    @property
-    def auth_credentials(self) -> dict:
-        """
-        Get the authorization credentials for the client.
-
-        When ``prescient_api_key`` is configured, returns a static dict
-        ``{"api_key": "<key>"}`` and the IDP flow is skipped entirely. Otherwise
-        returns the IDP token response, refreshing if expired.
-
-        Returns:
-            dict: Token response containing at minimum::
-
-                {
-                    "id_token": "string",
-                    "refresh_token": "string",
-                    "access_token": "string",
-                }
-
-            or, in API-key mode::
-
-                {"api_key": "string"}
+            str: The new access token.
 
         Raises:
-            ValueError: If a valid id_token cannot be obtained.
+            PrescientAuthError: If Keycloak rejects the key (401/403) or rate
+                limits the exchange (429).
+            requests.HTTPError: For any other non-2xx response.
         """
-        if self.settings.prescient_api_key:
-            return {"api_key": self.settings.prescient_api_key}
-
-        if not self.credentials_expired:
-            logger.debug(
-                "Using cached auth credentials (expires %s)",
-                self._auth_credentials.get("expiration"),
+        url = (
+            f"{self.settings.keycloak_url}/realms/{self.settings.realm}"
+            "/api-keys/exchange"
+        )
+        logger.debug("POST %s", url)
+        response = requests.post(
+            url,
+            headers={"X-API-Key": self.settings.prescient_api_key.get_secret_value()},
+            timeout=_EXCHANGE_TIMEOUT,
+        )
+        if response.status_code in (401, 403):
+            raise PrescientAuthError(
+                "API key rejected: it is invalid, expired or revoked. Create a new "
+                "one in your Organization's Keycloak Account Console."
             )
-            return self._auth_credentials
+        if response.status_code == 429:
+            retry_after = response.headers.get("Retry-After", "")
+            raise PrescientAuthError(
+                "Too many API key exchanges; try again later.",
+                retry_after=int(retry_after) if retry_after.isdigit() else None,
+            )
+        response.raise_for_status()
+        payload = response.json()
+        self._token = payload["access_token"]
+        self._token_expiry = time.monotonic() + payload["expires_in"]
+        logger.info("Obtained access token for realm %s", self.settings.realm)
+        return payload["access_token"]
 
-        time_zero = datetime.datetime.now(datetime.timezone.utc)
-
-        if self.settings.prescient_auth_provider == "google":
-            self._auth_credentials = self._fetch_google_credentials()
-        else:
-            self._auth_credentials = self._fetch_microsoft_credentials()
-
-        token: str = self._auth_credentials.get("id_token", "")
-        if token == "":
-            raise ValueError(f"Failed to obtain Auth token: {self._auth_credentials}")
-
-        self._auth_credentials["expiration"] = time_zero + datetime.timedelta(
-            seconds=self._expiration_duration
-        )
-        logger.info(
-            "Obtained auth credentials from provider=%s",
-            self.settings.prescient_auth_provider,
-        )
-
-        return self._auth_credentials
+    def _access_token(self) -> str:
+        """Return the cached access token, exchanging the API key when needed."""
+        if (
+            self._token is None
+            or time.monotonic() >= self._token_expiry - _TOKEN_REFRESH_MARGIN
+        ):
+            return self._exchange()
+        return self._token
 
     @property
     def headers(self) -> dict:
         """
-        Get headers for a request.
+        Get an `Authorization` header with a fresh access token.
 
-        When ``prescient_api_key`` is configured, key is sent as an ``api-key``
-        header. Otherwise an ``Authorization: Bearer <id_token>`` header is used.
-
-        Returns:
-            dict: The headers.
-        """
-        if self.settings.prescient_api_key:
-            return {
-                "Content-Type": "application/json",
-                "Accept": "application/json",
-                "api-key": self.settings.prescient_api_key,
-            }
-        return {
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-            "Authorization": f"Bearer {self.auth_credentials['id_token']}",
-        }
-
-    def _get_bucket_credentials(self, role: str):
-        access_token = self.auth_credentials.get("id_token")
-        sts_client = boto3.client("sts", region_name=self.settings.prescient_aws_region)
-
-        # assume arn string, otherwise last 10 characters of role string
-        try:
-            role_name_stub = role.split("/")[1]
-        except IndexError:
-            role_name_stub = role[-10:]
-        role_session_name = f"prescient-s3-access-{role_name_stub}"
-        logger.debug("Assuming role %s as %s", role, role_session_name)
-
-        # exchange token with aws temp creds
-        response: dict = sts_client.assume_role_with_web_identity(
-            DurationSeconds=self._expiration_duration,
-            RoleArn=role,
-            RoleSessionName=role_session_name,
-            WebIdentityToken=access_token,
-        )
-        credentials = response.get("Credentials", {})
-
-        if not credentials:
-            raise ValueError(f"Failed to obtain creds: {response}")
-
-        # convert datetime to UTC for later comparison
-        credentials["Expiration"] = credentials["Expiration"].astimezone(
-            datetime.timezone.utc
-        )
-
-        return credentials
-
-    @property
-    def bucket_credentials(self):
-        """Get bucket credentials using an auth access token
+        Use it for one-off requests. The token expires, so get the headers
+        again for each request rather than storing them.
 
         Returns:
-            dict: bucket temporary credentials::
-
-                {
-                    "AccessKeyId": "string",
-                    "SecretAccessKey": "string",
-                    "SessionToken": "string",
-                    "Expiration": datetime(2015, 1, 1)
-                }
+            dict: `{"Authorization": "Bearer <access_token>"}`.
 
         Raises:
-            ValueError: If the credentials response is empty
+            PrescientAuthError: If the API key cannot be exchanged for a token.
         """
-        if self._bucket_credentials and not self.credentials_expired:
-            return self._bucket_credentials
+        return {"Authorization": f"Bearer {self._access_token()}"}
 
-        logger.info(
-            "Fetching bucket credentials via %s",
-            "STS assume-role" if self.settings.prescient_aws_role else "fileproxy",
-        )
-        if self.settings.prescient_aws_role and not self.settings.prescient_api_key:
-            self._bucket_credentials = self._fetch_sts_credentials()
-        else:
-            self._bucket_credentials = self._fetch_fileproxy_credentials()
-
-        self._bucket_credentials = _normalize_expiration(self._bucket_credentials)
-
-        return self._bucket_credentials
-
-    def _fetch_sts_credentials(self) -> dict:
-        """Exchange the auth id_token for AWS credentials via STS."""
-        access_token = self.auth_credentials.get("id_token")
-        sts_client = boto3.client("sts", region_name=self.settings.prescient_aws_region)
-        response: dict = sts_client.assume_role_with_web_identity(
-            DurationSeconds=self._expiration_duration,
-            RoleArn=self.settings.prescient_aws_role,
-            RoleSessionName="prescient-s3-access",
-            WebIdentityToken=access_token,
-        )
-        creds = response.get("Credentials")
-        if not creds:
-            raise ValueError(f"Failed to obtain creds: {response}")
-        return creds
-
-    def _fetch_fileproxy_credentials(self) -> dict:
-        """Fetch temporary bucket credentials from the Prescient fileproxy endpoint.
-
-        The endpoint returns snake_case keys; map them to the PascalCase shape
-        used by the rest of the client (matching the boto3 STS response).
+    def request_modifier(self, request: requests.Request) -> requests.Request:
         """
-        url = urllib.parse.urljoin(
-            self.settings.prescient_endpoint_url, "fileproxy/credentials"
-        )
-        logger.debug("GET %s", url)
-        response = requests.get(url, headers=self.headers)
-        if not response.ok:
-            logger.warning("fileproxy returned %s", response.status_code)
-        response.raise_for_status()
-        payload = response.json()
-        return {
-            "AccessKeyId": payload["access_key_id"],
-            "SecretAccessKey": payload["secret_access_key"],
-            "SessionToken": payload["session_token"],
-            "Expiration": payload["expiration"],
-        }
+        Add an `Authorization` header with a fresh access token to a request.
 
-    @property
-    def upload_bucket_credentials(self):
-        """Get upload bucket credentials using an auth access token
-        or API key.
-
-        Returns:
-            dict: bucket temporary credentials::
-
-                {
-                    "AccessKeyId": "string",
-                    "SecretAccessKey": "string",
-                    "SessionToken": "string",
-                    "Expiration": datetime(2015, 1, 1)
-                }
-
-        Raises:
-            ValueError: If the credentials response is empty
-        """
-        if self._upload_bucket_credentials:
-            if self.settings.prescient_api_key:
-                if (
-                    datetime.datetime.now(datetime.timezone.utc)
-                    < self._upload_bucket_credentials["Expiration"]
-                ):
-                    return self._upload_bucket_credentials
-            elif not self.credentials_expired:
-                return self._upload_bucket_credentials
-
-        if self.settings.prescient_upload_role and not self.settings.prescient_api_key:
-            logger.info("Fetching upload bucket credentials via STS assume-role")
-            self._upload_bucket_credentials = self._get_bucket_credentials(
-                role=self.settings.prescient_upload_role
-            )
-        else:
-            logger.info("Fetching upload bucket credentials via fileproxy")
-            self._upload_bucket_credentials = self._fetch_fileproxy_credentials()
-
-        self._upload_bucket_credentials = _normalize_expiration(
-            self._upload_bucket_credentials
-        )
-
-        return self._upload_bucket_credentials
-
-    @property
-    def session(self) -> boto3.Session:
-        """
-        Get an AWS session for authenticating to the bucket
-
-        Returns:
-            boto3.session.Session: boto3 Session object
-        """
-        return boto3.Session(
-            aws_access_key_id=self.bucket_credentials["AccessKeyId"],
-            aws_secret_access_key=self.bucket_credentials["SecretAccessKey"],
-            aws_session_token=self.bucket_credentials["SessionToken"],
-        )
-
-    @property
-    def upload_session(self) -> boto3.Session:
-        """
-        Get an AWS session for authenticating to the upload bucket
-
-        Returns:
-            boto3.session.Session: boto3 Session object
-        """
-        return boto3.Session(
-            aws_access_key_id=self.upload_bucket_credentials["AccessKeyId"],
-            aws_secret_access_key=self.upload_bucket_credentials["SecretAccessKey"],
-            aws_session_token=self.upload_bucket_credentials["SessionToken"],
-            region_name=self.settings.prescient_aws_region,
-        )
-
-    @property
-    def credentials_expired(self) -> bool:
-        """Checks to see if the client credentials have expired.
-        Note: if auth credentials have expired, all credentials are considered
-        expired as they all depend on auth credentials. When ``prescient_api_key``
-        is configured the key is static and is treated as never expiring.
-
-        Returns:
-            bool: True - credentials are expired, False - credentials have NOT expired.
-        """
-        if self.settings.prescient_api_key:
-            return False
-        if "expiration" in self._auth_credentials and (
-            datetime.datetime.now(datetime.timezone.utc)
-            < self._auth_credentials["expiration"]
-        ):
-            return False
-        else:
-            return True
-
-    def refresh_credentials(self, force=False):
-        """
-        Will refresh all the client credentials.
-
-        When ``prescient_api_key`` is configured there is nothing to refresh; the call is a no-op.
-
-        param force: If True will force the creds to be refreshed.
+        Pass this method to pystac-client, for example
+        `Client.open(client.stac_url, request_modifier=client.request_modifier)`.
 
         Args:
-            force (bool): When True, drop the cached expiration so credentials
-                are re-fetched even if they have not yet expired. Defaults to
-                False.
+            request (requests.Request): The request to modify.
+
+        Returns:
+            requests.Request: The same request, with the header set.
+
+        Raises:
+            PrescientAuthError: If the API key cannot be exchanged for a token.
         """
-        if self.settings.prescient_api_key:
-            return
+        request.headers["Authorization"] = f"Bearer {self._access_token()}"
+        return request
 
-        logger.info("Refreshing all credentials (force=%s)", force)
+    @property
+    def stac_url(self) -> str:
+        """
+        Get the STAC API URL of your Organization.
 
-        if force:
-            self._auth_credentials.pop("expiration", None)
-
-        _ = self.bucket_credentials  # Will call self.auth_credentials
-        _ = self.upload_bucket_credentials
+        Returns:
+            str: `<prescient_endpoint_url>/stac`.
+        """
+        return self.settings.prescient_endpoint_url.rstrip("/") + "/stac"

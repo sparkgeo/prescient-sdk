@@ -1,963 +1,259 @@
-import datetime
-import os
+import io
+import json
 from unittest.mock import MagicMock
 
-import boto3
 import pytest
-from botocore.stub import Stubber
-from pytest_mock import MockerFixture, MockType
+import requests
+from pystac_client.stac_api_io import StacApiIO
+from pytest_mock import MockerFixture
 
-from prescient_sdk.client import PrescientClient
+from prescient_sdk.client import PrescientAuthError, PrescientClient
 from prescient_sdk.config import Settings
 
-
-@pytest.fixture
-def clear_prescient_env(monkeypatch: pytest.MonkeyPatch):
-    """Remove every PRESCIENT_* env var so tests aren't polluted by the host shell."""
-    for key in list(os.environ):
-        if key.startswith("PRESCIENT_"):
-            monkeypatch.delenv(key)
+EXCHANGE_URL = (
+    "https://keycloak.staging.prescient.earth/realms/spk-sandbox/api-keys/exchange"
+)
 
 
-@pytest.fixture
-def set_env_vars(monkeypatch: pytest.MonkeyPatch, clear_prescient_env):
-    """fixture to set the config settings as env variables"""
-    monkeypatch.setenv(
-        "PRESCIENT_ENDPOINT_URL", "https://example.server.prescient.earth"
+def _response(status_code: int, json_payload=None, headers=None) -> requests.Response:
+    response = requests.Response()
+    response.status_code = status_code
+    response.headers.update(headers or {})
+    response._content = json.dumps(json_payload).encode() if json_payload else b""
+    response._content_consumed = True
+    return response
+
+
+def _token(n: int, expires_in: int = 300) -> requests.Response:
+    return _response(
+        200,
+        {
+            "access_token": f"token-{n}",
+            "token_type": "Bearer",
+            "expires_in": expires_in,
+        },
     )
-    monkeypatch.setenv("PRESCIENT_AWS_REGION", "some-aws-region")
-    monkeypatch.setenv("PRESCIENT_AWS_ROLE", "arn:aws:iam::something")
-    monkeypatch.setenv("PRESCIENT_TENANT_ID", "some-tenant-id")
-    monkeypatch.setenv("PRESCIENT_CLIENT_ID", "some-client-id")
-    monkeypatch.setenv("PRESCIENT_AUTH_URL", "https://login.somewhere.com/")
-    monkeypatch.setenv("PRESCIENT_AUTH_TOKEN_PATH", "/oauth2/v2.0/token")
 
 
 @pytest.fixture
-def mock_creds(mocker: MockerFixture, set_env_vars):
-    """fixture to mock the auth credentials property"""
-    mock = mocker.patch(
-        "prescient_sdk.client.PrescientClient.auth_credentials",
-        new_callable=mocker.PropertyMock,
-        return_value={"id_token": "mock_token"},
+def exchange(mocker: MockerFixture) -> MagicMock:
+    """Mock the Keycloak exchange; each call returns token-1, token-2, ..."""
+    tokens = iter(range(1, 100))
+    return mocker.patch(
+        "prescient_sdk.client.requests.post",
+        side_effect=lambda *args, **kwargs: _token(next(tokens)),
     )
-    return mock
 
 
 @pytest.fixture
-def auth_client_mock(mocker: MockerFixture):
-    """Fixture for mocking msal library"""
-
-    class MockApp:
-        def __init__(self, client_id=None, authority=None):
-            pass
-
-        def acquire_token_by_refresh_token(self, refresh_token, scopes):
-            return {
-                "expires_in": 5021,
-                "id_token": "refreshed_token",
-            }
-
-        def acquire_token_interactive(self, scopes):
-            raise ValueError("This should not be called")
-
-    return MockApp()
+def clock(mocker: MockerFixture) -> MagicMock:
+    return mocker.patch("prescient_sdk.client.time.monotonic", return_value=1000.0)
 
 
 @pytest.fixture
-def aws_stubber(mocker: MockerFixture):
-    dummy_creds = {
-        "Credentials": {
-            "AccessKeyId": "12345678910111213141516",
-            "SecretAccessKey": "",
-            "SessionToken": "",
-            "Expiration": datetime.datetime.now(datetime.timezone.utc)
-            + datetime.timedelta(hours=1),
-        }
-    }
-    client = boto3.client("sts")
-    stubber = Stubber(client)
-    stubber.add_response(
-        "assume_role_with_web_identity",
-        dummy_creds,
-    )
-    mocker.patch("boto3.client", return_value=client)
-    return stubber
+def send(mocker: MockerFixture) -> MagicMock:
+    """Mock the transport under every requests.Session; returns 200 by default."""
+
+    def reply(request, **kwargs):
+        response = _response(200, {})
+        response.request = request
+        return response
+
+    return mocker.patch.object(requests.Session, "send", side_effect=reply)
 
 
-@pytest.fixture
-def expired_auth_credentials_mock():
-    return {
-        "id_token": "expired_token",
-        "expiration": datetime.datetime.now(datetime.timezone.utc)
-        - datetime.timedelta(hours=1),
-        "refresh_token": "refresh",
-    }
+def _statuses(send: MagicMock, *codes: int) -> None:
+    """Make the mocked transport answer with these status codes in order."""
+    codes_iter = iter(codes)
+
+    def reply(request, **kwargs):
+        response = _response(next(codes_iter), {})
+        response.request = request
+        return response
+
+    send.side_effect = reply
 
 
-@pytest.fixture
-def unexpired_auth_credentials_mock():
-    return {
-        "id_token": "cached_token",
-        "expiration": datetime.datetime.now(datetime.timezone.utc)
-        + datetime.timedelta(hours=1),
-        "refresh_token": "refresh",
-    }
+# Construction
 
 
 def test_prescient_client_initialization(set_env_vars):
-    """Test that the client is initialized correctly"""
     client = PrescientClient()
     assert client.settings.prescient_endpoint_url is not None
 
 
 def test_env_file_init(clear_prescient_env, tmp_path):
-    """Test that the env file is loaded correctly"""
-
     env_file = tmp_path / "config.env"
     env_file.write_text(
-        "PRESCIENT_ENDPOINT_URL=https://some-test\n"
-        "PRESCIENT_AWS_REGION=some-aws-region\n"
-        "PRESCIENT_AWS_ROLE=arn:aws:iam::something\n"
-        "PRESCIENT_TENANT_ID=some-tenant-id\n"
-        "PRESCIENT_CLIENT_ID=some-client-id\n"
-        "PRESCIENT_AUTH_URL=https://login.somewhere.com/\n"
-        "PRESCIENT_AUTH_TOKEN_PATH=/oauth2/v2.0/token\n"
-        "PRESCIENT_UPLOAD_ROLE=arn:aws:iam::abc/def\n"
-        "PRESCIENT_UPLOAD_BUCKET=bucket"
+        "PRESCIENT_ENDPOINT_URL=https://some-test.prescient.earth\n"
+        "PRESCIENT_API_KEY=pk_test\n"
     )
-
     client = PrescientClient(env_file=str(env_file))
-    assert client.settings.prescient_endpoint_url == "https://some-test"
+    assert client.settings.prescient_endpoint_url == "https://some-test.prescient.earth"
+
+
+def test_missing_env_file_raises(clear_prescient_env, tmp_path):
+    with pytest.raises(ValueError, match="not found"):
+        PrescientClient(env_file=tmp_path / "missing.env")
 
 
 def test_fail_when_passing_both_env_file_and_settings(set_env_vars):
-    """Test that an error is raised when both env file and settings are passed"""
     with pytest.raises(ValueError):
         PrescientClient(env_file="some-file.env", settings=Settings())  # type: ignore
 
 
-def test_settings_loaded_explicitly():
-    """Test that settings are loaded correctly"""
+def test_settings_loaded_explicitly(clear_prescient_env):
     settings = Settings(
-        prescient_endpoint_url="https://example.server.prescient.earth",
-        prescient_aws_region="some-aws-region",
-        prescient_aws_role="arn:aws:iam::something",
-        prescient_tenant_id="some-tenant-id",
-        prescient_client_id="some-client-id",
-        prescient_auth_url="https://login.somewhere.com/",
-        prescient_auth_token_path="/oauth2/v2.0/token",
-        prescient_upload_bucket="test-bucket",
-        prescient_upload_role="arn:aws:iam::upload-role",
+        prescient_endpoint_url="https://spk-sandbox.staging.prescient.earth",
+        prescient_api_key="pk_test",  # type: ignore[arg-type]
     )
     client = PrescientClient(settings=settings)
-    assert client.settings.prescient_endpoint_url is not None
+    assert client.settings is settings
 
 
-def test_prescient_client_custom_url(set_env_vars):
-    """Test that the stac url is returned correctly"""
-    custom_url = "https://custom.url/"
-    settings = Settings(prescient_endpoint_url=custom_url)  # type: ignore
-    client = PrescientClient(settings=settings)
-    assert client.settings.prescient_endpoint_url == custom_url
-    assert client.stac_catalog_url == custom_url + "stac"
+@pytest.mark.parametrize(
+    ("endpoint", "expected"),
+    [
+        ("https://acme.prescient.earth", "https://acme.prescient.earth/stac"),
+        ("https://acme.prescient.earth/", "https://acme.prescient.earth/stac"),
+        ("https://example.com/api/v2", "https://example.com/api/v2/stac"),
+    ],
+)
+def test_stac_url(clear_prescient_env, endpoint, expected):
+    settings = Settings(prescient_endpoint_url=endpoint, prescient_api_key="pk_test")  # type: ignore[arg-type]
+    assert PrescientClient(settings=settings).stac_url == expected
 
 
-def test_custom_url_formatting(set_env_vars):
-    """Test that the custom url is formatted correctly"""
-    custom_url = "https://custom.url"
-    settings = Settings(prescient_endpoint_url=custom_url)  # type: ignore
-    client = PrescientClient(settings=settings)
-    assert client.stac_catalog_url == custom_url + "/stac"
+# Token exchange
 
 
-def test_prescient_client_headers(monkeypatch: pytest.MonkeyPatch, set_env_vars):
-    """Test that the headers are set correctly"""
-    # Mock the auth_credentials property
-    monkeypatch.setattr(
-        PrescientClient,
-        "auth_credentials",
-        {"id_token": "mock_token"},
-        raising=True,
-    )
-
+def test_exchange_request(set_env_vars, exchange, clock):
     client = PrescientClient()
+    assert client.headers == {"Authorization": "Bearer token-1"}
+    exchange.assert_called_once()
+    assert exchange.call_args.args[0] == EXCHANGE_URL
+    assert exchange.call_args.kwargs["headers"] == {"X-API-Key": "pk_test"}
+    assert exchange.call_args.kwargs["timeout"]
 
-    headers = client.headers
-    assert headers["Authorization"] == "Bearer mock_token"
-    assert headers["Content-Type"] == "application/json"
-    assert headers["Accept"] == "application/json"
+
+def test_token_cached_within_lifetime(set_env_vars, exchange, clock):
+    client = PrescientClient()
+    client.headers
+    clock.return_value += 200  # 100 s left of 300
+    assert client.headers == {"Authorization": "Bearer token-1"}
+    assert exchange.call_count == 1
 
 
-def test_credentials_expired(
-    set_env_vars, expired_auth_credentials_mock, unexpired_auth_credentials_mock
+def test_token_reexchanged_near_expiry(set_env_vars, exchange, clock):
+    client = PrescientClient()
+    client.headers
+    clock.return_value += 241  # 59 s left of 300
+    assert client.headers == {"Authorization": "Bearer token-2"}
+    assert exchange.call_count == 2
+
+
+@pytest.mark.parametrize("status", [401, 403])
+def test_rejected_key_raises(set_env_vars, mocker: MockerFixture, status):
+    mocker.patch("prescient_sdk.client.requests.post", return_value=_response(status))
+    with pytest.raises(PrescientAuthError, match="Account Console"):
+        PrescientClient().headers
+
+
+@pytest.mark.parametrize(("header", "expected"), [("17", 17), (None, None)])
+def test_rate_limited_raises_with_retry_after(
+    set_env_vars, mocker: MockerFixture, header, expected
 ):
-    """Test the credentials_expired property"""
-    client_expired = PrescientClient()
-    client_expired._auth_credentials = expired_auth_credentials_mock
-    assert client_expired.credentials_expired
-
-    client_unexpired = PrescientClient()
-    client_unexpired._auth_credentials = unexpired_auth_credentials_mock
-    assert not client_unexpired.credentials_expired
-
-
-def test_prescient_client_cached_auth_credentials(
-    set_env_vars, unexpired_auth_credentials_mock
-):
-    """test that cached credentials are used"""
-    client = PrescientClient()
-    client._auth_credentials = unexpired_auth_credentials_mock
-
-    headers = client.headers
-    assert headers["Authorization"] == "Bearer cached_token"
-
-
-def test_prescient_client_cached_aws_credentials(
-    mocker: MockerFixture, set_env_vars, unexpired_auth_credentials_mock
-):
-    """test that cached aws credentials are used"""
-    # ensure that the boto3 client is not called because it should use cached credentials
-    Stubber(mocker.patch("boto3.client")).add_client_error(
-        method="assume_role_with_web_identity"
+    post = mocker.patch(
+        "prescient_sdk.client.requests.post",
+        return_value=_response(429, headers={"Retry-After": header} if header else {}),
     )
-
-    client = PrescientClient()
-    client._auth_credentials = unexpired_auth_credentials_mock
-    client._bucket_credentials = {
-        "AccessKeyId": "cached_id",
-        "Expiration": datetime.datetime.now(datetime.timezone.utc)
-        + datetime.timedelta(hours=1),
-    }
-
-    aws_credentials = client.bucket_credentials
-    assert aws_credentials["AccessKeyId"] == "cached_id"
+    with pytest.raises(PrescientAuthError) as excinfo:
+        PrescientClient().headers
+    assert excinfo.value.retry_after == expected
+    post.assert_called_once()
 
 
-def test_prescient_client_succesful_aws_credentials(
-    mocker: MockerFixture, mock_creds: MockType, set_env_vars
-):
-    """Test that aws_credentials are passed through correctly"""
-    dummy_creds = {
-        "Credentials": {
-            "AccessKeyId": "12345678910111213141516",
-            "SecretAccessKey": "",
-            "SessionToken": "",
-            "Expiration": datetime.datetime.now(datetime.timezone.utc)
-            + datetime.timedelta(hours=1),
-        }
-    }
+def test_other_exchange_error_raises_http_error(set_env_vars, mocker: MockerFixture):
+    mocker.patch("prescient_sdk.client.requests.post", return_value=_response(500))
+    with pytest.raises(requests.HTTPError):
+        PrescientClient().headers
 
-    client = boto3.client("sts")
-    stubber = Stubber(client)
-    stubber.add_response(
-        "assume_role_with_web_identity",
-        dummy_creds,
+
+# Session, auth and request_modifier
+
+
+def test_session_sends_bearer(set_env_vars, exchange, clock, send):
+    response = PrescientClient().session.get("https://example.com/stac")
+    assert response.status_code == 200
+    assert send.call_args.args[0].headers["Authorization"] == "Bearer token-1"
+
+
+def test_session_retries_once_after_401(set_env_vars, exchange, clock, send):
+    _statuses(send, 401, 200)
+    response = PrescientClient().session.post(
+        "https://example.com/stac/search", json={"limit": 1}
     )
-    mocker.patch("boto3.client", return_value=client)
+    assert response.status_code == 200
+    assert exchange.call_count == 2
+    sent = [call.args[0] for call in send.call_args_list]
+    assert [r.headers["Authorization"] for r in sent] == [
+        "Bearer token-1",
+        "Bearer token-2",
+    ]
+    assert sent[1].body == sent[0].body
 
-    with stubber:
-        client = PrescientClient()
 
-        assert client.bucket_credentials == dummy_creds["Credentials"]
-
-
-def test_creds_refreshed(
-    mocker: MockerFixture, set_env_vars, auth_client_mock, expired_auth_credentials_mock
-):
-    """Test that auth credentials are refreshed when expired"""
-
-    mocker.patch(
-        "msal.PublicClientApplication",
-        return_value=auth_client_mock,
+def test_session_retry_resends_uploaded_file(set_env_vars, exchange, clock, send):
+    """`files=` reads the file once; the retry must resend the same bytes."""
+    _statuses(send, 401, 200)
+    PrescientClient().session.post(
+        "https://example.com/ingest/v1/ingestion",
+        files={"spec": io.BytesIO(b"user: tester")},
     )
+    sent = [call.args[0] for call in send.call_args_list]
+    assert b"user: tester" in sent[1].body
+    assert sent[1].body == sent[0].body
 
-    client = PrescientClient()
 
-    # initialize creds as expired
-    client._auth_credentials = expired_auth_credentials_mock
+def test_session_no_retry_without_authorization(set_env_vars, exchange, clock, send):
+    """A request without our header (e.g. after a cross-host redirect) is not retried."""
+    _statuses(send, 401)
+    session = PrescientClient().session
+    session.auth = None
+    response = session.get("https://other-host.example.com/")
+    assert response.status_code == 401
+    assert send.call_count == 1
+    exchange.assert_not_called()
 
-    # check that when the auth_creds are used they get refreshed from the mock fixture
-    assert client.auth_credentials["id_token"] == "refreshed_token"
-    assert client.auth_credentials["expiration"] > datetime.datetime.now(
-        datetime.timezone.utc
+
+def test_session_second_401_surfaces(set_env_vars, exchange, clock, send):
+    _statuses(send, 401, 401)
+    response = PrescientClient().session.get("https://example.com/stac")
+    assert response.status_code == 401
+    assert send.call_count == 2
+    assert exchange.call_count == 2
+
+
+def test_session_does_not_retry_stream_body(set_env_vars, exchange, clock, send):
+    _statuses(send, 401)
+    response = PrescientClient().session.put(
+        "https://example.com/upload", data=io.BytesIO(b"data")
     )
+    assert response.status_code == 401
+    assert send.call_count == 1
+    assert exchange.call_count == 1
 
 
-def test_refresh_creds_func_unexpired(
-    mocker: MockerFixture,
-    set_env_vars,
-    auth_client_mock,
-    unexpired_auth_credentials_mock,
-    aws_stubber,
-):
-    """Test that refresh_credentials() is a no-op when credentials are unexpired"""
-
-    # mocker.patch("boto3.client", return_value=client)
-    mocker.patch(
-        "msal.PublicClientApplication",
-        return_value=auth_client_mock,
-    )
-    # upload_role is unset in set_env_vars, so refresh_credentials() pre-warming
-    # upload_bucket_credentials falls through to fileproxy
-    fake_response = MagicMock()
-    fake_response.json.return_value = {
-        "access_key_id": "proxy_key",
-        "secret_access_key": "proxy_secret",
-        "session_token": "proxy_session",
-        "expiration": (
-            datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
-        ).isoformat(),
-    }
-    fake_response.raise_for_status = MagicMock()
-    mocker.patch("prescient_sdk.client.requests.get", return_value=fake_response)
-
+def test_auth_sets_bearer_on_plain_requests(set_env_vars, exchange, clock, send):
     client = PrescientClient()
-
-    client._auth_credentials = unexpired_auth_credentials_mock
-
-    # check that when the auth_creds are used they get refreshed from the mock fixture
-    assert client.auth_credentials["id_token"] == "cached_token"
-
-    assert not client.credentials_expired
-
-    with aws_stubber:
-        client.refresh_credentials()
-
-    assert client.auth_credentials["id_token"] == "cached_token"
-    assert not client.credentials_expired
+    requests.get("https://example.com/raster", auth=client.auth)
+    assert send.call_args.args[0].headers["Authorization"] == "Bearer token-1"
 
 
-def test_refresh_creds_func_expired(
-    mocker: MockerFixture,
-    set_env_vars,
-    auth_client_mock,
-    expired_auth_credentials_mock,
-    aws_stubber,
-):
-    """Test that auth credentials are refreshed when expired"""
-
-    # mocker.patch("boto3.client", return_value=client)
-    mocker.patch(
-        "msal.PublicClientApplication",
-        return_value=auth_client_mock,
-    )
-    # upload_role is unset in set_env_vars, so refresh_credentials() pre-warming
-    # upload_bucket_credentials falls through to fileproxy
-    fake_response = MagicMock()
-    fake_response.json.return_value = {
-        "access_key_id": "proxy_key",
-        "secret_access_key": "proxy_secret",
-        "session_token": "proxy_session",
-        "expiration": (
-            datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
-        ).isoformat(),
-    }
-    fake_response.raise_for_status = MagicMock()
-    mocker.patch("prescient_sdk.client.requests.get", return_value=fake_response)
-
+def test_request_modifier_with_pystac_client(set_env_vars, exchange, clock, send):
     client = PrescientClient()
-
-    client._auth_credentials = expired_auth_credentials_mock
-
-    assert client.credentials_expired
-
-    with aws_stubber:
-        client.refresh_credentials()
-
-    assert not client.credentials_expired
-
-    assert client.auth_credentials["id_token"] == "refreshed_token"
-
-
-def test_force_creds_refreshed(
-    mocker: MockerFixture,
-    set_env_vars,
-    auth_client_mock,
-    unexpired_auth_credentials_mock,
-    aws_stubber,
-):
-    """Test that refresh_credentials(force=True) refreshes even when credentials are unexpired"""
-
-    # mocker.patch("boto3.client", return_value=client)
-    mocker.patch(
-        "msal.PublicClientApplication",
-        return_value=auth_client_mock,
-    )
-    # upload_role is unset in set_env_vars, so refresh_credentials() pre-warming
-    # upload_bucket_credentials falls through to fileproxy
-    fake_response = MagicMock()
-    fake_response.json.return_value = {
-        "access_key_id": "proxy_key",
-        "secret_access_key": "proxy_secret",
-        "session_token": "proxy_session",
-        "expiration": (
-            datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
-        ).isoformat(),
-    }
-    fake_response.raise_for_status = MagicMock()
-    mocker.patch("prescient_sdk.client.requests.get", return_value=fake_response)
-
-    client = PrescientClient()
-
-    client._auth_credentials = unexpired_auth_credentials_mock
-
-    # check that when the auth_creds are used they get refreshed from the mock fixture
-    assert client.auth_credentials["id_token"] == "cached_token"
-
-    assert not client.credentials_expired
-
-    with aws_stubber:
-        client.refresh_credentials(force=True)
-
-    assert not client.credentials_expired
-
-    assert client.auth_credentials["id_token"] == "refreshed_token"
-
-
-def test_aws_creds_refresh(
-    mocker: MockerFixture,
-    auth_client_mock,
-    set_env_vars,
-    expired_auth_credentials_mock,
-    aws_stubber,
-):
-    """Test that aws credentials are refreshed when expired"""
-    # mock the assume_role_with_web_identity response with a not expired token
-
-    # mocker.patch("boto3.client", return_value=client)
-    mocker.patch(
-        "msal.PublicClientApplication",
-        return_value=auth_client_mock,
-    )
-
-    with aws_stubber:
-        # initialize the client with expired creds
-        client = PrescientClient()
-        client._auth_credentials = expired_auth_credentials_mock
-
-        # check that when the aws_creds are used they get refreshed from the dummy response
-        assert client.bucket_credentials["AccessKeyId"] == "12345678910111213141516"
-        assert client.bucket_credentials["Expiration"] > datetime.datetime.now(
-            datetime.timezone.utc
-        )
-
-
-# ---------------------------------------------------------------------------
-# Google auth fixtures
-# ---------------------------------------------------------------------------
-
-
-@pytest.fixture
-def set_env_vars_google(monkeypatch: pytest.MonkeyPatch, clear_prescient_env):
-    """Fixture to set config env vars for Google auth provider."""
-    monkeypatch.setenv(
-        "PRESCIENT_ENDPOINT_URL", "https://example.server.prescient.earth"
-    )
-    monkeypatch.setenv("PRESCIENT_AWS_REGION", "some-aws-region")
-    monkeypatch.setenv("PRESCIENT_AWS_ROLE", "arn:aws:iam::something")
-    monkeypatch.setenv("PRESCIENT_AUTH_PROVIDER", "google")
-    monkeypatch.setenv("PRESCIENT_CLIENT_ID", "some-google-client-id")
-    monkeypatch.setenv("PRESCIENT_AUTH_URL", "https://accounts.google.com")
-    monkeypatch.setenv("PRESCIENT_AUTH_TOKEN_PATH", "/o/oauth2/token")
-    monkeypatch.setenv("PRESCIENT_GOOGLE_CLIENT_SECRET", "some-google-client-secret")
-    monkeypatch.setenv("PRESCIENT_GOOGLE_REDIRECT_PORT", "9876")
-
-
-def _make_google_credentials_mock(id_token: str, refresh_token: str = "google_refresh"):
-    """Build a mock object shaped like google.oauth2.credentials.Credentials."""
-    mock = MagicMock()
-    mock.id_token = id_token
-    mock.refresh_token = refresh_token
-    mock.token = "google_access_token"
-    return mock
-
-
-@pytest.fixture
-def google_flow_mock(mocker: MockerFixture):
-    """Mock InstalledAppFlow so run_local_server returns a fake Credentials object."""
-    creds = _make_google_credentials_mock("interactive_google_token")
-    mock_flow = MagicMock()
-    mock_flow.run_local_server.return_value = creds
-    mocker.patch(
-        "google_auth_oauthlib.flow.InstalledAppFlow.from_client_config",
-        return_value=mock_flow,
-    )
-    return mock_flow
-
-
-@pytest.fixture
-def google_refresh_mock(mocker: MockerFixture):
-    """Mock google.oauth2.credentials.Credentials so .refresh() populates id_token."""
-    creds = _make_google_credentials_mock("refreshed_google_token")
-    mocker.patch(
-        "google.oauth2.credentials.Credentials",
-        return_value=creds,
-    )
-    mocker.patch("google.auth.transport.requests.Request", return_value=MagicMock())
-    return creds
-
-
-@pytest.fixture
-def expired_google_credentials_mock():
-    return {
-        "id_token": "expired_google_token",
-        "expiration": datetime.datetime.now(datetime.timezone.utc)
-        - datetime.timedelta(hours=1),
-        "refresh_token": "google_refresh",
-        "access_token": "google_access",
-    }
-
-
-@pytest.fixture
-def unexpired_google_credentials_mock():
-    return {
-        "id_token": "cached_google_token",
-        "expiration": datetime.datetime.now(datetime.timezone.utc)
-        + datetime.timedelta(hours=1),
-        "refresh_token": "google_refresh",
-        "access_token": "google_access",
-    }
-
-
-# ---------------------------------------------------------------------------
-# Google auth tests
-# ---------------------------------------------------------------------------
-
-
-def test_google_config_initialization(set_env_vars_google):
-    """Test that a Google-provider client initializes correctly from env vars."""
-    client = PrescientClient()
-    assert client.settings.prescient_auth_provider == "google"
-    assert client.settings.prescient_google_client_secret == "some-google-client-secret"
-
-
-def test_config_validator_microsoft_missing_tenant(clear_prescient_env):
-    """Settings should raise when provider is microsoft but tenant_id is absent."""
-    with pytest.raises(ValueError, match="prescient_tenant_id"):
-        Settings(
-            prescient_endpoint_url="https://example.com",
-            prescient_aws_region="us-west-2",
-            prescient_aws_role="arn:aws:iam::something",
-            prescient_auth_provider="microsoft",
-            prescient_client_id="some-client",
-            prescient_auth_url="https://login.microsoft.com",
-            prescient_auth_token_path="/oauth2/v2.0/token",
-            # prescient_tenant_id intentionally omitted
-        )
-
-
-def test_config_validator_google_missing_secret(clear_prescient_env):
-    """Settings should raise when provider is google but client_secret is absent."""
-    with pytest.raises(ValueError, match="prescient_google_client_secret"):
-        Settings(
-            prescient_endpoint_url="https://example.com",
-            prescient_aws_region="us-west-2",
-            prescient_aws_role="arn:aws:iam::something",
-            prescient_auth_provider="google",
-            prescient_client_id="some-client",
-            prescient_auth_url="https://accounts.google.com",
-            prescient_auth_token_path="/o/oauth2/token",
-            # prescient_google_client_secret intentionally omitted
-        )
-
-
-def test_google_creds_interactive(set_env_vars_google, google_flow_mock):
-    """First-login path: InstalledAppFlow.run_local_server is called and id_token stored."""
-    client = PrescientClient()
-    # No prior credentials — should trigger interactive flow
-    creds = client.auth_credentials
-    assert creds["id_token"] == "interactive_google_token"
-    google_flow_mock.run_local_server.assert_called_once_with(port=9876)
-
-
-def test_google_creds_refreshed(
-    set_env_vars_google,
-    google_refresh_mock,
-    expired_google_credentials_mock,
-):
-    """Expired Google creds should trigger a silent refresh via Credentials.refresh()."""
-    client = PrescientClient()
-    client._auth_credentials = expired_google_credentials_mock
-
-    creds = client.auth_credentials
-    assert creds["id_token"] == "refreshed_google_token"
-    google_refresh_mock.refresh.assert_called_once()
-
-
-def test_google_cached_credentials(
-    set_env_vars_google, unexpired_google_credentials_mock
-):
-    """Unexpired Google creds should be returned from cache without any provider call."""
-    client = PrescientClient()
-    client._auth_credentials = unexpired_google_credentials_mock
-
-    creds = client.auth_credentials
-    assert creds["id_token"] == "cached_google_token"
-
-
-def test_google_headers(set_env_vars_google, unexpired_google_credentials_mock):
-    """Headers should use the Google id_token as the Bearer token."""
-    client = PrescientClient()
-    client._auth_credentials = unexpired_google_credentials_mock
-
-    assert client.headers["Authorization"] == "Bearer cached_google_token"
-
-
-def test_google_aws_creds_refresh(
-    mocker: MockerFixture,
-    set_env_vars_google,
-    google_refresh_mock,
-    expired_google_credentials_mock,
-    aws_stubber,
-):
-    """End-to-end: expired Google auth → refresh → new STS credentials."""
-    with aws_stubber:
-        client = PrescientClient()
-        client._auth_credentials = expired_google_credentials_mock
-
-        bucket_creds = client.bucket_credentials
-        assert bucket_creds["AccessKeyId"] == "12345678910111213141516"
-        assert bucket_creds["Expiration"] > datetime.datetime.now(datetime.timezone.utc)
-
-
-# ---------------------------------------------------------------------------
-# Fileproxy credentials (no aws_role) tests
-# ---------------------------------------------------------------------------
-
-
-@pytest.fixture
-def set_env_vars_no_role(monkeypatch: pytest.MonkeyPatch, clear_prescient_env):
-    """Same as set_env_vars but without PRESCIENT_AWS_ROLE or PRESCIENT_AWS_REGION."""
-    monkeypatch.setenv(
-        "PRESCIENT_ENDPOINT_URL", "https://example.server.prescient.earth/"
-    )
-    monkeypatch.setenv("PRESCIENT_TENANT_ID", "some-tenant-id")
-    monkeypatch.setenv("PRESCIENT_CLIENT_ID", "some-client-id")
-    monkeypatch.setenv("PRESCIENT_AUTH_URL", "https://login.somewhere.com/")
-    monkeypatch.setenv("PRESCIENT_AUTH_TOKEN_PATH", "/oauth2/v2.0/token")
-
-
-def test_aws_role_and_region_optional(set_env_vars_no_role):
-    """Client should initialize without PRESCIENT_AWS_ROLE or PRESCIENT_AWS_REGION set."""
-    client = PrescientClient()
-    assert client.settings.prescient_aws_role is None
-    assert client.settings.prescient_aws_region is None
-
-
-def test_upload_role_and_bucket_optional(set_env_vars):
-    """Client should initialize without PRESCIENT_UPLOAD_ROLE or PRESCIENT_UPLOAD_BUCKET set."""
-    client = PrescientClient()
-    assert client.settings.prescient_upload_role is None
-    assert client.settings.prescient_upload_bucket is None
-
-
-def test_upload_bucket_credentials_fileproxy_idp_mode(
-    mocker: MockerFixture, set_env_vars_no_role, unexpired_auth_credentials_mock
-):
-    """When upload_role is unset, upload_bucket_credentials hits /fileproxy/credentials
-    in IDP/OAuth mode too (no api key), same as bucket_credentials."""
-    expiration_iso = (
-        datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
-    ).isoformat()
-    fake_response = MagicMock()
-    fake_response.json.return_value = {
-        "access_key_id": "proxy_key",
-        "secret_access_key": "proxy_secret",
-        "session_token": "proxy_session",
-        "expiration": expiration_iso,
-    }
-    fake_response.raise_for_status = MagicMock()
-    get_mock = mocker.patch(
-        "prescient_sdk.client.requests.get", return_value=fake_response
-    )
-    boto_mock = mocker.patch("boto3.client")
-
-    client = PrescientClient()
-    client._auth_credentials = unexpired_auth_credentials_mock
-
-    creds = client.upload_bucket_credentials
-    assert creds["AccessKeyId"] == "proxy_key"
-    assert creds["SecretAccessKey"] == "proxy_secret"
-    assert creds["SessionToken"] == "proxy_session"
-
-    # STS should never be called when fetching from fileproxy
-    boto_mock.assert_not_called()
-
-    # GET called against the fileproxy endpoint with the bearer token
-    get_mock.assert_called_once()
-    called_url, called_kwargs = get_mock.call_args[0][0], get_mock.call_args.kwargs
-    assert called_url == "https://example.server.prescient.earth/fileproxy/credentials"
-    assert called_kwargs["headers"]["Authorization"] == "Bearer cached_token"
-
-
-def test_upload_bucket_credentials_api_key_ignores_upload_role(
-    mocker: MockerFixture, monkeypatch: pytest.MonkeyPatch, clear_prescient_env
-):
-    """With both api_key and upload_role set, upload creds come from fileproxy (STS skipped)."""
-    monkeypatch.setenv(
-        "PRESCIENT_ENDPOINT_URL", "https://example.server.prescient.earth/"
-    )
-    monkeypatch.setenv("PRESCIENT_API_KEY", "test-api-key-value")
-    monkeypatch.setenv("PRESCIENT_UPLOAD_ROLE", "arn:aws:iam::test-upload")
-
-    expiration_iso = (
-        datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
-    ).isoformat()
-    fake_response = MagicMock()
-    fake_response.json.return_value = {
-        "access_key_id": "proxy_key",
-        "secret_access_key": "proxy_secret",
-        "session_token": "proxy_session",
-        "expiration": expiration_iso,
-    }
-    fake_response.raise_for_status = MagicMock()
-    mocker.patch("prescient_sdk.client.requests.get", return_value=fake_response)
-    boto_mock = mocker.patch("boto3.client")
-
-    client = PrescientClient()
-    creds = client.upload_bucket_credentials
-
-    assert creds["AccessKeyId"] == "proxy_key"
-    boto_mock.assert_not_called()
-
-
-def test_fileproxy_credentials_fetch(
-    mocker: MockerFixture, set_env_vars_no_role, unexpired_auth_credentials_mock
-):
-    """When aws_role is unset, bucket_credentials hits /fileproxy/credentials."""
-    expiration_iso = (
-        datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
-    ).isoformat()
-    fake_response = MagicMock()
-    fake_response.json.return_value = {
-        "access_key_id": "proxy_key",
-        "secret_access_key": "proxy_secret",
-        "session_token": "proxy_session",
-        "expiration": expiration_iso,
-    }
-    fake_response.raise_for_status = MagicMock()
-    get_mock = mocker.patch(
-        "prescient_sdk.client.requests.get", return_value=fake_response
-    )
-    boto_mock = mocker.patch("boto3.client")
-
-    client = PrescientClient()
-    client._auth_credentials = unexpired_auth_credentials_mock
-
-    creds = client.bucket_credentials
-    assert creds["AccessKeyId"] == "proxy_key"
-    assert creds["SecretAccessKey"] == "proxy_secret"
-    assert creds["SessionToken"] == "proxy_session"
-    assert creds["Expiration"] > datetime.datetime.now(datetime.timezone.utc)
-    assert creds["Expiration"].tzinfo is datetime.timezone.utc
-
-    # STS should never be called when fetching from fileproxy
-    boto_mock.assert_not_called()
-
-    # GET called against the fileproxy endpoint with the bearer token
-    get_mock.assert_called_once()
-    called_url, called_kwargs = get_mock.call_args[0][0], get_mock.call_args.kwargs
-    assert called_url == "https://example.server.prescient.earth/fileproxy/credentials"
-    assert called_kwargs["headers"]["Authorization"] == "Bearer cached_token"
-
-
-def test_fileproxy_credentials_cached(
-    mocker: MockerFixture, set_env_vars_no_role, unexpired_auth_credentials_mock
-):
-    """Cached bucket creds short-circuit the HTTP call."""
-    get_mock = mocker.patch("prescient_sdk.client.requests.get")
-
-    client = PrescientClient()
-    client._auth_credentials = unexpired_auth_credentials_mock
-    client._bucket_credentials = {
-        "AccessKeyId": "cached_proxy_key",
-        "Expiration": datetime.datetime.now(datetime.timezone.utc)
-        + datetime.timedelta(hours=1),
-    }
-
-    assert client.bucket_credentials["AccessKeyId"] == "cached_proxy_key"
-    get_mock.assert_not_called()
-
-
-# ---------------------------------------------------------------------------
-# API key auth tests
-# ---------------------------------------------------------------------------
-
-
-@pytest.fixture
-def set_api_key_env_vars(monkeypatch: pytest.MonkeyPatch, clear_prescient_env):
-    """Minimal env for API-key mode: endpoint + api_key only, no IDP fields."""
-    monkeypatch.setenv(
-        "PRESCIENT_ENDPOINT_URL", "https://example.server.prescient.earth/"
-    )
-    monkeypatch.setenv("PRESCIENT_API_KEY", "test-api-key-value")
-
-
-def test_settings_api_key_only(set_api_key_env_vars):
-    """Settings constructs successfully with only endpoint + api_key set."""
-    client = PrescientClient()
-    assert client.settings.prescient_api_key == "test-api-key-value"
-    assert client.settings.prescient_client_id is None
-    assert client.settings.prescient_auth_url is None
-
-
-def test_settings_api_key_warns_on_aws_role(clear_prescient_env, caplog):
-    """Settings should warn (not raise) when both api_key and aws_role are set."""
-    import logging
-
-    with caplog.at_level(logging.WARNING, logger="prescient_sdk"):
-        settings = Settings(
-            prescient_endpoint_url="https://example.com",
-            prescient_api_key="key",
-            prescient_aws_role="arn:aws:iam::something",
-        )
-    assert settings.prescient_api_key == "key"
-    assert settings.prescient_aws_role == "arn:aws:iam::something"
-    assert any(
-        "prescient_aws_role will be ignored" in rec.message for rec in caplog.records
-    )
-
-
-def test_bucket_credentials_api_key_ignores_aws_role(
-    mocker: MockerFixture, monkeypatch: pytest.MonkeyPatch, clear_prescient_env
-):
-    """With both api_key and aws_role set, bucket creds come from fileproxy (STS skipped)."""
-    monkeypatch.setenv(
-        "PRESCIENT_ENDPOINT_URL", "https://example.server.prescient.earth/"
-    )
-    monkeypatch.setenv("PRESCIENT_API_KEY", "test-api-key-value")
-    monkeypatch.setenv("PRESCIENT_AWS_ROLE", "arn:aws:iam::something")
-
-    expiration_iso = (
-        datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
-    ).isoformat()
-    fake_response = MagicMock()
-    fake_response.json.return_value = {
-        "access_key_id": "proxy_key",
-        "secret_access_key": "proxy_secret",
-        "session_token": "proxy_session",
-        "expiration": expiration_iso,
-    }
-    fake_response.raise_for_status = MagicMock()
-    mocker.patch("prescient_sdk.client.requests.get", return_value=fake_response)
-    boto_mock = mocker.patch("boto3.client")
-
-    client = PrescientClient()
-    creds = client.bucket_credentials
-
-    assert creds["AccessKeyId"] == "proxy_key"
-    boto_mock.assert_not_called()
-
-
-def test_settings_without_api_key_still_requires_idp(clear_prescient_env):
-    """Without api_key, client_id and auth_url remain required."""
-    with pytest.raises(ValueError, match="prescient_client_id"):
-        Settings(
-            prescient_endpoint_url="https://example.com",
-        )
-
-
-def test_auth_credentials_api_key_mode(mocker: MockerFixture, set_api_key_env_vars):
-    """In API-key mode, auth_credentials returns a static dict and never calls IDP."""
-    msal_mock = mocker.patch("msal.PublicClientApplication")
-    google_mock = mocker.patch(
-        "google_auth_oauthlib.flow.InstalledAppFlow.from_client_config"
-    )
-
-    client = PrescientClient()
-    creds = client.auth_credentials
-
-    assert creds == {"api_key": "test-api-key-value"}
-    assert not client.credentials_expired
-    msal_mock.assert_not_called()
-    google_mock.assert_not_called()
-
-
-def test_headers_api_key_mode(set_api_key_env_vars):
-    """Headers carry api-key, not Authorization, in API-key mode."""
-    client = PrescientClient()
-    headers = client.headers
-
-    assert headers["api-key"] == "test-api-key-value"
-    assert "Authorization" not in headers
-    assert headers["Content-Type"] == "application/json"
-    assert headers["Accept"] == "application/json"
-
-
-def test_bucket_credentials_api_key_uses_fileproxy(
-    mocker: MockerFixture, set_api_key_env_vars
-):
-    """Bucket creds when ``prescient_api_key`` is set hit /fileproxy/credentials
-    with api-key header."""
-    expiration_iso = (
-        datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
-    ).isoformat()
-    fake_response = MagicMock()
-    fake_response.json.return_value = {
-        "access_key_id": "proxy_key",
-        "secret_access_key": "proxy_secret",
-        "session_token": "proxy_session",
-        "expiration": expiration_iso,
-    }
-    fake_response.raise_for_status = MagicMock()
-    get_mock = mocker.patch(
-        "prescient_sdk.client.requests.get", return_value=fake_response
-    )
-    boto_mock = mocker.patch("boto3.client")
-
-    client = PrescientClient()
-    creds = client.bucket_credentials
-
-    assert creds["AccessKeyId"] == "proxy_key"
-    assert creds["SecretAccessKey"] == "proxy_secret"
-    assert creds["SessionToken"] == "proxy_session"
-    boto_mock.assert_not_called()
-
-    called_url, called_kwargs = get_mock.call_args[0][0], get_mock.call_args.kwargs
-    assert called_url == "https://example.server.prescient.earth/fileproxy/credentials"
-    assert called_kwargs["headers"]["api-key"] == "test-api-key-value"
-    assert "Authorization" not in called_kwargs["headers"]
-
-
-def test_refresh_credentials_force_api_key_noop(set_api_key_env_vars):
-    """refresh_credentials(force=True) is a no-op when ``prescient_api_key`` is configured
-    and does not raise."""
-    client = PrescientClient()
-    client.refresh_credentials(force=True)
-    assert client.auth_credentials == {"api_key": "test-api-key-value"}
-
-
-def test_upload_bucket_credentials_api_key_uses_fileproxy(
-    mocker: MockerFixture, set_api_key_env_vars
-):
-    """Upload bucket creds when ``prescient_api_key`` is set hit /fileproxy/credentials
-    with api-key header."""
-    expiration_iso = (
-        datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
-    ).isoformat()
-    fake_response = MagicMock()
-    fake_response.json.return_value = {
-        "access_key_id": "proxy_key",
-        "secret_access_key": "proxy_secret",
-        "session_token": "proxy_session",
-        "expiration": expiration_iso,
-    }
-    fake_response.raise_for_status = MagicMock()
-    get_mock = mocker.patch(
-        "prescient_sdk.client.requests.get", return_value=fake_response
-    )
-    boto_mock = mocker.patch("boto3.client")
-
-    client = PrescientClient()
-    creds = client.upload_bucket_credentials
-
-    assert creds["AccessKeyId"] == "proxy_key"
-    assert creds["SecretAccessKey"] == "proxy_secret"
-    assert creds["SessionToken"] == "proxy_session"
-    boto_mock.assert_not_called()
-
-    called_url, called_kwargs = get_mock.call_args[0][0], get_mock.call_args.kwargs
-    assert called_url == "https://example.server.prescient.earth/fileproxy/credentials"
-    assert called_kwargs["headers"]["api-key"] == "test-api-key-value"
-    assert "Authorization" not in called_kwargs["headers"]
+    stac_io = StacApiIO(request_modifier=client.request_modifier)
+    stac_io.request(client.stac_url)
+    sent = send.call_args.args[0]
+    assert sent.url == "https://spk-sandbox.staging.prescient.earth/stac"
+    assert sent.headers["Authorization"] == "Bearer token-1"

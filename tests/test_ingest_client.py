@@ -1,5 +1,4 @@
 import io
-import logging
 import os
 from unittest.mock import MagicMock
 
@@ -91,18 +90,15 @@ def set_env_vars(monkeypatch: pytest.MonkeyPatch, clear_prescient_env):
     monkeypatch.setenv(
         "PRESCIENT_ENDPOINT_URL", "https://example.server.prescient.earth"
     )
-    monkeypatch.setenv("PRESCIENT_TENANT_ID", "some-tenant-id")
-    monkeypatch.setenv("PRESCIENT_CLIENT_ID", "some-client-id")
-    monkeypatch.setenv("PRESCIENT_AUTH_URL", "https://login.somewhere.com/")
+    monkeypatch.setenv("PRESCIENT_API_KEY", "pk_test")
 
 
 @pytest.fixture
 def mock_creds(mocker: MockerFixture, set_env_vars):
-    """Short-circuit auth so headers always return a Bearer token."""
+    """Short-circuit the API key exchange so no test reaches Keycloak."""
     mocker.patch(
-        "prescient_sdk.client.PrescientClient.auth_credentials",
-        new_callable=mocker.PropertyMock,
-        return_value={"id_token": "mock_token"},
+        "prescient_sdk.client.PrescientClient._access_token",
+        return_value="mock_token",
     )
 
 
@@ -149,41 +145,20 @@ def test_ingest_client_rejects_conflicting_args(mock_creds):
         IngestClient(prescient_client=pc, settings=pc.settings)
 
 
-def test_base_url_falls_back_to_endpoint_url(mock_creds):
-    """When prescient_ingest_endpoint_url is unset, base_url uses prescient_endpoint_url."""
+def test_base_url_is_endpoint_ingest(mock_creds):
+    """base_url is <prescient_endpoint_url>/ingest/."""
     client = IngestClient()
-    assert client._client.settings.prescient_ingest_endpoint_url is None
     assert client.base_url == "https://example.server.prescient.earth/ingest/"
 
 
-def test_base_url_override_wins(monkeypatch: pytest.MonkeyPatch, mock_creds):
-    """When prescient_ingest_endpoint_url is set, it wins over the main endpoint."""
-    monkeypatch.setenv("PRESCIENT_INGEST_ENDPOINT_URL", "https://ingest.example.com/")
-    client = IngestClient()
-    assert client.base_url == "https://ingest.example.com/"
-
-
-def test_base_url_override_is_strict(monkeypatch: pytest.MonkeyPatch, mock_creds):
-    """An explicit override is used as-is; no ``/ingest`` segment is appended."""
-    monkeypatch.setenv(
-        "PRESCIENT_INGEST_ENDPOINT_URL", "https://different.example.com/api"
-    )
-    client = IngestClient()
-    # Trailing slash normalized, but /ingest is NOT added.
-    assert client.base_url == "https://different.example.com/api/"
-    assert "/ingest" not in client.base_url
-
-
-def test_base_url_adds_trailing_slash(mock_creds):
-    """base_url always ends with a slash so urljoin produces sensible URLs."""
+def test_base_url_keeps_endpoint_path(mock_creds):
+    """base_url keeps any path on the endpoint and ends with a slash."""
     settings = Settings(  # type: ignore[call-arg]
-        prescient_endpoint_url="https://no-trailing-slash.example.com",
-        prescient_tenant_id="t",
-        prescient_client_id="c",
-        prescient_auth_url="https://a/",
+        prescient_endpoint_url="https://example.com/some/path/",
+        prescient_api_key="pk_test",
     )
     client = IngestClient(prescient_client=PrescientClient(settings=settings))
-    assert client.base_url.endswith("/")
+    assert client.base_url == "https://example.com/some/path/ingest/"
 
 
 def test_url_joins_v1_paths(mock_creds):
@@ -473,41 +448,14 @@ def test_check_returns_true_on_204(mocker: MockerFixture, ingest_client: IngestC
 
 
 def test_check_returns_false_on_other_status(
-    mocker: MockerFixture,
-    ingest_client: IngestClient,
-    caplog: pytest.LogCaptureFixture,
+    mocker: MockerFixture, ingest_client: IngestClient
 ):
-    """Non-204 response returns False; when the override is unset, also warns via logger."""
+    """A non-204 response returns False."""
     mocker.patch(
         "prescient_sdk.ingest_client.requests.get",
         return_value=_make_response(status_code=500),
     )
-    with caplog.at_level(logging.WARNING, logger="prescient_sdk"):
-        assert ingest_client.check() is False
-    # PRESCIENT_INGEST_ENDPOINT_URL is not set in the test env, so the warning fires.
-    assert any(
-        "PRESCIENT_INGEST_ENDPOINT_URL" in record.message for record in caplog.records
-    )
-
-
-def test_check_does_not_warn_when_override_is_set(
-    mocker: MockerFixture,
-    monkeypatch: pytest.MonkeyPatch,
-    mock_creds,
-    caplog: pytest.LogCaptureFixture,
-):
-    """When the override URL is set, a failing /healthy does not emit a warning."""
-    monkeypatch.setenv("PRESCIENT_INGEST_ENDPOINT_URL", "https://ingest.example.com/")
-    client = IngestClient()
-    mocker.patch(
-        "prescient_sdk.ingest_client.requests.get",
-        return_value=_make_response(status_code=500),
-    )
-    with caplog.at_level(logging.WARNING, logger="prescient_sdk"):
-        assert client.check() is False
-    assert not any(
-        "PRESCIENT_INGEST_ENDPOINT_URL" in record.message for record in caplog.records
-    )
+    assert ingest_client.check() is False
 
 
 # ---------------------------------------------------------------------------
