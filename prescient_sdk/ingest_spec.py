@@ -28,9 +28,7 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 
-from prescient_sdk.client import PrescientClient
-from prescient_sdk.ingest_client import IngestClient
-from prescient_sdk.upload import upload_source_files
+from prescient_sdk.upload import Uploader, upload_source_files
 
 logger = logging.getLogger("prescient_sdk")
 
@@ -150,78 +148,64 @@ class IngestSpec:
 
     def with_uploaded_sources(
         self,
-        client: PrescientClient | IngestClient,
         source_file_sets: list[str],
         *,
+        uploader: Uploader,
+        dest_prefix: str,
         console: Any = None,
     ) -> "IngestSpec":
-        """Stage local sources and return a new, s3-only :class:`IngestSpec`.
+        """Upload local sources and return a new :class:`IngestSpec` that points at them.
 
-        For each named source file set, this uploads the local files its
-        ``pattern`` selects (via
-        :func:`prescient_sdk.upload.upload_source_files`) to the upload bucket
-        and rewrites that set's location ``path`` to the S3 prefix the files
-        were uploaded under.
+        For each named source file set, this sends the local files its
+        ``pattern`` selects to ``uploader`` (via
+        :func:`prescient_sdk.upload.upload_source_files`) and rewrites that
+        set's location ``path`` to the destination prefix the files were
+        uploaded under.
 
-        A single ``uuid4`` destination prefix is computed per *distinct*
-        location (``s3://{upload_bucket}/{upload_prefix}/{uuid4}/``), so several
-        sets that reference the same location share one destination and that
-        location's ``path`` is rewritten exactly once. A file matched by two
-        staged sets sharing a location is uploaded once per set (an idempotent
-        overwrite).
+        A single ``uuid4`` destination is computed per *distinct* location
+        (``{dest_prefix}/{uuid4}/``), so several sets that reference the same
+        location share one destination and that location's ``path`` is
+        rewritten exactly once. A file matched by two staged sets sharing a
+        location is uploaded once per set.
 
         The original :class:`IngestSpec` is left untouched — staging returns a
-        new instance whose staged locations are now ``s3://`` URIs.
+        new instance.
 
-        The upload uses ``client.upload_session``, whose credentials come from
-        STS ``assume_role_with_web_identity`` (when ``prescient_upload_role`` is
-        set and an api key is not) or, otherwise, the API's
-        ``/fileproxy/credentials`` endpoint.
+        The SDK does not ship an uploader. The caller supplies one, and the
+        destination prefix it writes under.
 
         Example::
 
             spec = IngestSpec.from_file("spec.yaml")
             ready = spec.with_uploaded_sources(
-                client, source_file_sets=["image_files", "thumbnail_files"]
+                ["image_files", "thumbnail_files"],
+                uploader=my_uploader,
+                dest_prefix="s3://bucket/uploads",
             )
             ing = IngestResource.create(client, ready)
 
         Args:
-            client (PrescientClient | IngestClient): Provides the STS upload
-                session and upload-bucket configuration. An ``IngestClient`` is
-                normalized to its underlying ``PrescientClient``.
             source_file_sets (list[str]): Names of the ``source_files`` entries
                 to stage.
+            uploader (Uploader): Called as ``uploader(local_file, destination)``
+                for each selected file. See :data:`prescient_sdk.upload.Uploader`.
+            dest_prefix (str): Prefix that staged locations are rewritten to,
+                with one ``uuid4`` segment per location appended.
             console: Optional Rich ``Console`` to render upload progress to;
                 defaults to Rich's standard console.
 
         Returns:
-            IngestSpec: A new spec whose staged locations point at ``s3://``.
+            IngestSpec: A new spec whose staged locations point at
+            ``{dest_prefix}/{uuid4}/``.
 
         Raises:
-            TypeError: If ``client`` is neither a ``PrescientClient`` nor an
-                ``IngestClient``.
-            ValueError: If ``prescient_upload_bucket`` is not configured, a named
-                set or its location is missing, or a referenced location is
-                already an ``s3://`` path.
+            ValueError: If ``dest_prefix`` is empty, a named set or its location
+                is missing, or a referenced location is already an ``s3://``
+                path.
         """
-        if isinstance(client, PrescientClient):
-            prescient_client = client
-        elif isinstance(client, IngestClient):
-            prescient_client = client.client
-        else:
-            raise TypeError(
-                "client must be a PrescientClient or IngestClient, got "
-                f"{type(client).__name__}"
-            )
-
-        bucket = prescient_client.settings.prescient_upload_bucket
-        if not bucket:
-            raise ValueError(
-                "prescient_upload_bucket is not configured; set "
-                "PRESCIENT_UPLOAD_BUCKET to stage source files."
-            )
-        prefix = prescient_client.settings.prescient_upload_prefix
+        if not dest_prefix:
+            raise ValueError("dest_prefix must not be empty")
+        dest_root = dest_prefix.rstrip("/")
 
         spec = copy.deepcopy(self._spec)
         locations = spec.get("locations", {})
@@ -254,12 +238,11 @@ class IngestSpec:
             )
 
             if location_name not in location_dest:
-                location_dest[location_name] = f"s3://{bucket}/{prefix}/{uuid4()}/"
+                location_dest[location_name] = f"{dest_root}/{uuid4()}/"
 
             pattern = (file_sets[set_name] or {}).get("pattern", ".*")
             resolved.append((set_name, location_name, local_path, pattern))
 
-        session = prescient_client.upload_session
         with Progress(
             TextColumn("[progress.description]{task.description}"),
             BarColumn(),
@@ -275,7 +258,7 @@ class IngestSpec:
                     progress.update(task_id, total=total, completed=index)
 
                 upload_source_files(
-                    local_path, dest_prefix, pattern, session, on_file=on_file
+                    local_path, dest_prefix, pattern, uploader, on_file=on_file
                 )
 
         for location_name, dest_prefix in location_dest.items():

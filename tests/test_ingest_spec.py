@@ -8,8 +8,6 @@ import pytest
 import yaml
 from rich.console import Console
 
-from prescient_sdk.client import PrescientClient
-from prescient_sdk.ingest_client import IngestClient
 from prescient_sdk.ingest_spec import IngestSpec
 
 
@@ -45,17 +43,6 @@ LOCAL_SPEC = {
 @pytest.fixture
 def quiet_console():
     return Console(file=io.StringIO(), force_terminal=False)
-
-
-@pytest.fixture
-def prescient_client(mocker):
-    """A mock PrescientClient with upload bucket configured and an STS session."""
-    client = mocker.MagicMock(spec=PrescientClient)
-    client.settings = SimpleNamespace(
-        prescient_upload_bucket="upload-bucket", prescient_upload_prefix="uploads"
-    )
-    client.upload_session = mocker.sentinel.session
-    return client
 
 
 @pytest.fixture
@@ -150,96 +137,89 @@ def test_local_locations_no_locations_key():
     assert IngestSpec.from_dict({"user": "tester"}).local_locations() == []
 
 
-def test_with_uploaded_sources_stages_set(
-    prescient_client, upload_mock, uuid_mock, quiet_console
-):
+DEST = "dest://uploads"
+
+
+def fake_uploader(local_file, destination):
+    raise AssertionError("upload_source_files is patched; uploader must not run")
+
+
+def stage(spec, sets, console, **kwargs):
+    kwargs.setdefault("uploader", fake_uploader)
+    kwargs.setdefault("dest_prefix", DEST)
+    return spec.with_uploaded_sources(sets, console=console, **kwargs)
+
+
+def test_with_uploaded_sources_stages_set(upload_mock, uuid_mock, quiet_console):
     spec = IngestSpec.from_dict(LOCAL_SPEC)
-    staged = spec.with_uploaded_sources(
-        prescient_client, ["images"], console=quiet_console
-    )
+    staged = stage(spec, ["images"], quiet_console)
 
     upload_mock.assert_called_once()
     args, kwargs = upload_mock.call_args
-    local_dir, dest_prefix, pattern, session = args
+    local_dir, dest_prefix, pattern, uploader = args
     assert local_dir == "/data/scenes"
-    assert dest_prefix == "s3://upload-bucket/uploads/uuid-1/"
+    assert dest_prefix == "dest://uploads/uuid-1/"
     assert pattern == r".*\.tif$"
-    assert session is prescient_client.upload_session
+    assert uploader is fake_uploader
     assert callable(kwargs["on_file"])
 
     assert (
-        staged.spec["locations"]["source_location"]["path"]
-        == "s3://upload-bucket/uploads/uuid-1/"
+        staged.spec["locations"]["source_location"]["path"] == "dest://uploads/uuid-1/"
     )
-    assert staged.local_locations() == ["props_location"]
 
 
 def test_with_uploaded_sources_shared_location_one_prefix(
-    prescient_client, upload_mock, uuid_mock, quiet_console
+    upload_mock, uuid_mock, quiet_console
 ):
     spec = IngestSpec.from_dict(LOCAL_SPEC)
-    staged = spec.with_uploaded_sources(
-        prescient_client, ["images", "thumbs"], console=quiet_console
-    )
+    staged = stage(spec, ["images", "thumbs"], quiet_console)
 
     # Both sets reference source_location: one uuid, one rewrite, two uploads.
     assert uuid_mock.call_count == 1
     assert upload_mock.call_count == 2
     dests = {call.args[1] for call in upload_mock.call_args_list}
-    assert dests == {"s3://upload-bucket/uploads/uuid-1/"}
+    assert dests == {"dest://uploads/uuid-1/"}
     assert (
-        staged.spec["locations"]["source_location"]["path"]
-        == "s3://upload-bucket/uploads/uuid-1/"
+        staged.spec["locations"]["source_location"]["path"] == "dest://uploads/uuid-1/"
     )
 
 
 def test_with_uploaded_sources_distinct_locations_distinct_prefixes(
-    prescient_client, upload_mock, uuid_mock, quiet_console
+    upload_mock, uuid_mock, quiet_console
 ):
     spec = IngestSpec.from_dict(LOCAL_SPEC)
-    staged = spec.with_uploaded_sources(
-        prescient_client, ["images", "props"], console=quiet_console
-    )
+    staged = stage(spec, ["images", "props"], quiet_console)
 
     assert uuid_mock.call_count == 2
     assert (
-        staged.spec["locations"]["source_location"]["path"]
-        == "s3://upload-bucket/uploads/uuid-1/"
+        staged.spec["locations"]["source_location"]["path"] == "dest://uploads/uuid-1/"
     )
     # file:// scheme is stripped before upload.
     props_call = next(
         c for c in upload_mock.call_args_list if c.args[0] == "/data/props"
     )
-    assert props_call.args[1] == "s3://upload-bucket/uploads/uuid-2/"
+    assert props_call.args[1] == "dest://uploads/uuid-2/"
     assert (
-        staged.spec["locations"]["props_location"]["path"]
-        == "s3://upload-bucket/uploads/uuid-2/"
+        staged.spec["locations"]["props_location"]["path"] == "dest://uploads/uuid-2/"
     )
-    assert staged.local_locations() == []
 
 
-def test_with_uploaded_sources_honors_upload_prefix(
-    prescient_client, upload_mock, uuid_mock, quiet_console
+def test_with_uploaded_sources_trailing_slash_in_prefix(
+    upload_mock, uuid_mock, quiet_console
 ):
-    prescient_client.settings.prescient_upload_prefix = "user-uploads"
     spec = IngestSpec.from_dict(LOCAL_SPEC)
-    staged = spec.with_uploaded_sources(
-        prescient_client, ["images"], console=quiet_console
-    )
-    assert upload_mock.call_args.args[1] == "s3://upload-bucket/user-uploads/uuid-1/"
+    staged = stage(spec, ["images"], quiet_console, dest_prefix="s3://b/user-uploads/")
+    assert upload_mock.call_args.args[1] == "s3://b/user-uploads/uuid-1/"
     assert (
         staged.spec["locations"]["source_location"]["path"]
-        == "s3://upload-bucket/user-uploads/uuid-1/"
+        == "s3://b/user-uploads/uuid-1/"
     )
+    assert staged.local_locations() == ["props_location"]
 
 
-def test_with_uploaded_sources_is_immutable(
-    prescient_client, upload_mock, uuid_mock, quiet_console
-):
+def test_with_uploaded_sources_is_immutable(upload_mock, uuid_mock, quiet_console):
     spec = IngestSpec.from_dict(LOCAL_SPEC)
-    staged = spec.with_uploaded_sources(
-        prescient_client, ["images"], console=quiet_console
-    )
+    staged = stage(spec, ["images"], quiet_console)
 
     assert staged is not spec
     # Original is untouched: source_location still local.
@@ -247,85 +227,50 @@ def test_with_uploaded_sources_is_immutable(
     assert "source_location" in spec.local_locations()
 
 
-def test_with_uploaded_sources_accepts_ingest_client(
-    mocker, prescient_client, upload_mock, uuid_mock, quiet_console
-):
-    ingest_client = mocker.MagicMock(spec=IngestClient)
-    ingest_client.client = prescient_client
-    spec = IngestSpec.from_dict(LOCAL_SPEC)
-    spec.with_uploaded_sources(ingest_client, ["images"], console=quiet_console)
-    assert upload_mock.call_args.args[3] is prescient_client.upload_session
-
-
-def test_with_uploaded_sources_rejects_bad_client_type(upload_mock, quiet_console):
-    spec = IngestSpec.from_dict(LOCAL_SPEC)
-    with pytest.raises(TypeError):
-        spec.with_uploaded_sources(object(), ["images"], console=quiet_console)
-    upload_mock.assert_not_called()
-
-
-def test_with_uploaded_sources_missing_set_raises(
-    prescient_client, upload_mock, quiet_console
-):
+def test_with_uploaded_sources_missing_set_raises(upload_mock, quiet_console):
     spec = IngestSpec.from_dict(LOCAL_SPEC)
     with pytest.raises(ValueError, match="nope"):
-        spec.with_uploaded_sources(prescient_client, ["nope"], console=quiet_console)
+        stage(spec, ["nope"], quiet_console)
     upload_mock.assert_not_called()
 
 
-def test_with_uploaded_sources_missing_location_raises(
-    prescient_client, upload_mock, quiet_console
-):
+def test_with_uploaded_sources_missing_location_raises(upload_mock, quiet_console):
     spec = IngestSpec.from_dict(LOCAL_SPEC)
     with pytest.raises(ValueError, match="missing_location"):
-        spec.with_uploaded_sources(
-            prescient_client, ["dangling"], console=quiet_console
-        )
+        stage(spec, ["dangling"], quiet_console)
     upload_mock.assert_not_called()
 
 
-def test_with_uploaded_sources_already_s3_raises(
-    prescient_client, upload_mock, quiet_console
-):
+def test_with_uploaded_sources_already_s3_raises(upload_mock, quiet_console):
     spec = IngestSpec.from_dict(LOCAL_SPEC)
     with pytest.raises(ValueError, match="already an s3://"):
-        spec.with_uploaded_sources(
-            prescient_client, ["already_remote"], console=quiet_console
-        )
+        stage(spec, ["already_remote"], quiet_console)
     upload_mock.assert_not_called()
 
 
-def test_with_uploaded_sources_requires_upload_bucket(
-    prescient_client, upload_mock, quiet_console
-):
-    prescient_client.settings.prescient_upload_bucket = None
+def test_with_uploaded_sources_requires_dest_prefix(upload_mock, quiet_console):
     spec = IngestSpec.from_dict(LOCAL_SPEC)
-    with pytest.raises(ValueError, match="prescient_upload_bucket"):
-        spec.with_uploaded_sources(prescient_client, ["images"], console=quiet_console)
+    with pytest.raises(ValueError, match="dest_prefix"):
+        stage(spec, ["images"], quiet_console, dest_prefix="")
     upload_mock.assert_not_called()
 
 
 def test_with_uploaded_sources_validates_before_uploading(
-    prescient_client, upload_mock, uuid_mock, quiet_console
+    upload_mock, uuid_mock, quiet_console
 ):
     # A bad name after a good one must not leave a partial upload.
     spec = IngestSpec.from_dict(LOCAL_SPEC)
     with pytest.raises(ValueError):
-        spec.with_uploaded_sources(
-            prescient_client, ["images", "nope"], console=quiet_console
-        )
+        stage(spec, ["images", "nope"], quiet_console)
     upload_mock.assert_not_called()
 
 
-def test_with_uploaded_sources_end_to_end(
-    mocker, tmp_path, s3, uuid_mock, quiet_console
+def test_with_uploaded_sources_calls_uploader_per_file(
+    mocker, tmp_path, uuid_mock, quiet_console
 ):
-    """from_file -> with_uploaded_sources -> create against a real (moto) bucket."""
-    import boto3
-
+    """from_file -> with_uploaded_sources -> create, with a fake uploader."""
     from prescient_sdk.ingest_resources import IngestResource
 
-    s3.create_bucket(Bucket="upload-bucket")
     scenes = tmp_path / "scenes"
     (scenes / "nested").mkdir(parents=True)
     (scenes / "a.tif").write_bytes(b"x")
@@ -350,27 +295,33 @@ def test_with_uploaded_sources_end_to_end(
         )
     )
 
-    client = mocker.MagicMock(spec=PrescientClient)
-    client.settings = SimpleNamespace(
-        prescient_upload_bucket="upload-bucket", prescient_upload_prefix="uploads"
-    )
-    client.upload_session = boto3.Session(region_name="us-east-1")
+    uploaded: list[tuple] = []
+
+    def uploader(local_file, destination):
+        uploaded.append((local_file, destination))
 
     spec = IngestSpec.from_file(spec_file)
-    ready = spec.with_uploaded_sources(client, ["images"], console=quiet_console)
-
-    # Pattern-matched files uploaded under the uuid prefix, relative paths kept.
-    keys = sorted(
-        o["Key"] for o in s3.list_objects_v2(Bucket="upload-bucket")["Contents"]
+    ready = spec.with_uploaded_sources(
+        ["images"],
+        uploader=uploader,
+        dest_prefix="s3://upload-bucket/uploads",
+        console=quiet_console,
     )
-    assert keys == ["uploads/uuid-1/a.tif", "uploads/uuid-1/nested/b.tif"]
+
+    # One call per pattern-matched file, relative paths kept under the uuid prefix.
+    assert sorted(uploaded) == [
+        (scenes / "a.tif", "s3://upload-bucket/uploads/uuid-1/a.tif"),
+        (scenes / "nested" / "b.tif", "s3://upload-bucket/uploads/uuid-1/nested/b.tif"),
+    ]
     assert (
         ready.spec["locations"]["source_location"]["path"]
         == "s3://upload-bucket/uploads/uuid-1/"
     )
     assert ready.local_locations() == []
+    # The original spec still points at the local directory.
+    assert spec.spec["locations"]["source_location"]["path"] == str(scenes)
 
-    # The now-s3-only spec passes the create() guardrail and is submitted as YAML.
+    # The rewritten spec passes the create() guardrail and is submitted as YAML.
     create_client = mocker.MagicMock()
     create_client.create_ingestion.return_value = SimpleNamespace(id=42)
     resource = IngestResource.create(create_client, ready)
