@@ -8,6 +8,7 @@ parts:
   chapters:
   - file: installation
   - file: examples/configuration
+  - file: migration
 - caption: Examples
   chapters:
   - title: STAC Search

@@ -1,132 +1,158 @@
 # prescient-sdk
 
-A Python SDK for integrating with Prescient services
+A Python SDK for the Prescient platform. Use it to search your Organization's STAC catalog, read its data, and run ingestions.
 
-SDK Documentation: https://sparkgeo.github.io/prescient-sdk/
+Documentation: https://sparkgeo.github.io/prescient-sdk/
 
+If you used a version before 1.0, read [Migrate to version 1.0](https://sparkgeo.github.io/prescient-sdk/migration.html). Version 1.0 removes the earlier sign-in settings and the S3 upload.
 
-# Quickstart
+## Install
 
-## Local Development
+The SDK needs Python 3.11 or later.
 
-The project is set up using [uv](https://docs.astral.sh/uv/) for package management. To develop locally:
+```
+pip install prescient-sdk
+```
 
-1. Install uv following [these](https://docs.astral.sh/uv/getting-started/installation/) intructions
+Or from conda-forge:
 
-1. (Optional) Use uv to set up your local env. 
+```
+conda install -c conda-forge prescient-sdk
+```
 
-    Note that this will happen automatically when you run tests or any python application using uv, so it is not necessary
+## Configure
+
+The SDK signs in with an API key for your Organization. Create the key in the Keycloak Account Console of your Organization, on the **API Keys** page. The key starts with `pk_`.
+
+| Setting | Required | Value |
+| --- | --- | --- |
+| `prescient_endpoint_url` | Yes | Your Organization host, for example `https://<org>.<env>.prescient.earth` |
+| `prescient_api_key` | Yes | Your API key (`pk_...`) |
+| `prescient_auth_url` | No | The Keycloak base URL. If you do not set it, the SDK gets it from `prescient_endpoint_url` |
+
+Set the values as environment variables, or put them in a `config.env` file in your working directory:
+
+```
+PRESCIENT_ENDPOINT_URL="https://<org>.<env>.prescient.earth"
+PRESCIENT_API_KEY="pk_..."
+```
+
+Do not commit the file. For other ways to configure the client, see the [configuration example](https://sparkgeo.github.io/prescient-sdk/examples/configuration.html).
+
+## Search the STAC catalog
+
+This example needs `pystac-client`.
+
+```python
+from pystac_client import Client
+
+from prescient_sdk import PrescientClient
+
+client = PrescientClient()
+catalog = Client.open(client.stac_url, request_modifier=client.request_modifier)
+items = list(catalog.search(max_items=10).items())
+```
+
+Asset links point at the platform over HTTPS. To read an asset, send the header from `client.headers`. You do not need AWS credentials. The [STAC search example](https://sparkgeo.github.io/prescient-sdk/examples/stac_search.html) shows how to read an asset with rasterio.
+
+## Run an ingestion
+
+You must be an admin of your Organization. The input files must already be in storage: version 1.0 cannot upload files.
+
+```python
+from prescient_sdk import IngestClient, IngestResource, IngestSpec
+from prescient_sdk.ingest_models import Status
+
+client = IngestClient()
+spec = IngestSpec.from_file("spec.yaml")  # a version 2 spec: version: "2.0.0"
+
+ing = IngestResource.create(client, spec)
+ing.wait_until_ready()
+if ing.status is Status.READY and not ing.errors():
+    ing.start().wait_until_done()
+```
+
+See the [ingest example](https://sparkgeo.github.io/prescient-sdk/examples/ingest.html).
+
+## Local development
+
+The project uses [uv](https://docs.astral.sh/uv/) for package management. Install uv with [these instructions](https://docs.astral.sh/uv/getting-started/installation/).
+
+1. Install the project with its development dependencies:
 
     ```
     uv sync
     ```
 
-1. Run the tests
+2. Run the tests:
 
     ```
     uv run pytest
     ```
 
-    or 
+3. Check and format the code with [Ruff](https://docs.astral.sh/ruff/):
 
     ```
-    make run-tests
+    uv run ruff check
+    uv run ruff format
     ```
 
-## Configuration
-
-Configuration methods are discussed in the Jupyter Notebook [configuration.ipynb](./docs/examples/configuration.ipynb)
-
-## Code Formatting/Linting
-
-Code format is set using the [Ruff](https://docs.astral.sh/ruff/) formatter. To run this formatter:
-
-```
-make format
-```
-
-## Adding or removing dependencies
-
-Add or remove dependencies using [UV](https://docs.astral.sh/uv/concepts/dependencies/).
-
-In the simplest case, you can add a new dependency like this:
+### Add or remove dependencies
 
 ```
 uv add <some-dependency>
-```
-
-To add a dev dependency:
-
-```
 uv add <some-dependency> --dev
-```
-
-To remove a dependency:
-
-```
 uv remove <some-dependency>
 ```
 
-For more complex features, see the [uv documentation](https://docs.astral.sh/uv/)
+For more, see the [uv documentation](https://docs.astral.sh/uv/concepts/dependencies/).
 
-## Build the documentation
+### Build the documentation
 
-Public facing documentation is built using [jupyter-books](https://jupyterbook.org/en/stable/intro.html).
+The documentation is a [Jupyter Book](https://jupyterbook.org/en/stable/intro.html) in the [docs](./docs) folder.
 
-The [docs](./docs) folder contains the layout for the public facing documentation.
-
-You can build the documentation locally, and access the built html pages in a local browser:
-
-1. Build the docs:
+1. Build the HTML:
 
     ```
-    make build-docs
+    uv run jupyter-book build docs/
     ```
 
-1. Open the html in a browser:
+2. Open `docs/_build/html/index.html` in a browser.
 
-    After building the docs, the path to the index.html file will be logged, and should look something like `docs/_build/html/index.html`
+## Cut a release
 
+1. Make a branch from `main`. Name it with the new version, `vX.Y.Z`, following semantic versioning.
 
-## Cutting a Release
+1. Set the version in [pyproject.toml](./pyproject.toml) under `[project]`.
 
-In order to release a new version to be published to PyPI:
-
-1. Create a new branch from main with the new version as the branch name (v*.*.*) following semantic versioning guidelines.
-
-1. Update the version in [pyproject.toml](./pyproject.toml) under the `[project]` section.
-
-1. Sync the [uv.lock](./uv.lock) file:
+1. Update [uv.lock](./uv.lock):
 
     ```
     uv sync
     ```
 
-1. Create a Pull Request against the main branch, have it reviewed and merged.
+1. Open a pull request against `main`. Get it reviewed and merged.
 
-1. Create a new Release with a tag and title named `v*.*.*`. Include a description of all major updates included in this new release.
+1. Create a GitHub release with a tag and title `vX.Y.Z`. Describe the main changes.
 
-    After the release has been created, you should see Actions running to publish the new release to PyPI, and to update the Github Pages documentation.
+    The release starts the GitHub Actions that publish to PyPI and update the documentation on GitHub Pages.
 
-1. conda-forge release
+1. Release to conda-forge. This step is manual. See the next section.
 
-    Unfortunately, releasing new versions to conda-forge is more involved and less automated. See the conda-forge section below for details.
-
-    
 ## Conda-forge
 
-This package is available on conda-forge, for comprehensive docs see https://conda-forge.org/docs/maintainer/. In order to release new versions you must already be set as a maintainer of the conda-forge recipe. To become a maintainer follow these instructions: https://conda-forge.org/docs/maintainer/updating_pkgs/#updating-the-maintainer-list
+This package is on conda-forge. For the full documentation, see https://conda-forge.org/docs/maintainer/. To release a new version, you must be a maintainer of the conda-forge recipe. To become a maintainer, follow https://conda-forge.org/docs/maintainer/updating_pkgs/#updating-the-maintainer-list
 
-The feedstock repo is located here: https://github.com/conda-forge/prescient-sdk-feedstock
+The feedstock repository is https://github.com/conda-forge/prescient-sdk-feedstock
 
-Note that any changes to the feedstock repo need to be made from a fork of that repository, do not create a branch in the repo itself if you need to make manual changes.
+Make changes to the feedstock repository from a fork. Do not create a branch in the repository itself.
 
-### How to update the conda-forge release after PyPI has been updated
+### Update the conda-forge release after a PyPI release
 
-conda-forge bots should automatically create a PR in the feedstock repo after a new PYPI version has been released, but it may not contain all changes that you need (e.g. updated dependencies for example).
+A conda-forge bot opens a pull request in the feedstock repository after a new PyPI release. The pull request can miss changes, for example new dependencies.
 
-1. Review the automatically created PR in the feedstock repo, specifically looking at the `meta.yaml` file in the `recipe` folder.
+1. Review the `meta.yaml` file in the `recipe` folder of the bot's pull request.
 
-1. To ensure dependencies have been properly updated, it is a good idea to use the [grayskull](https://github.com/conda/grayskull) recipe generator to create an alternate `meta.yaml` file locally and compare it to the the automatically generated version in the feedstock PR.
+1. Generate a `meta.yaml` file locally with [grayskull](https://github.com/conda/grayskull). Compare it with the file in the pull request, to check the dependencies.
 
-1. If you want to maintain multiple versions on conda-forge instead of simply keeping the latest version, you may need to manually create a different PR from a different branch, following these instructions: https://conda-forge.org/docs/maintainer/updating_pkgs/#maintaining-several-versions
+1. To keep several versions on conda-forge, make a separate pull request from a different branch. Follow https://conda-forge.org/docs/maintainer/updating_pkgs/#maintaining-several-versions
