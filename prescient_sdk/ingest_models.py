@@ -4,19 +4,12 @@ These mirror the schemas defined in the Ingest API OpenAPI specification
 and are returned by :class:`prescient_sdk.ingest_client.IngestClient`.
 """
 
-from __future__ import annotations
-
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel
-
-# NOTE: Model fields below use Optional[X] rather than `X | None` because
-# Pydantic evaluates annotations at class-creation time and PEP 604 union
-# syntax requires Python 3.10+. Switch to `X | None` once Python 3.9 support
-# is dropped.
 
 
 class Status(str, Enum):
@@ -58,7 +51,7 @@ class InputFile(BaseModel):
     path: str
     last_modified: datetime
     stac_item_id: UUID
-    source_file_set: Optional[str] = None
+    source_file_set: str | None = None
 
 
 class OutputFile(BaseModel):
@@ -84,8 +77,8 @@ class Batch(BaseModel):
     ingestion_id: int
     batch_number: int
     created: datetime
-    started: Optional[datetime]
-    finalized: Optional[datetime]
+    started: datetime | None
+    finalized: datetime | None
     status: Status
 
 
@@ -96,10 +89,10 @@ class Error(BaseModel):
     time_occurred: datetime
     description: str
     ingestion_id: int
-    location: Optional[str]
-    task: Optional[str]
-    input_file: Optional[InputFile]
-    stack_trace: Optional[str]
+    location: str | None
+    task: str | None
+    input_file: InputFile | None
+    stack_trace: str | None
 
 
 TERMINAL_STATUSES: frozenset[Status] = frozenset(

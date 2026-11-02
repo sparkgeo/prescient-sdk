@@ -1,7 +1,5 @@
 """Internal logging configuration for the prescient_sdk package."""
 
-from __future__ import annotations
-
 import logging
 import sys
 from pathlib import Path

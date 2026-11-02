@@ -33,7 +33,7 @@ uv build                         # sdist and wheel, as publish.yaml does
 
 ## Conventions
 
-- Packaging: hatchling, uv, one `uv.lock`. `requires-python = ">=3.9"` and CI tests 3.9 to 3.12. Use `from __future__ import annotations` for `X | None` hints. Publish and docs jobs use `.python-version` (3.12).
+- Packaging: hatchling, uv, one `uv.lock`. `requires-python = ">=3.11"` and CI tests 3.11 to 3.13. Write `X | None` hints directly; no `from __future__ import annotations`. Publish and docs jobs use `.python-version` (3.12).
 - Public API: `prescient_sdk/__init__.py` is empty. Users import `prescient_sdk.client.PrescientClient`, `prescient_sdk.config.Settings` and `prescient_sdk.upload.upload` by module path. A rename there breaks users and the notebooks in `docs/examples/`.
 - Settings: pydantic-settings, no env prefix, case insensitive. Every field is `prescient_*`. Sources are env vars, then `config.env` in the working directory, or an `env_file` passed to `PrescientClient`.
 - Auth modes, chosen in `config.py`:
