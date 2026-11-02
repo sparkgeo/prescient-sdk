@@ -13,8 +13,6 @@ local so callers can refuse to submit an unstaged spec.
 `IngestSpec` is immutable: there are no methods that change a spec in place.
 """
 
-from __future__ import annotations
-
 import copy
 import logging
 from pathlib import Path

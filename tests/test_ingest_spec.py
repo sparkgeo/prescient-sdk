@@ -52,8 +52,7 @@ def prescient_client(mocker):
     """A mock PrescientClient with upload bucket configured and an STS session."""
     client = mocker.MagicMock(spec=PrescientClient)
     client.settings = SimpleNamespace(
-        prescient_upload_bucket="upload-bucket",
-        prescient_upload_prefix="uploads"
+        prescient_upload_bucket="upload-bucket", prescient_upload_prefix="uploads"
     )
     client.upload_session = mocker.sentinel.session
     return client

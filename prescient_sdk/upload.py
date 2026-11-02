@@ -1,13 +1,11 @@
 """Upload files to bucket."""
 
-from __future__ import annotations
-
 import logging
 import os
 import re
 from collections.abc import Iterator
 from pathlib import Path, PurePath
-from typing import Callable, Optional
+from typing import Callable
 
 import boto3
 import botocore.exceptions
@@ -19,7 +17,7 @@ FileList = list[PurePath]
 logger = logging.getLogger(__name__)
 
 
-def iter_files(input_dir: Path, exclude: Optional[list[str]] = None) -> Iterator[Path]:
+def iter_files(input_dir: Path, exclude: list[str] | None = None) -> Iterator[Path]:
     """Recursively yield files under ``input_dir``, skipping directories.
 
     Args:
@@ -132,7 +130,7 @@ def upload_source_files(
     dest_prefix: str,
     pattern: str,
     session: boto3.Session,
-    on_file: Optional[Callable[[int, int, Path], None]] = None,
+    on_file: Callable[[int, int, Path], None] | None = None,
     overwrite: bool = True,
 ) -> None:
     """Upload the files under ``local_dir`` that a source file set's pattern selects.
@@ -208,8 +206,8 @@ def upload_source_files(
 
 def upload(
     input_dir: str | os.PathLike,
-    exclude: Optional[list[str]] = None,
-    prescient_client: Optional[PrescientClient] = None,
+    exclude: list[str] | None = None,
+    prescient_client: PrescientClient | None = None,
     overwrite: bool = True,
 ) -> None:
     """
@@ -223,11 +221,11 @@ def upload(
             of the object key e.g. /path/to/data_dir -> s3://bucket/data_dir/file.txt.
             When input_dir is a relative path, this should be relative to the current working
             directory used to execute this function.
-        exclude (Optional[list[str]]): A list of glob patterns to exclude from uploading.
+        exclude (list[str] | None): A list of glob patterns to exclude from uploading.
             For example ``exclude=["*.txt", "*.csv"]`` would skip any matched files that end
             with a ``.txt`` or ``.csv`` suffix. If not provided, by default all files will
             be uploaded.
-        prescient_client (Optional[PrescientClient]): A PrescientClient instance. If not provided
+        prescient_client (PrescientClient | None): A PrescientClient instance. If not provided
             a default PrescientClient instance will be created.
         overwrite (bool): Whether to overwrite objects if they already exist. If False, upload
             is skipped. Useful for continuing an upload that was started previously. Defaults to True.

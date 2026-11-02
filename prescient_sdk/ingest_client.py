@@ -1,7 +1,5 @@
 """Client for the Prescient Ingest API."""
 
-from __future__ import annotations
-
 import logging
 import time
 import urllib.parse
