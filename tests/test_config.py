@@ -79,3 +79,11 @@ def test_api_key_required(monkeypatch: pytest.MonkeyPatch, clear_prescient_env):
     )
     with pytest.raises(ValueError, match="prescient_api_key"):
         Settings(_env_file=None)  # type: ignore[call-arg]
+
+
+def test_endpoint_without_scheme_is_rejected(clear_prescient_env):
+    with pytest.raises(ValueError, match="full URL with a host"):
+        Settings(
+            prescient_endpoint_url="spk-sandbox.staging.prescient.earth",
+            prescient_api_key="pk_test",
+        )

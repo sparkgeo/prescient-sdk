@@ -2,7 +2,7 @@ import os
 import urllib.parse
 from typing import Any
 
-from pydantic import Field, SecretStr, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 MIGRATION_URL = "https://sparkgeo.github.io/prescient-sdk/migration.html"
@@ -68,6 +68,18 @@ class Settings(BaseSettings):
         # Validation errors would otherwise echo all input, including the API key.
         hide_input_in_errors=True,
     )
+
+    @field_validator("prescient_endpoint_url")
+    @classmethod
+    def _require_host(cls, value: str) -> str:
+        # The realm and the Keycloak URL come from the host, so a URL without a
+        # scheme (which urlsplit reads as a path) cannot work.
+        if not urllib.parse.urlsplit(value).hostname:
+            raise ValueError(
+                "prescient_endpoint_url must be a full URL with a host, for example "
+                "https://<org>.<env>.prescient.earth"
+            )
+        return value
 
     @model_validator(mode="before")
     @classmethod
