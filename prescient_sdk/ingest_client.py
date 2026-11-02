@@ -84,10 +84,9 @@ class IngestClient:
     Wraps the REST endpoints described in the Ingest API OpenAPI spec and
     returns typed pydantic models. Auth is delegated to a
     :class:`PrescientClient` (constructed automatically if one is not
-    supplied) so the SDK's OAuth2 token handling is reused.
+    supplied) so the SDK's API key token handling is reused.
 
-    The base URL is taken from ``Settings.prescient_ingest_endpoint_url``
-    when set, otherwise falls back to ``Settings.prescient_endpoint_url``.
+    The base URL is ``<Settings.prescient_endpoint_url>/ingest/``.
 
     Args:
         prescient_client (PrescientClient, optional): An existing PrescientClient
@@ -151,19 +150,10 @@ class IngestClient:
     def base_url(self) -> str:
         """Base URL for the Ingest API, with a guaranteed trailing slash.
 
-        Uses ``prescient_ingest_endpoint_url`` when set; otherwise falls back
-        to ``<prescient_endpoint_url>/ingest/``.
-
         Returns:
-            str: The Ingest API base URL with a trailing slash.
+            str: ``<prescient_endpoint_url>/ingest/``.
         """
-        override = self._client.settings.prescient_ingest_endpoint_url
-        if override:
-            return override if override.endswith("/") else override + "/"
-        base = self._client.settings.prescient_endpoint_url
-        if not base.endswith("/"):
-            base = base + "/"
-        return urllib.parse.urljoin(base, "ingest/")
+        return self._client.settings.prescient_endpoint_url.rstrip("/") + "/ingest/"
 
     @property
     def headers(self) -> dict:
@@ -174,8 +164,8 @@ class IngestClient:
         itself on the upload path in ``create_ingestion``.
 
         Note: this deliberately does NOT delegate to ``PrescientClient.headers``,
-        because that would trigger an OAuth sign-in via the
-        ``auth_credentials`` property. The Ingest API is reached over a
+        because that would trigger an API key exchange with
+        Keycloak. The Ingest API is reached over a
         port-forward and does not require a bearer token from the SDK.
 
         Returns:
@@ -412,13 +402,6 @@ class IngestClient:
         url = self._url("healthy")
         response = requests.get(url, timeout=10)
         logger.debug("Health check %s -> %s", url, response.status_code)
-        if (
-            not self.client.settings.prescient_ingest_endpoint_url
-            and response.status_code != 204
-        ):
-            logger.warning(
-                "Ingest API not available, or PRESCIENT_INGEST_ENDPOINT_URL not set"
-            )
         return response.status_code == 204
 
     # Workflow helper
