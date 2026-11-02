@@ -550,3 +550,15 @@ def test_start_batch_accepts_202_planning(http: FakeHTTP, ingest_client: IngestC
 def test_status_has_no_incomplete():
     """The MT service has no INCOMPLETE status."""
     assert "INCOMPLETE" not in Status.__members__
+
+
+def test_requests_have_a_default_timeout(
+    mocker: MockerFixture, http: FakeHTTP, ingest_client: IngestClient
+):
+    """A stalled connection must not block a call, or a wait, without limit."""
+    spy = mocker.spy(ingest_client.client.session, "request")
+    http.respond(200, INGESTION_PAYLOAD)
+
+    ingest_client.get_ingestion(42)
+
+    assert spy.call_args.kwargs["timeout"] == 30

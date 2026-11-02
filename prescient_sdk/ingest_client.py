@@ -20,6 +20,9 @@ from prescient_sdk.ingest_models import (
 
 logger = logging.getLogger("prescient_sdk")
 
+# Seconds to wait for the Ingest API; pass timeout= to a call to override it.
+_REQUEST_TIMEOUT = 30
+
 
 class IngestAPIError(requests.HTTPError):
     """The Ingest API answered with an error status.
@@ -125,6 +128,7 @@ class IngestClient:
         # No Content-Type: requests sets multipart/form-data with its boundary
         # itself when create_ingestion passes files=.
         headers = {"Accept": "application/json", **kwargs.pop("headers", {})}
+        kwargs.setdefault("timeout", _REQUEST_TIMEOUT)
         params = dict(params or {})
         if self.organization is not None:
             params["organization"] = self.organization
