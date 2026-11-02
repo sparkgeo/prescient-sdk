@@ -67,7 +67,13 @@ Temporary AWS keys for reading platform buckets. They come from STS when `presci
 The bucket named by `prescient_upload_bucket`. `upload()` writes to it with credentials from `prescient_upload_role`. Object keys start with the input directory's name.
 
 **API key mode**:
-The client configured with `prescient_api_key`. No IdP, no STS, no upload.
+The client configured with `prescient_api_key`. No IdP, no STS, no upload. In v2 there is no other mode: the API key is how the SDK signs in.
+
+**API key**:
+A long-lived secret (`pk_...`) that a User creates for one Organization. The SDK trades it for a short-lived access token and never sends the key to the platform APIs.
+
+**Organization host**:
+The hostname `<org>.<env>.prescient.earth` that names one Organization. A token from one Organization is not valid at another's host.
 
 ## Integrations
 
@@ -104,6 +110,38 @@ The client configured with `prescient_api_key`. No IdP, no STS, no upload.
 ### Keycloak
 
 Not supported on `main` or `develop`. MT signs users in through one Keycloak realm per Organization, so MT login needs new code. Issue [#57](https://github.com/sparkgeo/prescient-sdk/issues/57) tracks adding Keycloak as an auth provider.
+
+On `v2-multi-tenant` (planned, not built yet), the API key exchange replaces Microsoft and Google:
+
+| | |
+| --- | --- |
+| Service type | Identity provider, Prescient platform |
+| Direction | Outbound |
+| Source | Planned on `v2-multi-tenant` |
+| Transport | REST over HTTPS |
+| Protocol | `POST <keycloak>/realms/<org>/api-keys/exchange` with header `X-API-Key`. Returns `{access_token, token_type, expires_in}`, no refresh token (`../prescient-platform-authentication-providers/docs/api-keys.md`) |
+| Authentication | The user's API key (`pk_...`), created in the Keycloak Account Console of their Organization's realm |
+| Authorization | Key belongs to a User in the realm. The token carries `aud` `prescient`, `organization` and `username`, which the services require |
+| Credentials | `prescient_api_key` from settings. Realm is the Organization, taken from the first DNS label of `prescient_endpoint_url`. Keycloak base URL is `prescient_auth_url` when set; otherwise `https://keycloak.staging.prescient.earth` if the endpoint host contains `staging`, else `https://keycloak.prescient.earth` |
+| Failure mode | 401/403 (key invalid, expired or revoked) raises `PrescientAuthError`. 429 above 60 exchanges per minute per key raises with `Retry-After`, no retry. The limit is checked before Keycloak's token cache, so the SDK caches the token and re-exchanges within 60 s of `exp`, and never sends `X-API-Key` to the gateway. Tokens last 5 minutes today; [prescient-platform-applications#428](https://github.com/sparkgeo/prescient-platform-applications/issues/428) raises that to about 1 hour |
+| Criticality | Hard dependency |
+
+### Prescient MT platform APIs (v2, planned)
+
+| | |
+| --- | --- |
+| Service type | Prescient platform, internal |
+| Direction | Outbound |
+| Source | Planned on `v2-multi-tenant`: `client.session`, `client.auth`, `client.request_modifier`, `IngestClient` |
+| Transport | REST over HTTPS, through the Organization's Envoy gateway at the Organization host |
+| Protocol | HTTP, JSON. `/stac` (STAC API), `/fileproxy/stac/...` (asset reads; STAC hrefs already point here), `/raster` (titiler), `/ingest/v1/...` (MT ingestion, part of the Organization chart, deployed on staging for `spk-sandbox`) |
+| Authentication | `Authorization: Bearer <access_token>` from the API key exchange above |
+| Authorization | Services check `iss`, `aud` `prescient`, `organization` and `username`. Roles are decided by the platform |
+| Credentials | Access token from the exchange. Base URL from `prescient_endpoint_url` |
+| Failure mode | A 401 on a call made through `client.session` forces one re-exchange and one retry, then raises. Calls from other libraries through `client.auth` get a fresh token per request and no retry |
+| Criticality | Hard dependency |
+
+Interactive login (device code or PKCE) needs a public client in every org realm, which does not exist yet. It is a follow-up in `prescient-platform-applications`.
 
 ### Prescient platform APIs (STAC, fileproxy)
 
