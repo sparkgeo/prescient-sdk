@@ -61,14 +61,15 @@ You must be an admin of your Organization. The input files must already be in st
 
 ```python
 from prescient_sdk import IngestClient, IngestResource, IngestSpec
-from prescient_sdk.ingest_models import Status
+from prescient_sdk.ingest_models import ErrorSeverity, Status
 
 client = IngestClient()
 spec = IngestSpec.from_file("spec.yaml")  # a version 2 spec: version: "2.0.0"
 
 ing = IngestResource.create(client, spec)
 ing.wait_until_ready()
-if ing.status is Status.READY and not ing.errors():
+problems = [e for e in ing.errors() if e.severity != ErrorSeverity.WARNING]
+if ing.status is Status.READY and not problems:
     ing.start().wait_until_done()
 ```
 
