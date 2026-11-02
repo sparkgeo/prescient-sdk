@@ -121,8 +121,8 @@ def test_preserves_host_handlers():
     assert len(_managed_handlers(logger)) == 1
 
 
-def test_ingest_client_configures_same_logger(set_env_vars):
-    IngestClient(debug=True)
+def test_ingest_client_uses_logging_of_its_prescient_client(set_env_vars):
+    IngestClient(PrescientClient(debug=True))
 
     logger = logging.getLogger("prescient_sdk")
     assert logger.level == logging.DEBUG

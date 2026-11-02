@@ -11,9 +11,9 @@ For a live, auto-updating Rich progress display, wrap a resource in
 
 import io
 import logging
+import time
 from datetime import datetime
-from pathlib import Path
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, Protocol, TypeVar
 
 from rich.console import Console, Group, RenderableType
 from rich.live import Live
@@ -22,7 +22,7 @@ from rich.table import Table
 from rich.text import Text
 
 from prescient_sdk import ingest_models as models
-from prescient_sdk.ingest_client import IngestClient, _poll_for_status
+from prescient_sdk.ingest_client import IngestClient
 from prescient_sdk.ingest_spec import IngestSpec
 from prescient_sdk.ingest_models import (
     DONE_STATUSES,
@@ -37,6 +37,57 @@ from prescient_sdk.ingest_models import (
 logger = logging.getLogger("prescient_sdk")
 
 
+class _HasStatus(Protocol):
+    status: Status
+
+
+_StatusT = TypeVar("_StatusT", bound=_HasStatus)
+
+
+def _poll_for_status(
+    fetcher: Callable[[], _StatusT],
+    target_statuses: Iterable[Status],
+    poll_interval: float,
+    timeout: float,
+) -> _StatusT:
+    """Poll ``fetcher`` until the returned object's ``status`` is in ``target_statuses``.
+
+    Args:
+        fetcher (Callable[[], _StatusT]): Callable that returns an object with a
+            ``status`` attribute. Invoked once per poll iteration.
+        target_statuses (Iterable[Status]): Statuses that end the wait.
+        poll_interval (float): Seconds between polls.
+        timeout (float): Total seconds to wait before raising.
+
+    Returns:
+        _StatusT: The object returned by ``fetcher`` once its ``status`` matches
+        one of ``target_statuses``.
+
+    Raises:
+        TimeoutError: If ``timeout`` elapses before reaching a target status.
+    """
+    targets = set(target_statuses)
+    deadline = time.monotonic() + timeout
+    logger.debug(
+        "Polling for status in %s (timeout=%ss, interval=%ss)",
+        sorted(s.value for s in targets),
+        timeout,
+        poll_interval,
+    )
+    while True:
+        obj = fetcher()
+        logger.debug("poll status=%s", obj.status)
+        if obj.status in targets:
+            logger.info("Status reached %s", obj.status.value)
+            return obj
+        if time.monotonic() >= deadline:
+            raise TimeoutError(
+                f"Status {obj.status.value!r} did not reach "
+                f"{sorted(s.value for s in targets)} within {timeout}s"
+            )
+        time.sleep(poll_interval)
+
+
 STATUS_STYLES: dict[Status, str] = {
     Status.SCANNING: "yellow",
     Status.READY: "bold green",
@@ -44,7 +95,6 @@ STATUS_STYLES: dict[Status, str] = {
     Status.INGESTING: "bold cyan",
     Status.DONE: "bold green",
     Status.FAILED: "bold red",
-    Status.INCOMPLETE: "bold yellow",
 }
 
 SEVERITY_STYLES: dict[ErrorSeverity, str] = {
@@ -222,7 +272,7 @@ class IngestResource(_IngestResource):
     (attach to an existing one). Wrap in :class:`LiveStatus` for a live
     progress display::
 
-        ing = IngestResource.create(client, spec="spec.yaml")
+        ing = IngestResource.create(client, IngestSpec.from_file("spec.yaml"))
         with LiveStatus(ing):
             ing.wait_until_ready()
             if not ing.errors():
@@ -242,32 +292,30 @@ class IngestResource(_IngestResource):
         Args:
             client (IngestClient): Client used for the API call and subsequent
                 state transitions.
-            spec (IngestSpec): The specification to submit.
-                A :class:`~prescient_sdk.ingest_spec.IngestSpec` is serialized to
-                YAML and submitted, but only after checking that every location
-                is an ``s3://`` path — the Ingest API cannot read local paths.
+            spec (IngestSpec): The version 2 spec to submit. It is serialized
+                to YAML and submitted only after :meth:`IngestSpec.problems`
+                finds nothing: a ``version`` starting with ``2.``, no ``user``
+                field, and no location that is a local directory.
 
         Returns:
             IngestResource: A resource wrapping the newly created ingestion.
 
         Raises:
-            ValueError: If ``spec`` is an :class:`IngestSpec` with one or more
-                locations still pointing at a local (non-``s3://``) path. Upload
-                those sources first (see ``IngestSpec.with_uploaded_sources``).
+            ValueError: If ``spec`` is not an :class:`IngestSpec`, or has
+                problems. Upload local sources first (see
+                ``IngestSpec.with_uploaded_sources``).
+            IngestSpecError: If the Ingest API rejects the spec (400).
+            CollectionOwnershipError: If the spec's collection belongs to
+                another Organization (409).
         """
-        if any(isinstance(spec, invalid_type) for invalid_type in (str, Path, bytes)):
+        if not isinstance(spec, IngestSpec):
             raise ValueError(f"Expected IngestSpec, got {type(spec)}")
 
-        if isinstance(spec, IngestSpec):
-            local = spec.local_locations()
-            if local:
-                raise ValueError(
-                    "Cannot create an ingestion: these locations have non-s3:// "
-                    f"paths and must be uploaded first: {local}"
-                )
-            spec = spec.to_bytes()
+        problems = spec.problems()
+        if problems:
+            raise ValueError("Cannot create an ingestion: " + "; ".join(problems))
 
-        ingestion = client.create_ingestion(spec)
+        ingestion = client.create_ingestion(spec.to_bytes())
         logger.info("IngestResource created id=%s", ingestion.id)
         return cls(client, ingestion)
 
@@ -284,6 +332,24 @@ class IngestResource(_IngestResource):
             IngestResource: A resource wrapping the existing ingestion.
         """
         return cls(client, client.get_ingestion(id))
+
+    @classmethod
+    def list_all(
+        cls, client: IngestClient, limit: int = 100, offset: int = 0
+    ) -> list["IngestResource"]:
+        """List the Organization's ingestions, newest first, and wrap each one.
+
+        Args:
+            client (IngestClient): Client used for the API call and subsequent
+                state transitions.
+            limit (int, optional): Most ingestions to return, 1 to 1000.
+                Defaults to 100.
+            offset (int, optional): Number of ingestions to skip. Defaults to 0.
+
+        Returns:
+            list[IngestResource]: One resource per ingestion in the page.
+        """
+        return [cls(client, m) for m in client.list_ingestions(limit, offset)]
 
     # -- Identity / state ------------------------------------------------
 
@@ -356,7 +422,9 @@ class IngestResource(_IngestResource):
     def wait_until_ready(
         self, poll_interval: float = 5.0, timeout: float = 300.0
     ) -> "IngestResource":
-        """Block until the ingestion enters a ``READY`` (or terminal) state.
+        """Block until scanning ends: ``READY``, ``FAILED``, or ``DONE``.
+
+        A scan that finds no input files ends ``DONE``.
 
         Args:
             poll_interval (float, optional): Seconds between polls. Defaults
@@ -376,7 +444,7 @@ class IngestResource(_IngestResource):
     def wait_until_done(
         self, poll_interval: float = 10.0, timeout: float = 3600.0
     ) -> "IngestResource":
-        """Block until the ingestion reaches ``DONE``, ``FAILED``, or ``INCOMPLETE``.
+        """Block until the ingestion reaches ``DONE`` or ``FAILED``.
 
         Args:
             poll_interval (float, optional): Seconds between polls. Defaults
@@ -403,14 +471,20 @@ class IngestResource(_IngestResource):
         """
         return BatchResource.create(self._client, self.id)
 
-    def list_batches(self) -> list["BatchResource"]:
-        """Return ``BatchResource`` wrappers for every batch under this ingestion.
+    def list_batches(self, limit: int = 100, offset: int = 0) -> list["BatchResource"]:
+        """Return ``BatchResource`` wrappers for this ingestion's batches, newest first.
+
+        Args:
+            limit (int, optional): Most batches to return, 1 to 1000.
+                Defaults to 100.
+            offset (int, optional): Number of batches to skip. Defaults to 0.
 
         Returns:
-            list[BatchResource]: One resource per batch in this ingestion.
+            list[BatchResource]: One resource per batch in the page.
         """
         return [
-            BatchResource(self._client, m) for m in self._client.list_batches(self.id)
+            BatchResource(self._client, m)
+            for m in self._client.list_batches(self.id, limit, offset)
         ]
 
     # -- Internals -------------------------------------------------------
@@ -440,12 +514,10 @@ class IngestResource(_IngestResource):
         spec_table = Table.grid(padding=(0, 2))
         spec_table.add_column(style="dim")
         spec_table.add_column()
-        spec_table.add_row("User", str(spec.get("user", "—")))
+        spec_table.add_row("Name", str(spec.get("name") or "—"))
         spec_table.add_row("Tasks", str(len(spec.get("tasks") or {})))
         spec_table.add_row("Locations", str(len(spec.get("locations") or {})))
-        spec_table.add_row(
-            "Source file sets", str(len(spec.get("source_file_sets") or {}))
-        )
+        spec_table.add_row("Source file sets", str(len(spec.get("source_files") or {})))
 
         renderables: list[RenderableType] = [header, spec_table]
         errs_panel = _errors_panel(self._errors)
@@ -607,7 +679,9 @@ class BatchResource(_IngestResource):
     def wait_until_ready(
         self, poll_interval: float = 5.0, timeout: float = 300.0
     ) -> "BatchResource":
-        """Block until the batch enters a ``READY`` (or terminal) state.
+        """Block until scanning ends: ``READY``, ``FAILED``, or ``DONE``.
+
+        A scan that finds no input files ends ``DONE``.
 
         Args:
             poll_interval (float, optional): Seconds between polls. Defaults
@@ -627,7 +701,7 @@ class BatchResource(_IngestResource):
     def wait_until_done(
         self, poll_interval: float = 10.0, timeout: float = 3600.0
     ) -> "BatchResource":
-        """Block until the batch reaches ``DONE``, ``FAILED``, or ``INCOMPLETE``.
+        """Block until the batch reaches ``DONE`` or ``FAILED``.
 
         Args:
             poll_interval (float, optional): Seconds between polls. Defaults
@@ -695,7 +769,7 @@ class LiveStatus:
     finalizes on ``__exit__``. The resource itself remains fully usable
     outside the block (without the live display)::
 
-        ing = IngestResource.create(client, spec="spec.yaml")
+        ing = IngestResource.create(client, IngestSpec.from_file("spec.yaml"))
         with LiveStatus(ing):
             ing.wait_until_ready()
             if not ing.errors():
