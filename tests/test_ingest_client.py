@@ -1,6 +1,11 @@
-import io
-import os
-from unittest.mock import MagicMock
+"""Tests for IngestClient against the MT ingestion API.
+
+Requests go through the real ``client.session``; only the HTTP adapter's
+``send`` is replaced, so no test reaches the network.
+"""
+
+import json
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 import requests
@@ -8,7 +13,12 @@ from pytest_mock import MockerFixture
 
 from prescient_sdk.client import PrescientClient
 from prescient_sdk.config import Settings
-from prescient_sdk.ingest_client import IngestClient
+from prescient_sdk.ingest_client import (
+    CollectionOwnershipError,
+    IngestAPIError,
+    IngestClient,
+    IngestSpecError,
+)
 from prescient_sdk.ingest_models import (
     Batch,
     Error,
@@ -17,22 +27,22 @@ from prescient_sdk.ingest_models import (
     Ingestion,
     InputFile,
     OutputFile,
+    StacItem,
     Status,
 )
 
-
 # ---------------------------------------------------------------------------
-# Test data
+# Test data, shaped like prescient.ingestion.schemas in the MT service
 # ---------------------------------------------------------------------------
 
-UUID_A = "11111111-1111-1111-1111-111111111111"
-UUID_B = "22222222-2222-2222-2222-222222222222"
+BASE = "https://example.server.prescient.earth/ingest/"
 NOW_ISO = "2026-01-01T00:00:00Z"
+ITEM_ID = "my-item-0001"
 
 INGESTION_PAYLOAD = {
     "id": 42,
     "status": "READY",
-    "spec": {"user": "test@example.com"},
+    "spec": {"version": "2.0.0", "locations": {"raw": {"path": "lidar/2026"}}},
 }
 
 BATCH_PAYLOAD = {
@@ -46,18 +56,21 @@ BATCH_PAYLOAD = {
 }
 
 INPUT_FILE_PAYLOAD = {
-    "location": "s3://bucket/data",
+    "location": "raw",
     "source_file_set": "fileset_a",
     "path": "data/file.tif",
     "last_modified": NOW_ISO,
-    "stac_item_id": UUID_A,
+    "stac_item_id": ITEM_ID,
 }
 
 OUTPUT_FILE_PAYLOAD = {
-    "stac_item_id": UUID_A,
+    "stac_item_id": ITEM_ID,
     "task_name": "transform_main",
     "status": "DONE",
+    "path": "assets/lidar/2026/file.tif",
 }
+
+STAC_ITEM_PAYLOAD = {"stac_item_id": ITEM_ID, "status": "PENDING"}
 
 ERROR_PAYLOAD = {
     "severity": "WARNING",
@@ -70,32 +83,53 @@ ERROR_PAYLOAD = {
     "stack_trace": None,
 }
 
+V2_SPEC = b'version: "2.0.0"\nlocations:\n  raw:\n    path: lidar/2026\n'
+
 
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
 
 
-@pytest.fixture
-def clear_prescient_env(monkeypatch: pytest.MonkeyPatch):
-    """Remove every PRESCIENT_* env var so tests aren't polluted by the host shell."""
-    for key in list(os.environ):
-        if key.startswith("PRESCIENT_"):
-            monkeypatch.delenv(key)
+class FakeHTTP:
+    """Stands in for ``HTTPAdapter.send``: records requests, replays responses."""
+
+    def __init__(self):
+        self.requests: list[requests.PreparedRequest] = []
+        self._responses: list[tuple[int, object]] = []
+
+    def respond(self, status: int = 200, body: object = None) -> "FakeHTTP":
+        self._responses.append((status, body))
+        return self
+
+    def send(self, adapter, request, **kwargs) -> requests.Response:
+        self.requests.append(request)
+        status, body = self._responses.pop(0) if self._responses else (200, None)
+        response = requests.Response()
+        response.status_code = status
+        response.reason = "Reason"
+        response.url = request.url
+        response.request = request
+        if isinstance(body, str):
+            response._content = body.encode()
+        elif body is not None:
+            response._content = json.dumps(body).encode()
+            response.headers["Content-Type"] = "application/json"
+        else:
+            response._content = b""
+        return response
+
+    @property
+    def last(self) -> requests.PreparedRequest:
+        return self.requests[-1]
 
 
 @pytest.fixture
-def set_env_vars(monkeypatch: pytest.MonkeyPatch, clear_prescient_env):
-    """Set the minimum config env vars for IngestClient initialization."""
+def mock_creds(mocker: MockerFixture, set_env_vars, monkeypatch):
+    """Short-circuit the API key exchange so no test reaches Keycloak."""
     monkeypatch.setenv(
         "PRESCIENT_ENDPOINT_URL", "https://example.server.prescient.earth"
     )
-    monkeypatch.setenv("PRESCIENT_API_KEY", "pk_test")
-
-
-@pytest.fixture
-def mock_creds(mocker: MockerFixture, set_env_vars):
-    """Short-circuit the API key exchange so no test reaches Keycloak."""
     mocker.patch(
         "prescient_sdk.client.PrescientClient._access_token",
         return_value="mock_token",
@@ -103,21 +137,30 @@ def mock_creds(mocker: MockerFixture, set_env_vars):
 
 
 @pytest.fixture
+def http(mocker: MockerFixture) -> FakeHTTP:
+    fake = FakeHTTP()
+    mocker.patch(
+        "requests.adapters.HTTPAdapter.send", autospec=True, side_effect=fake.send
+    )
+    # Bare requests.* calls would bypass client.session; make them fail loudly.
+    for name in ("request", "get", "post"):
+        mocker.patch(
+            f"requests.{name}", side_effect=AssertionError(f"requests.{name} used")
+        )
+    return fake
+
+
+@pytest.fixture
 def ingest_client(mock_creds) -> IngestClient:
     return IngestClient()
 
 
-def _make_response(
-    json_payload=None, status_code: int = 200, raise_for_status: bool = False
-) -> MagicMock:
-    response = MagicMock(spec=requests.Response)
-    response.status_code = status_code
-    response.json.return_value = json_payload
-    if raise_for_status:
-        response.raise_for_status.side_effect = requests.HTTPError("boom")
-    else:
-        response.raise_for_status = MagicMock()
-    return response
+def _path(request: requests.PreparedRequest) -> str:
+    return urlsplit(request.url).path
+
+
+def _query(request: requests.PreparedRequest) -> dict[str, list[str]]:
+    return parse_qs(urlsplit(request.url).query)
 
 
 # ---------------------------------------------------------------------------
@@ -125,49 +168,167 @@ def _make_response(
 # ---------------------------------------------------------------------------
 
 
-def test_ingest_client_default_init(mock_creds):
-    """IngestClient can be constructed without arguments using env vars."""
+def test_ingest_client_default_init_builds_prescient_client(mock_creds):
     client = IngestClient()
     assert isinstance(client.client, PrescientClient)
+    assert client.organization is None
 
 
 def test_ingest_client_accepts_prescient_client(mock_creds):
-    """A pre-built PrescientClient is reused rather than re-constructed."""
     pc = PrescientClient()
-    ic = IngestClient(prescient_client=pc)
-    assert ic.client is pc
+    assert IngestClient(pc).client is pc
+    assert IngestClient(client=pc).client is pc
 
 
-def test_ingest_client_rejects_conflicting_args(mock_creds):
-    """Passing both prescient_client and settings/env_file is an error."""
-    pc = PrescientClient()
-    with pytest.raises(ValueError, match="prescient_client"):
-        IngestClient(prescient_client=pc, settings=pc.settings)
-
-
-def test_base_url_is_endpoint_ingest(mock_creds):
-    """base_url is <prescient_endpoint_url>/ingest/."""
-    client = IngestClient()
-    assert client.base_url == "https://example.server.prescient.earth/ingest/"
+def test_base_url_is_endpoint_ingest(ingest_client: IngestClient):
+    assert ingest_client.base_url == BASE
 
 
 def test_base_url_keeps_endpoint_path(mock_creds):
-    """base_url keeps any path on the endpoint and ends with a slash."""
     settings = Settings(  # type: ignore[call-arg]
         prescient_endpoint_url="https://example.com/some/path/",
         prescient_api_key="pk_test",
     )
-    client = IngestClient(prescient_client=PrescientClient(settings=settings))
+    client = IngestClient(PrescientClient(settings=settings))
     assert client.base_url == "https://example.com/some/path/ingest/"
 
 
-def test_url_joins_v1_paths(mock_creds):
-    """_url composes v1-prefixed endpoint paths against the base URL."""
-    client = IngestClient()
-    assert (
-        client._url("v1/ingestion/42/start")
-        == "https://example.server.prescient.earth/ingest/v1/ingestion/42/start"
+# ---------------------------------------------------------------------------
+# Every call goes through client.session
+# ---------------------------------------------------------------------------
+
+
+ALL_CALLS = [
+    ("create_ingestion", (V2_SPEC,), "POST", "v1/ingestion/", INGESTION_PAYLOAD),
+    ("list_ingestions", (), "GET", "v1/ingestion/", [INGESTION_PAYLOAD]),
+    ("get_ingestion", (42,), "GET", "v1/ingestion/42", INGESTION_PAYLOAD),
+    ("start_ingestion", (42,), "POST", "v1/ingestion/42/start", INGESTION_PAYLOAD),
+    (
+        "get_ingestion_input_files",
+        (42,),
+        "GET",
+        "v1/ingestion/42/input_files",
+        [INPUT_FILE_PAYLOAD],
+    ),
+    (
+        "get_ingestion_output_files",
+        (42,),
+        "GET",
+        "v1/ingestion/42/output_files",
+        [OUTPUT_FILE_PAYLOAD],
+    ),
+    (
+        "get_ingestion_stac_items",
+        (42,),
+        "GET",
+        "v1/ingestion/42/stac_items",
+        [STAC_ITEM_PAYLOAD],
+    ),
+    ("get_ingestion_errors", (42,), "GET", "v1/ingestion/42/errors", [ERROR_PAYLOAD]),
+    ("list_batches", (42,), "GET", "v1/ingestion/42/batches", [BATCH_PAYLOAD]),
+    ("create_batch", (42,), "POST", "v1/ingestion/42/batches", BATCH_PAYLOAD),
+    ("get_batch", (42, 3), "GET", "v1/ingestion/42/batches/3", BATCH_PAYLOAD),
+    (
+        "start_batch",
+        (42, 3),
+        "POST",
+        "v1/ingestion/42/batches/3/start",
+        BATCH_PAYLOAD,
+    ),
+    (
+        "get_batch_input_files",
+        (42, 3),
+        "GET",
+        "v1/ingestion/42/batches/3/input_files",
+        [INPUT_FILE_PAYLOAD],
+    ),
+    (
+        "get_batch_output_files",
+        (42, 3),
+        "GET",
+        "v1/ingestion/42/batches/3/output_files",
+        [OUTPUT_FILE_PAYLOAD],
+    ),
+    (
+        "get_batch_stac_items",
+        (42, 3),
+        "GET",
+        "v1/ingestion/42/batches/3/stac_items",
+        [STAC_ITEM_PAYLOAD],
+    ),
+    (
+        "get_batch_errors",
+        (42, 3),
+        "GET",
+        "v1/ingestion/42/batches/3/errors",
+        [ERROR_PAYLOAD],
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "name,args,method,path,payload", ALL_CALLS, ids=[c[0] for c in ALL_CALLS]
+)
+def test_call_goes_through_session_with_bearer(
+    http: FakeHTTP, ingest_client: IngestClient, name, args, method, path, payload
+):
+    http.respond(200, payload)
+    getattr(ingest_client, name)(*args)
+
+    assert len(http.requests) == 1
+    request = http.last
+    assert request.method == method
+    assert request.url.split("?")[0] == BASE + path
+    assert request.headers["Authorization"] == "Bearer mock_token"
+    assert request.headers["Accept"] == "application/json"
+    assert "organization" not in _query(request)
+
+
+@pytest.mark.parametrize(
+    "name,args,method,path,payload", ALL_CALLS, ids=[c[0] for c in ALL_CALLS]
+)
+def test_super_admin_organization_is_sent_on_every_call(
+    http: FakeHTTP, mock_creds, name, args, method, path, payload
+):
+    """A SUPER_ADMIN names the Organization with the `organization` query param."""
+    client = IngestClient(organization="spk-sandbox")
+    http.respond(200, payload)
+    getattr(client, name)(*args)
+    assert _query(http.last)["organization"] == ["spk-sandbox"]
+
+
+def test_session_retries_once_after_401(
+    mocker: MockerFixture, http: FakeHTTP, ingest_client: IngestClient
+):
+    """A 401 forces one API key exchange and one retry, as client.session does."""
+    # The session holds the bound exchange method it calls after a 401.
+    exchange = mocker.patch.object(
+        ingest_client.client.session, "_reauthenticate", return_value="new_token"
     )
+    http.respond(401, {"detail": "expired"}).respond(200, INGESTION_PAYLOAD)
+
+    result = ingest_client.get_ingestion(42)
+
+    assert result.id == 42
+    exchange.assert_called_once()
+    assert [r.headers["Authorization"] for r in http.requests] == [
+        "Bearer mock_token",
+        "Bearer new_token",
+    ]
+
+
+def test_check_goes_through_session(http: FakeHTTP, ingest_client: IngestClient):
+    http.respond(204)
+    assert ingest_client.check() is True
+    assert http.last.url == BASE + "healthz"
+    assert http.last.headers["Authorization"] == "Bearer mock_token"
+
+
+def test_check_returns_false_on_other_status(
+    http: FakeHTTP, ingest_client: IngestClient
+):
+    http.respond(503, {"detail": "Service is not correctly configured."})
+    assert ingest_client.check() is False
 
 
 # ---------------------------------------------------------------------------
@@ -175,397 +336,217 @@ def test_url_joins_v1_paths(mock_creds):
 # ---------------------------------------------------------------------------
 
 
-def test_create_ingestion_from_bytes(
-    mocker: MockerFixture, ingest_client: IngestClient
+def test_create_ingestion_from_bytes_is_multipart(
+    http: FakeHTTP, ingest_client: IngestClient
 ):
-    """Bytes are uploaded directly as the multipart spec_file part."""
-    post_mock = mocker.patch(
-        "prescient_sdk.ingest_client.requests.request",
-        return_value=_make_response(INGESTION_PAYLOAD),
-    )
-    spec = b"user: tester\n"
+    http.respond(201, INGESTION_PAYLOAD)
 
-    result = ingest_client.create_ingestion(spec)
+    result = ingest_client.create_ingestion(V2_SPEC)
 
     assert isinstance(result, Ingestion)
     assert result.id == 42
     assert result.status is Status.READY
-
-    method, url = post_mock.call_args.args
-    kwargs = post_mock.call_args.kwargs
-    assert method == "POST"
-    assert url == "https://example.server.prescient.earth/ingest/v1/ingestion/"
-    assert kwargs["files"]["spec_file"][0] == "spec.yaml"
-    assert kwargs["files"]["spec_file"][1] == spec
-    assert kwargs["files"]["spec_file"][2] == "application/yaml"
-    # Multipart upload must NOT pin Content-Type — requests sets it with
-    # the boundary parameter when files= is supplied.
-    assert "Content-Type" not in kwargs["headers"]
-    # IngestClient does not send an Authorization header (port-forwarded API).
-    assert "Authorization" not in kwargs["headers"]
+    request = http.last
+    # requests sets the multipart Content-Type with its boundary itself.
+    assert request.headers["Content-Type"].startswith("multipart/form-data; boundary=")
+    assert b'name="spec_file"; filename="spec.yaml"' in request.body
+    assert V2_SPEC in request.body
 
 
 def test_create_ingestion_from_path(
-    mocker: MockerFixture, ingest_client: IngestClient, tmp_path
+    http: FakeHTTP, ingest_client: IngestClient, tmp_path
 ):
-    """A Path is opened in binary mode and uploaded."""
     spec_file = tmp_path / "my_spec.yaml"
-    spec_file.write_text("user: tester\n")
+    spec_file.write_bytes(V2_SPEC)
+    http.respond(201, INGESTION_PAYLOAD)
 
-    post_mock = mocker.patch(
-        "prescient_sdk.ingest_client.requests.request",
-        return_value=_make_response(INGESTION_PAYLOAD),
-    )
+    ingest_client.create_ingestion(spec_file)
 
-    result = ingest_client.create_ingestion(spec_file)
-    assert isinstance(result, Ingestion)
-
-    files = post_mock.call_args.kwargs["files"]
-    assert files["spec_file"][0] == "my_spec.yaml"
-    # Filename came from the Path; file handle was opened in binary mode.
-    assert isinstance(files["spec_file"][1], io.BufferedReader) or hasattr(
-        files["spec_file"][1], "read"
-    )
+    assert b'filename="my_spec.yaml"' in http.last.body
+    assert V2_SPEC in http.last.body
 
 
 def test_create_ingestion_from_string_path(
-    mocker: MockerFixture, ingest_client: IngestClient, tmp_path
+    http: FakeHTTP, ingest_client: IngestClient, tmp_path
 ):
-    """A str argument is treated as a file path, not as YAML content."""
+    """A str argument is a file path, not YAML content."""
     spec_file = tmp_path / "my_spec.yaml"
-    spec_file.write_text("user: tester\n")
-
-    post_mock = mocker.patch(
-        "prescient_sdk.ingest_client.requests.request",
-        return_value=_make_response(INGESTION_PAYLOAD),
-    )
+    spec_file.write_bytes(V2_SPEC)
+    http.respond(201, INGESTION_PAYLOAD)
 
     ingest_client.create_ingestion(str(spec_file))
 
-    assert post_mock.call_args.kwargs["files"]["spec_file"][0] == "my_spec.yaml"
+    assert b'filename="my_spec.yaml"' in http.last.body
 
 
-def test_create_ingestion_propagates_http_errors(
-    mocker: MockerFixture, ingest_client: IngestClient
+@pytest.mark.parametrize(
+    "detail",
+    [
+        'Ingestion specification "version" must start with "2.", for example "2.0.0".',
+        '"user" is not allowed in a version 2 ingestion specification: the '
+        "Organization comes from the request.",
+        'Location "out" is not publicly readable: an object written there could '
+        "not be read back without credentials (PermissionError). Allow public "
+        "reads of its prefix before submitting.",
+    ],
+)
+def test_create_ingestion_400_raises_spec_error_with_server_message(
+    http: FakeHTTP, ingest_client: IngestClient, detail
 ):
-    """4xx responses surface as requests.HTTPError via raise_for_status."""
-    mocker.patch(
-        "prescient_sdk.ingest_client.requests.request",
-        return_value=_make_response(status_code=400, raise_for_status=True),
-    )
-    with pytest.raises(requests.HTTPError):
-        ingest_client.create_ingestion(b"user: tester\n")
+    http.respond(400, {"detail": detail})
+    with pytest.raises(IngestSpecError) as excinfo:
+        ingest_client.create_ingestion(V2_SPEC)
+    assert excinfo.value.status_code == 400
+    assert excinfo.value.detail == detail
+    assert detail in str(excinfo.value)
+    # Still an HTTPError, so existing `except HTTPError` code keeps working.
+    assert isinstance(excinfo.value, requests.HTTPError)
 
 
-# ---------------------------------------------------------------------------
-# Ingestion-level GETs / POSTs
-# ---------------------------------------------------------------------------
-
-
-def test_get_ingestion(mocker: MockerFixture, ingest_client: IngestClient):
-    request_mock = mocker.patch(
-        "prescient_sdk.ingest_client.requests.request",
-        return_value=_make_response(INGESTION_PAYLOAD),
-    )
-
-    result = ingest_client.get_ingestion(42)
-
-    assert isinstance(result, Ingestion)
-    assert result.id == 42
-    assert result.status is Status.READY
-    method, url = request_mock.call_args.args
-    assert method == "GET"
-    assert url == "https://example.server.prescient.earth/ingest/v1/ingestion/42"
-    # No Authorization header — Ingest API is reached over a port-forward.
-    assert "Authorization" not in request_mock.call_args.kwargs["headers"]
-    assert request_mock.call_args.kwargs["headers"]["Accept"] == "application/json"
-
-
-def test_start_ingestion(mocker: MockerFixture, ingest_client: IngestClient):
-    request_mock = mocker.patch(
-        "prescient_sdk.ingest_client.requests.request",
-        return_value=_make_response({**INGESTION_PAYLOAD, "status": "INGESTING"}),
-    )
-
-    result = ingest_client.start_ingestion(42)
-    assert result.status is Status.INGESTING
-    assert request_mock.call_args.args == (
-        "POST",
-        "https://example.server.prescient.earth/ingest/v1/ingestion/42/start",
-    )
-
-
-def test_get_ingestion_input_files(mocker: MockerFixture, ingest_client: IngestClient):
-    mocker.patch(
-        "prescient_sdk.ingest_client.requests.request",
-        return_value=_make_response([INPUT_FILE_PAYLOAD, INPUT_FILE_PAYLOAD]),
-    )
-    result = ingest_client.get_ingestion_input_files(42)
-    assert len(result) == 2
-    assert all(isinstance(f, InputFile) for f in result)
-    assert result[0].path == "data/file.tif"
-
-
-def test_get_ingestion_output_files(mocker: MockerFixture, ingest_client: IngestClient):
-    mocker.patch(
-        "prescient_sdk.ingest_client.requests.request",
-        return_value=_make_response([OUTPUT_FILE_PAYLOAD]),
-    )
-    result = ingest_client.get_ingestion_output_files(42)
-    assert len(result) == 1
-    assert isinstance(result[0], OutputFile)
-    assert result[0].status is FileStatus.DONE
-    assert result[0].task_name == "transform_main"
-
-
-def test_get_ingestion_errors(mocker: MockerFixture, ingest_client: IngestClient):
-    mocker.patch(
-        "prescient_sdk.ingest_client.requests.request",
-        return_value=_make_response([ERROR_PAYLOAD]),
-    )
-    result = ingest_client.get_ingestion_errors(42)
-    assert len(result) == 1
-    assert isinstance(result[0], Error)
-    assert result[0].severity is ErrorSeverity.WARNING
-
-
-# ---------------------------------------------------------------------------
-# Batch-level endpoints
-# ---------------------------------------------------------------------------
-
-
-def test_list_batches(mocker: MockerFixture, ingest_client: IngestClient):
-    mocker.patch(
-        "prescient_sdk.ingest_client.requests.request",
-        return_value=_make_response([BATCH_PAYLOAD]),
-    )
-    result = ingest_client.list_batches(42)
-    assert len(result) == 1
-    assert isinstance(result[0], Batch)
-    assert result[0].batch_number == 1
-
-
-def test_create_batch(mocker: MockerFixture, ingest_client: IngestClient):
-    request_mock = mocker.patch(
-        "prescient_sdk.ingest_client.requests.request",
-        return_value=_make_response(BATCH_PAYLOAD),
-    )
-    result = ingest_client.create_batch(42)
-    assert isinstance(result, Batch)
-    assert request_mock.call_args.args == (
-        "POST",
-        "https://example.server.prescient.earth/ingest/v1/ingestion/42/batches",
-    )
-
-
-def test_get_batch(mocker: MockerFixture, ingest_client: IngestClient):
-    request_mock = mocker.patch(
-        "prescient_sdk.ingest_client.requests.request",
-        return_value=_make_response(BATCH_PAYLOAD),
-    )
-    result = ingest_client.get_batch(42, 1)
-    assert result.status is Status.SCANNING
-    assert request_mock.call_args.args == (
-        "GET",
-        "https://example.server.prescient.earth/ingest/v1/ingestion/42/batches/1",
-    )
-
-
-def test_start_batch(mocker: MockerFixture, ingest_client: IngestClient):
-    request_mock = mocker.patch(
-        "prescient_sdk.ingest_client.requests.request",
-        return_value=_make_response({**BATCH_PAYLOAD, "status": "INGESTING"}),
-    )
-    result = ingest_client.start_batch(42, 1)
-    assert result.status is Status.INGESTING
-    assert request_mock.call_args.args == (
-        "POST",
-        "https://example.server.prescient.earth/ingest/v1/ingestion/42/batches/1/start",
-    )
-
-
-def test_get_batch_input_files(mocker: MockerFixture, ingest_client: IngestClient):
-    mocker.patch(
-        "prescient_sdk.ingest_client.requests.request",
-        return_value=_make_response([INPUT_FILE_PAYLOAD]),
-    )
-    result = ingest_client.get_batch_input_files(42, 1)
-    assert len(result) == 1
-    assert isinstance(result[0], InputFile)
-
-
-def test_get_batch_output_files(mocker: MockerFixture, ingest_client: IngestClient):
-    mocker.patch(
-        "prescient_sdk.ingest_client.requests.request",
-        return_value=_make_response([OUTPUT_FILE_PAYLOAD]),
-    )
-    result = ingest_client.get_batch_output_files(42, 1)
-    assert len(result) == 1
-    assert isinstance(result[0], OutputFile)
-
-
-def test_get_batch_errors(mocker: MockerFixture, ingest_client: IngestClient):
-    mocker.patch(
-        "prescient_sdk.ingest_client.requests.request",
-        return_value=_make_response([ERROR_PAYLOAD]),
-    )
-    result = ingest_client.get_batch_errors(42, 1)
-    assert len(result) == 1
-    assert isinstance(result[0], Error)
-
-
-# ---------------------------------------------------------------------------
-# Error propagation on GETs
-# ---------------------------------------------------------------------------
-
-
-def test_get_ingestion_propagates_404(
-    mocker: MockerFixture, ingest_client: IngestClient
+def test_create_ingestion_409_raises_collection_ownership_error(
+    http: FakeHTTP, ingest_client: IngestClient
 ):
-    mocker.patch(
-        "prescient_sdk.ingest_client.requests.request",
-        return_value=_make_response(status_code=404, raise_for_status=True),
-    )
-    with pytest.raises(requests.HTTPError):
+    http.respond(409, {"detail": "The collection belongs to another Organization."})
+    with pytest.raises(CollectionOwnershipError) as excinfo:
+        ingest_client.create_ingestion(V2_SPEC)
+    assert excinfo.value.status_code == 409
+    assert excinfo.value.detail == "The collection belongs to another Organization."
+
+
+def test_create_ingestion_403_raises_api_error(
+    http: FakeHTTP, ingest_client: IngestClient
+):
+    http.respond(403, {"detail": "organization admin privileges required"})
+    with pytest.raises(IngestAPIError) as excinfo:
+        ingest_client.create_ingestion(V2_SPEC)
+    assert not isinstance(excinfo.value, (IngestSpecError, CollectionOwnershipError))
+    assert excinfo.value.detail == "organization admin privileges required"
+
+
+def test_error_detail_falls_back_to_body_text(
+    http: FakeHTTP, ingest_client: IngestClient
+):
+    http.respond(502, "Bad gateway")
+    with pytest.raises(IngestAPIError) as excinfo:
+        ingest_client.get_ingestion(42)
+    assert excinfo.value.detail == "Bad gateway"
+
+
+def test_error_detail_serializes_validation_errors(
+    http: FakeHTTP, ingest_client: IngestClient
+):
+    detail = [{"loc": ["query", "limit"], "msg": "too big", "type": "less_than"}]
+    http.respond(422, {"detail": detail})
+    with pytest.raises(IngestAPIError) as excinfo:
+        ingest_client.list_ingestions(limit=5000)
+    assert json.loads(excinfo.value.detail) == detail
+
+
+def test_get_ingestion_404_raises_api_error(
+    http: FakeHTTP, ingest_client: IngestClient
+):
+    http.respond(404, {"detail": "Ingestion not found."})
+    with pytest.raises(IngestAPIError, match="Ingestion not found."):
         ingest_client.get_ingestion(999)
 
 
 # ---------------------------------------------------------------------------
-# Health check
+# Listings and pagination
 # ---------------------------------------------------------------------------
 
 
-def test_check_returns_true_on_204(mocker: MockerFixture, ingest_client: IngestClient):
-    get_mock = mocker.patch(
-        "prescient_sdk.ingest_client.requests.get",
-        return_value=_make_response(status_code=204),
-    )
-    assert ingest_client.check() is True
-    assert (
-        get_mock.call_args.args[0]
-        == "https://example.server.prescient.earth/ingest/healthy"
-    )
+def test_list_ingestions(http: FakeHTTP, ingest_client: IngestClient):
+    http.respond(200, [INGESTION_PAYLOAD, {**INGESTION_PAYLOAD, "id": 41}])
+
+    result = ingest_client.list_ingestions()
+
+    assert [i.id for i in result] == [42, 41]
+    assert all(isinstance(i, Ingestion) for i in result)
+    assert _path(http.last) == "/ingest/v1/ingestion/"
+    assert _query(http.last) == {"limit": ["100"], "offset": ["0"]}
 
 
-def test_check_returns_false_on_other_status(
-    mocker: MockerFixture, ingest_client: IngestClient
-):
-    """A non-204 response returns False."""
-    mocker.patch(
-        "prescient_sdk.ingest_client.requests.get",
-        return_value=_make_response(status_code=500),
-    )
-    assert ingest_client.check() is False
-
-
-# ---------------------------------------------------------------------------
-# wait_for_status
-# ---------------------------------------------------------------------------
-
-
-def test_wait_for_status_returns_when_target_reached(
-    mocker: MockerFixture, ingest_client: IngestClient
-):
-    """Polls until status enters target set, then returns."""
-    responses = [
-        _make_response({**INGESTION_PAYLOAD, "status": "SCANNING"}),
-        _make_response({**INGESTION_PAYLOAD, "status": "SCANNING"}),
-        _make_response({**INGESTION_PAYLOAD, "status": "READY"}),
-    ]
-    mocker.patch("prescient_sdk.ingest_client.requests.request", side_effect=responses)
-    sleep_mock = mocker.patch("prescient_sdk.ingest_client.time.sleep")
-
-    result = ingest_client.wait_for_status(42, poll_interval=0.01, timeout=10)
-
-    assert isinstance(result, Ingestion)
-    assert result.status is Status.READY
-    # Slept after each non-terminal poll, but not after the terminal one.
-    assert sleep_mock.call_count == 2
-
-
-def test_wait_for_status_polls_batch_when_batch_number_given(
-    mocker: MockerFixture, ingest_client: IngestClient
-):
-    request_mock = mocker.patch(
-        "prescient_sdk.ingest_client.requests.request",
-        return_value=_make_response({**BATCH_PAYLOAD, "status": "DONE"}),
-    )
-    mocker.patch("prescient_sdk.ingest_client.time.sleep")
-
-    result = ingest_client.wait_for_status(42, batch_number=1, poll_interval=0.01)
-    assert isinstance(result, Batch)
-    assert result.status is Status.DONE
-    # Must hit the batch endpoint, not the top-level ingestion endpoint.
-    assert request_mock.call_args.args[1].endswith("/batches/1")
-
-
-def test_wait_for_status_times_out(mocker: MockerFixture, ingest_client: IngestClient):
-    """If a target status is never reached, TimeoutError is raised."""
-    mocker.patch(
-        "prescient_sdk.ingest_client.requests.request",
-        return_value=_make_response({**INGESTION_PAYLOAD, "status": "SCANNING"}),
-    )
-    mocker.patch("prescient_sdk.ingest_client.time.sleep")
-    # Drive monotonic so the deadline elapses on the first iteration.
-    mocker.patch(
-        "prescient_sdk.ingest_client.time.monotonic", side_effect=[0.0, 100.0, 100.0]
-    )
-
-    with pytest.raises(TimeoutError):
-        ingest_client.wait_for_status(
-            42,
-            target_statuses=[Status.DONE],
-            poll_interval=0.01,
-            timeout=1,
-        )
-
-
-def test_wait_for_status_custom_target(
-    mocker: MockerFixture, ingest_client: IngestClient
-):
-    """Custom target sets are honored (e.g., waiting for DONE/FAILED only)."""
-    responses = [
-        _make_response({**INGESTION_PAYLOAD, "status": "READY"}),
-        _make_response({**INGESTION_PAYLOAD, "status": "INGESTING"}),
-        _make_response({**INGESTION_PAYLOAD, "status": "DONE"}),
-    ]
-    mocker.patch("prescient_sdk.ingest_client.requests.request", side_effect=responses)
-    mocker.patch("prescient_sdk.ingest_client.time.sleep")
-
-    result = ingest_client.wait_for_status(
-        42,
-        target_statuses=[Status.DONE, Status.FAILED],
-        poll_interval=0.01,
-    )
-    assert result.status is Status.DONE
-
-
-# ---------------------------------------------------------------------------
-# Model coverage: Ingestion.spec is an opaque dict
-# ---------------------------------------------------------------------------
-
-
-def test_ingestion_spec_is_opaque_dict(
-    mocker: MockerFixture, ingest_client: IngestClient
-):
-    """The Ingest API exposes ``spec`` as an open object; it round-trips as a dict."""
-    payload = {
-        "id": 7,
-        "status": "READY",
-        "spec": {
-            "user": "tester",
-            "tasks": {
-                "main": {"type": "transform", "input_location": "loc_a"},
-                "thumb": {"type": "thumbnail", "input_location": "loc_b"},
-            },
-        },
+def test_list_ingestions_paginates(http: FakeHTTP, mock_creds):
+    client = IngestClient(organization="spk-sandbox")
+    http.respond(200, [])
+    client.list_ingestions(limit=10, offset=20)
+    assert _query(http.last) == {
+        "limit": ["10"],
+        "offset": ["20"],
+        "organization": ["spk-sandbox"],
     }
-    mocker.patch(
-        "prescient_sdk.ingest_client.requests.request",
-        return_value=_make_response(payload),
+
+
+def test_list_batches(http: FakeHTTP, ingest_client: IngestClient):
+    http.respond(200, [BATCH_PAYLOAD])
+
+    result = ingest_client.list_batches(42, limit=5, offset=1)
+
+    assert len(result) == 1
+    assert isinstance(result[0], Batch)
+    assert _path(http.last) == "/ingest/v1/ingestion/42/batches"
+    assert _query(http.last) == {"limit": ["5"], "offset": ["1"]}
+
+
+# ---------------------------------------------------------------------------
+# Response models
+# ---------------------------------------------------------------------------
+
+
+def test_models_parse_mt_payloads(http: FakeHTTP, ingest_client: IngestClient):
+    http.respond(200, [INPUT_FILE_PAYLOAD])
+    (input_file,) = ingest_client.get_ingestion_input_files(42)
+    assert isinstance(input_file, InputFile)
+    # MT stac_item_id is a string, not necessarily a UUID.
+    assert input_file.stac_item_id == ITEM_ID
+
+    http.respond(200, [OUTPUT_FILE_PAYLOAD])
+    (output_file,) = ingest_client.get_ingestion_output_files(42)
+    assert isinstance(output_file, OutputFile)
+    assert output_file.status is FileStatus.DONE
+    assert output_file.path == "assets/lidar/2026/file.tif"
+
+    http.respond(200, [STAC_ITEM_PAYLOAD])
+    (stac_item,) = ingest_client.get_batch_stac_items(42, 1)
+    assert isinstance(stac_item, StacItem)
+    assert stac_item.status is FileStatus.PENDING
+
+    http.respond(200, [ERROR_PAYLOAD])
+    (error,) = ingest_client.get_ingestion_errors(42)
+    assert isinstance(error, Error)
+    assert error.severity is ErrorSeverity.WARNING
+
+
+def test_models_accept_fields_the_server_omits(
+    http: FakeHTTP, ingest_client: IngestClient
+):
+    """Some MT routes use response_model_exclude_none, so null fields go missing."""
+    http.respond(200, [{k: v for k, v in OUTPUT_FILE_PAYLOAD.items() if k != "path"}])
+    (output_file,) = ingest_client.get_ingestion_output_files(42)
+    assert output_file.path is None
+
+    http.respond(
+        200,
+        [
+            {
+                "severity": "WARNING",
+                "time_occurred": NOW_ISO,
+                "description": "x",
+                "ingestion_id": 1,
+            }
+        ],
     )
-    result = ingest_client.get_ingestion(7)
-    assert isinstance(result.spec, dict)
-    assert result.spec["user"] == "tester"
-    assert result.spec["tasks"]["main"]["type"] == "transform"
-    assert result.spec["tasks"]["thumb"]["type"] == "thumbnail"
+    (error,) = ingest_client.get_ingestion_errors(42)
+    assert error.input_file is None
+
+
+def test_start_batch_accepts_202_planning(http: FakeHTTP, ingest_client: IngestClient):
+    """A slow launch returns 202 with the batch still PLANNING; that is not an error."""
+    http.respond(202, {**BATCH_PAYLOAD, "status": "PLANNING"})
+    batch = ingest_client.start_batch(42, 1)
+    assert batch.status is Status.PLANNING
+
+
+def test_status_has_no_incomplete():
+    """The MT service has no INCOMPLETE status."""
+    assert "INCOMPLETE" not in Status.__members__

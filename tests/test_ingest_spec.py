@@ -12,7 +12,7 @@ from prescient_sdk.ingest_spec import IngestSpec
 
 
 SPEC = {
-    "user": "tester",
+    "version": "2.0.0",
     "locations": {
         "source_location": {"path": "s3://source-bucket/data"},
         "target_location": {"path": "s3://target-bucket"},
@@ -24,7 +24,7 @@ SPEC = {
 
 
 LOCAL_SPEC = {
-    "user": "tester",
+    "version": "2.0.0",
     "locations": {
         "source_location": {"path": "/data/scenes"},
         "props_location": {"path": "file:///data/props"},
@@ -75,7 +75,7 @@ def test_from_file_parses_yaml(tmp_path):
     path.write_text(
         textwrap.dedent(
             """
-            user: tester
+            version: "2.0.0"
             locations:
               source_location:
                 path: s3://source-bucket/data
@@ -83,7 +83,7 @@ def test_from_file_parses_yaml(tmp_path):
         )
     )
     spec = IngestSpec.from_file(path)
-    assert spec.spec["user"] == "tester"
+    assert spec.spec["version"] == "2.0.0"
     assert (
         spec.spec["locations"]["source_location"]["path"] == "s3://source-bucket/data"
     )
@@ -101,43 +101,104 @@ def test_from_file_non_mapping_raises(tmp_path):
         IngestSpec.from_file(path)
 
 
+@pytest.mark.parametrize("content", [b"", b"- a\n- list\n"])
+def test_from_bytes_non_mapping_raises(content):
+    with pytest.raises(ValueError, match="mapping"):
+        IngestSpec.from_bytes(content)
+
+
 def test_spec_accessor_returns_copy():
     spec = IngestSpec.from_dict(SPEC)
-    spec.spec["user"] = "mutated"
-    assert spec.spec["user"] == "tester"
+    spec.spec["version"] = "mutated"
+    assert spec.spec["version"] == "2.0.0"
 
 
 def test_to_bytes_round_trips_and_preserves_order():
     spec = IngestSpec.from_dict(SPEC)
     reparsed = yaml.safe_load(spec.to_bytes())
     assert reparsed == SPEC
-    # user was authored first; sort_keys=False must preserve that
-    assert list(reparsed.keys())[0] == "user"
+    # version was authored first; sort_keys=False must preserve that
+    assert list(reparsed.keys())[0] == "version"
+    # and it stays a string, not the YAML float 2.0
+    assert reparsed["version"] == "2.0.0"
 
 
-def test_local_locations_flags_non_s3():
+def test_local_locations_flags_local_directories():
     spec = IngestSpec.from_dict(
         {
             "locations": {
-                "remote": {"path": "s3://bucket/data"},
+                "external": {"path": "s3://bucket/data"},
+                "public": {"path": "https://b.s3.eu-west-1.amazonaws.com/x"},
+                "org_bucket": {"path": "lidar/2026"},
+                "org_bucket_dot": {"path": "./lidar/"},
                 "local_dir": {"path": "/mnt/data/scenes"},
                 "file_uri": {"path": "file:///mnt/data"},
+                "home": {"path": "~/data"},
+                "parent": {"path": "../data"},
+                "windows": {"path": "C:\\data\\scenes"},
                 "missing_path": {},
             }
         }
     )
-    assert spec.local_locations() == ["local_dir", "file_uri", "missing_path"]
+    assert spec.local_locations() == [
+        "local_dir",
+        "file_uri",
+        "home",
+        "parent",
+        "windows",
+        "missing_path",
+    ]
 
 
-def test_local_locations_empty_when_all_s3():
+def test_local_locations_empty_when_all_remote():
     assert IngestSpec.from_dict(SPEC).local_locations() == []
 
 
 def test_local_locations_no_locations_key():
-    assert IngestSpec.from_dict({"user": "tester"}).local_locations() == []
+    assert IngestSpec.from_dict({"version": "2.0.0"}).local_locations() == []
 
 
-DEST = "dest://uploads"
+def test_problems_empty_for_v2_spec():
+    spec = IngestSpec.from_dict(
+        {
+            "version": "2.1",
+            "locations": {
+                "raw": {"path": "lidar/2026"},
+                "partner": {"path": "s3://partner-data/2026", "credentials": True},
+            },
+        }
+    )
+    assert spec.problems() == []
+
+
+@pytest.mark.parametrize(
+    "spec,expected",
+    [
+        ({**SPEC, "user": "tester"}, '"user" is not allowed'),
+        ({**SPEC, "version": "1.0"}, '"version" must be a string that starts with'),
+        ({**SPEC, "version": 2.0}, '"version" must be a string'),
+        ({"locations": SPEC["locations"]}, '"version"'),
+        (
+            {"version": "2.0.0", "locations": {"src": {"path": "/data"}}},
+            "local directories and must be uploaded first: ['src']",
+        ),
+        (
+            {
+                "version": "2.0.0",
+                "locations": {"raw": {"path": "lidar", "credentials": True}},
+            },
+            "location 'raw': \"credentials\" is only for an External bucket",
+        ),
+    ],
+    ids=["user", "v1", "float", "missing-version", "local", "org-credentials"],
+)
+def test_problems_reports_what_the_api_rejects(spec, expected):
+    problems = IngestSpec.from_dict(spec).problems()
+    assert len(problems) == 1
+    assert expected in problems[0]
+
+
+DEST = "sdk-uploads"
 
 
 def fake_uploader(local_file, destination):
@@ -158,14 +219,12 @@ def test_with_uploaded_sources_stages_set(upload_mock, uuid_mock, quiet_console)
     args, kwargs = upload_mock.call_args
     local_dir, dest_prefix, pattern, uploader = args
     assert local_dir == "/data/scenes"
-    assert dest_prefix == "dest://uploads/uuid-1/"
+    assert dest_prefix == "sdk-uploads/uuid-1/"
     assert pattern == r".*\.tif$"
     assert uploader is fake_uploader
     assert callable(kwargs["on_file"])
 
-    assert (
-        staged.spec["locations"]["source_location"]["path"] == "dest://uploads/uuid-1/"
-    )
+    assert staged.spec["locations"]["source_location"]["path"] == "sdk-uploads/uuid-1/"
 
 
 def test_with_uploaded_sources_shared_location_one_prefix(
@@ -178,10 +237,8 @@ def test_with_uploaded_sources_shared_location_one_prefix(
     assert uuid_mock.call_count == 1
     assert upload_mock.call_count == 2
     dests = {call.args[1] for call in upload_mock.call_args_list}
-    assert dests == {"dest://uploads/uuid-1/"}
-    assert (
-        staged.spec["locations"]["source_location"]["path"] == "dest://uploads/uuid-1/"
-    )
+    assert dests == {"sdk-uploads/uuid-1/"}
+    assert staged.spec["locations"]["source_location"]["path"] == "sdk-uploads/uuid-1/"
 
 
 def test_with_uploaded_sources_distinct_locations_distinct_prefixes(
@@ -191,17 +248,13 @@ def test_with_uploaded_sources_distinct_locations_distinct_prefixes(
     staged = stage(spec, ["images", "props"], quiet_console)
 
     assert uuid_mock.call_count == 2
-    assert (
-        staged.spec["locations"]["source_location"]["path"] == "dest://uploads/uuid-1/"
-    )
+    assert staged.spec["locations"]["source_location"]["path"] == "sdk-uploads/uuid-1/"
     # file:// scheme is stripped before upload.
     props_call = next(
         c for c in upload_mock.call_args_list if c.args[0] == "/data/props"
     )
-    assert props_call.args[1] == "dest://uploads/uuid-2/"
-    assert (
-        staged.spec["locations"]["props_location"]["path"] == "dest://uploads/uuid-2/"
-    )
+    assert props_call.args[1] == "sdk-uploads/uuid-2/"
+    assert staged.spec["locations"]["props_location"]["path"] == "sdk-uploads/uuid-2/"
 
 
 def test_with_uploaded_sources_trailing_slash_in_prefix(
@@ -241,11 +294,40 @@ def test_with_uploaded_sources_missing_location_raises(upload_mock, quiet_consol
     upload_mock.assert_not_called()
 
 
-def test_with_uploaded_sources_already_s3_raises(upload_mock, quiet_console):
+def test_with_uploaded_sources_already_external_raises(upload_mock, quiet_console):
     spec = IngestSpec.from_dict(LOCAL_SPEC)
-    with pytest.raises(ValueError, match="already an s3://"):
+    with pytest.raises(ValueError, match="already an External bucket URL"):
         stage(spec, ["already_remote"], quiet_console)
     upload_mock.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "dest_prefix,match",
+    [
+        ("/abs/path", "must not start with /"),
+        ("a/../b", '".." segment'),
+        ("uploads/sdk", 'must not start with "uploads/" or "assets/"'),
+        ("./assets/sdk", 'must not start with "uploads/" or "assets/"'),
+        ("gs://bucket/x", "Organization bucket path or an s3:// URL"),
+    ],
+)
+def test_with_uploaded_sources_rejects_invalid_dest_prefix(
+    upload_mock, quiet_console, dest_prefix, match
+):
+    spec = IngestSpec.from_dict(LOCAL_SPEC)
+    with pytest.raises(ValueError, match=match):
+        stage(spec, ["images"], quiet_console, dest_prefix=dest_prefix)
+    upload_mock.assert_not_called()
+
+
+def test_with_uploaded_sources_to_org_bucket_passes_problems(
+    upload_mock, uuid_mock, quiet_console
+):
+    spec = IngestSpec.from_dict(LOCAL_SPEC)
+    staged = stage(spec, ["images", "props"], quiet_console)
+    assert staged.spec["locations"]["source_location"]["path"] == "sdk-uploads/uuid-1/"
+    assert staged.local_locations() == []
+    assert staged.problems() == []
 
 
 def test_with_uploaded_sources_requires_dest_prefix(upload_mock, quiet_console):
@@ -281,7 +363,7 @@ def test_with_uploaded_sources_calls_uploader_per_file(
     spec_file.write_text(
         textwrap.dedent(
             f"""
-            user: tester
+            version: "2.0.0"
             locations:
               source_location:
                 path: {scenes}

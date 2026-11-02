@@ -1,13 +1,13 @@
 """Pydantic models for the Prescient Ingest API.
 
-These mirror the schemas defined in the Ingest API OpenAPI specification
-and are returned by :class:`prescient_sdk.ingest_client.IngestClient`.
+These mirror the response schemas of the multi-tenant (MT) ingestion service
+(``prescient.ingestion.schemas`` in prescient-platform-services) and are
+returned by :class:`prescient_sdk.ingest_client.IngestClient`.
 """
 
 from datetime import datetime
 from enum import Enum
 from typing import Any
-from uuid import UUID
 
 from pydantic import BaseModel
 
@@ -21,7 +21,6 @@ class Status(str, Enum):
     INGESTING = "INGESTING"
     DONE = "DONE"
     FAILED = "FAILED"
-    INCOMPLETE = "INCOMPLETE"
 
 
 class FileStatus(str, Enum):
@@ -50,15 +49,23 @@ class InputFile(BaseModel):
     location: str
     path: str
     last_modified: datetime
-    stac_item_id: UUID
+    stac_item_id: str
     source_file_set: str | None = None
 
 
 class OutputFile(BaseModel):
-    """A STAC item produced by an ingestion task."""
+    """A file produced by an ingestion task for one STAC item."""
 
-    stac_item_id: UUID
+    stac_item_id: str
     task_name: str
+    status: FileStatus
+    path: str | None = None
+
+
+class StacItem(BaseModel):
+    """A STAC item an ingestion writes, and whether it has been written."""
+
+    stac_item_id: str
     status: FileStatus
 
 
@@ -89,24 +96,18 @@ class Error(BaseModel):
     time_occurred: datetime
     description: str
     ingestion_id: int
-    location: str | None
-    task: str | None
-    input_file: InputFile | None
-    stack_trace: str | None
+    location: str | None = None
+    task: str | None = None
+    input_file: InputFile | None = None
+    stack_trace: str | None = None
 
 
-TERMINAL_STATUSES: frozenset[Status] = frozenset(
-    {Status.READY, Status.DONE, Status.FAILED, Status.INCOMPLETE}
-)
-
-# Targets for "wait until the create/scan phase resolves" — anything that
-# ends SCANNING/PLANNING.
+# Targets for "wait until the create/scan phase resolves": anything that
+# ends SCANNING. A scan that finds no input files goes straight to DONE.
 READY_STATUSES: frozenset[Status] = frozenset(
-    {Status.READY, Status.FAILED, Status.INCOMPLETE}
+    {Status.READY, Status.DONE, Status.FAILED}
 )
 
-# Targets for "wait until ingestion finishes" — READY is no longer a stop
+# Targets for "wait until ingestion finishes": READY is no longer a stop
 # condition once ingestion has been started.
-DONE_STATUSES: frozenset[Status] = frozenset(
-    {Status.DONE, Status.FAILED, Status.INCOMPLETE}
-)
+DONE_STATUSES: frozenset[Status] = frozenset({Status.DONE, Status.FAILED})

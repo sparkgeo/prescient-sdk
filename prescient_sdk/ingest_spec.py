@@ -1,20 +1,27 @@
 """The :class:`IngestSpec` value object.
 
-An :class:`IngestSpec` is a parsed ingestion specification (the YAML document
+An :class:`IngestSpec` is a parsed version 2 ingestion spec (the YAML document
 describing an ingestion's ``locations``, ``source_files``, ``tasks`` and STAC
 metadata). It is the typed entry point for building an ingestion from Python.
 
-The Ingest API only accepts ``s3://`` location paths. A spec authored locally may
-still point a location at a local directory; uploading those sources and
-rewriting their paths (staging) is a separate step. This class carries the parsed
-spec, serializes it for submission, and can report which locations are still
-local so callers can refuse to submit an unstaged spec.
+A version 2 spec has ``version: "2.x"`` and no ``user`` field: the Organization
+comes from the request. A location ``path`` is either a path in the
+Organization bucket (no scheme, for example ``lidar/2026``) or the URL of an
+External bucket (``s3://...``, or a public bucket's regional ``https://`` URL).
+
+A spec authored locally may also point a location at a local directory, given
+as a ``file://`` URL or an absolute path. Uploading those sources and rewriting
+their paths (staging) is a separate step. This class carries the parsed spec,
+serializes it for submission, and checks it for the problems the Ingest API
+would reject, so callers can refuse to submit it.
 
 `IngestSpec` is immutable: there are no methods that change a spec in place.
 """
 
 import copy
 import logging
+import posixpath
+import re
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -32,20 +39,69 @@ from prescient_sdk.upload import Uploader, upload_source_files
 
 logger = logging.getLogger("prescient_sdk")
 
+SPEC_VERSION_PREFIX = "2."
+
+_URL_SCHEME = re.compile(r"[A-Za-z][A-Za-z0-9+.-]*://")
+_REGIONAL_HTTPS_URL = re.compile(
+    r"https://[a-z0-9.-]+\.s3\.[a-z0-9-]+\.amazonaws\.com(/.*)?"
+)
+_WINDOWS_DRIVE = re.compile(r"[A-Za-z]:[\\/]")
+# The Ingest API adds these areas to an Organization bucket path itself.
+_ORGANIZATION_BUCKET_AREAS = ("uploads", "assets")
+
+
+def _is_external(path: str) -> bool:
+    """Whether ``path`` is an External bucket URL the Ingest API accepts."""
+    return path.startswith("s3://") or _REGIONAL_HTTPS_URL.fullmatch(path) is not None
+
+
+def _is_local(path: str) -> bool:
+    """Whether ``path`` names a local directory rather than a bucket location.
+
+    A ``file://`` URL, an absolute path, a home-relative path or a path with a
+    ``..`` segment is local. The Ingest API rejects all of them. A relative
+    path without a scheme is an Organization bucket path, so it is not local.
+    """
+    return (
+        not path
+        or path.startswith(("file://", "/", "\\", "~"))
+        or _WINDOWS_DRIVE.match(path) is not None
+        or ".." in path.replace("\\", "/").split("/")
+    )
+
+
+def _organization_bucket_path_problem(path: str) -> str | None:
+    """Why the Ingest API would reject ``path`` as an Organization bucket path.
+
+    Mirrors the service's checks: no leading ``/``, no ``..`` segment, and no
+    leading ``uploads/`` or ``assets/``, which the platform adds itself.
+
+    Returns:
+        str | None: The reason, or None when the path is acceptable.
+    """
+    if path.startswith("/"):
+        return "must not start with /"
+    if ".." in path.split("/"):
+        return 'must not contain a ".." segment'
+    if posixpath.normpath(path).split("/")[0] in _ORGANIZATION_BUCKET_AREAS:
+        return 'must not start with "uploads/" or "assets/": the platform adds them'
+    return None
+
 
 class IngestSpec:
-    """A parsed ingestion specification.
+    """A parsed version 2 ingestion spec.
 
     Construct via :meth:`from_file` or :meth:`from_dict` so the parse step is
     visible at the call site. Use :meth:`to_bytes` to serialize the spec for
-    submission, and :meth:`local_locations` to check whether any location still
-    points at a local (non-``s3://``) path.
+    submission, :meth:`local_locations` to check whether any location still
+    points at a local directory, and :meth:`problems` for every problem the SDK
+    can find before submitting.
 
     Example::
 
         spec = IngestSpec.from_file("spec.yaml")
-        if spec.local_locations():
-            raise RuntimeError("upload local sources before ingesting")
+        if spec.problems():
+            raise RuntimeError(spec.problems())
         ing = IngestResource.create(client, spec)
     """
 
@@ -100,10 +156,25 @@ class IngestSpec:
 
     @classmethod
     def from_bytes(cls, spec: bytes) -> "IngestSpec":
-        """IngestSpec from bytes"""
+        """Parse an ingestion spec from YAML bytes.
+
+        Args:
+            spec (bytes): The UTF-8 encoded YAML document.
+
+        Returns:
+            IngestSpec: The parsed spec.
+
+        Raises:
+            ValueError: If ``spec`` is not bytes or not a YAML mapping.
+        """
         if not isinstance(spec, bytes):
-            raise ValueError(f"Ingestion spec must be bytes, got{type(spec).__name__}")
-        return cls(yaml.safe_load(spec))
+            raise ValueError(f"Ingestion spec must be bytes, got {type(spec).__name__}")
+        parsed = yaml.safe_load(spec)
+        if not isinstance(parsed, dict):
+            raise ValueError(
+                f"Ingestion spec must be a YAML mapping, got {type(parsed).__name__}"
+            )
+        return cls(parsed)
 
     @property
     def spec(self) -> dict[str, Any]:
@@ -129,22 +200,66 @@ class IngestSpec:
         return yaml.safe_dump(self._spec, sort_keys=False).encode("utf-8")
 
     def local_locations(self) -> list[str]:
-        """Return the names of locations whose path is not an ``s3://`` URI.
+        """Return the names of locations whose path is a local directory.
 
-        The Ingest API only reads ``s3://`` locations, so a non-empty result
-        means the spec is not ready to submit (its local sources must be uploaded
-        and their paths rewritten first). A location with no ``path`` is also
-        reported, since it cannot be read either.
+        A ``file://`` URL, an absolute path, a home-relative path, a path with
+        a ``..`` segment, or a missing ``path`` is local. The Ingest API cannot
+        read any of them, so a non-empty result means the spec is not ready to
+        submit: upload those sources and rewrite their paths first (see
+        :meth:`with_uploaded_sources`).
+
+        A relative path without a scheme (for example ``lidar/2026``) is a path
+        in the Organization bucket, not a local directory.
 
         Returns:
-            list[str]: Location names with a non-``s3://`` path, in spec order.
+            list[str]: Names of local locations, in spec order.
         """
-        locations = {} if self._spec is None else self._spec.get("locations", {})
+        locations = self._spec.get("locations") or {}
         return [
             name
             for name, location in locations.items()
-            if not str((location or {}).get("path", "")).startswith("s3://")
+            if _is_local(str((location or {}).get("path", "")))
         ]
+
+    def problems(self) -> list[str]:
+        """Return the reasons the Ingest API would reject this spec as version 2.
+
+        Checks only what the SDK can check without the server: ``version`` is a
+        string that starts with ``2.``, there is no ``user`` field, no location
+        is a local directory, and ``credentials: true`` is set only on External
+        bucket locations. The server validates the rest.
+
+        Returns:
+            list[str]: One message per problem; empty when none were found.
+        """
+        problems = []
+        version = self._spec.get("version")
+        if not isinstance(version, str) or not version.startswith(SPEC_VERSION_PREFIX):
+            problems.append(
+                f'"version" must be a string that starts with "{SPEC_VERSION_PREFIX}", '
+                f'for example "2.0.0" (quote it in YAML); got {version!r}'
+            )
+        if "user" in self._spec:
+            problems.append(
+                '"user" is not allowed in a version 2 spec: the Organization comes '
+                "from the request"
+            )
+        local = self.local_locations()
+        if local:
+            problems.append(
+                f"these locations are local directories and must be uploaded first: "
+                f"{local}"
+            )
+        for name, location in (self._spec.get("locations") or {}).items():
+            location = location or {}
+            if location.get("credentials") is True and not _is_external(
+                str(location.get("path", ""))
+            ):
+                problems.append(
+                    f'location {name!r}: "credentials" is only for an External bucket '
+                    "(s3:// path)"
+                )
+        return problems
 
     def with_uploaded_sources(
         self,
@@ -172,7 +287,12 @@ class IngestSpec:
         new instance.
 
         The SDK does not ship an uploader. The caller supplies one, and the
-        destination prefix it writes under.
+        destination prefix it writes under. ``dest_prefix`` is usually a path in
+        the Organization bucket, such as ``sdk-uploads``. The Ingest API reads
+        an Organization bucket source location under ``uploads/``, so the
+        uploader must write each ``destination`` under ``uploads/`` in the
+        Organization bucket. An ``s3://`` prefix names an External bucket, which
+        the uploader writes to directly.
 
         Example::
 
@@ -180,7 +300,7 @@ class IngestSpec:
             ready = spec.with_uploaded_sources(
                 ["image_files", "thumbnail_files"],
                 uploader=my_uploader,
-                dest_prefix="s3://bucket/uploads",
+                dest_prefix="sdk-uploads",
             )
             ing = IngestResource.create(client, ready)
 
@@ -190,7 +310,9 @@ class IngestSpec:
             uploader (Uploader): Called as ``uploader(local_file, destination)``
                 for each selected file. See :data:`prescient_sdk.upload.Uploader`.
             dest_prefix (str): Prefix that staged locations are rewritten to,
-                with one ``uuid4`` segment per location appended.
+                with one ``uuid4`` segment per location appended: an
+                Organization bucket path (no scheme, not starting with ``/``,
+                ``uploads/`` or ``assets/``) or an ``s3://`` URL.
             console: Optional Rich ``Console`` to render upload progress to;
                 defaults to Rich's standard console.
 
@@ -199,12 +321,21 @@ class IngestSpec:
             ``{dest_prefix}/{uuid4}/``.
 
         Raises:
-            ValueError: If ``dest_prefix`` is empty, a named set or its location
-                is missing, or a referenced location is already an ``s3://``
-                path.
+            ValueError: If ``dest_prefix`` is empty or not a valid location
+                path, a named set or its location is missing, or a referenced
+                location is already an External bucket URL.
         """
         if not dest_prefix:
             raise ValueError("dest_prefix must not be empty")
+        if not dest_prefix.startswith("s3://"):
+            if _URL_SCHEME.match(dest_prefix):
+                raise ValueError(
+                    f"dest_prefix {dest_prefix!r} must be an Organization bucket "
+                    "path or an s3:// URL"
+                )
+            problem = _organization_bucket_path_problem(dest_prefix)
+            if problem:
+                raise ValueError(f"dest_prefix {dest_prefix!r} {problem}")
         dest_root = dest_prefix.rstrip("/")
 
         spec = copy.deepcopy(self._spec)
@@ -226,10 +357,10 @@ class IngestSpec:
                     f"{set_name!r} not found in spec"
                 )
             raw_path = str((locations[location_name] or {}).get("path", ""))
-            if raw_path.startswith("s3://"):
+            if _is_external(raw_path):
                 raise ValueError(
-                    f"location {location_name!r} is already an s3:// path "
-                    f"({raw_path!r}); nothing to stage"
+                    f"location {location_name!r} is already an External bucket "
+                    f"URL ({raw_path!r}); nothing to stage"
                 )
             local_path = (
                 raw_path[len("file://") :]
