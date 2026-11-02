@@ -61,12 +61,11 @@ sphinx:
       Status: prescient_sdk.ingest_models.Status
       FileStatus: prescient_sdk.ingest_models.FileStatus
       ErrorSeverity: prescient_sdk.ingest_models.ErrorSeverity
-      IngestionResource: prescient_sdk.ingest_resources.IngestionResource
+      IngestResource: prescient_sdk.ingest_resources.IngestResource
       BatchResource: prescient_sdk.ingest_resources.BatchResource
       _IngestResource: prescient_sdk.ingest_resources._IngestResource
     intersphinx_mapping:
       python: ["https://docs.python.org/3", null]
-      boto3: ["https://boto3.amazonaws.com/v1/documentation/api/latest", null]
     autodoc_pydantic_model_show_json: false
     autodoc_pydantic_model_show_config_summary: false
     autodoc_pydantic_model_show_validator_summary: false
