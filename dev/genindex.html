@@ -171,12 +171,12 @@
         <p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="examples/configuration.html">Handling Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="examples/configuration.html">Configure the client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="migration.html">Migrate to version 1.0</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Examples</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="examples/stac_search.html">STAC Search</a></li>
-<li class="toctree-l1"><a class="reference internal" href="examples/upload.html">Upload</a></li>
 <li class="toctree-l1"><a class="reference internal" href="examples/ingest.html">Ingest</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">SDK Reference</span></p>
@@ -347,6 +347,7 @@
  | <a href="#G"><strong>G</strong></a>
  | <a href="#H"><strong>H</strong></a>
  | <a href="#I"><strong>I</strong></a>
+ | <a href="#K"><strong>K</strong></a>
  | <a href="#L"><strong>L</strong></a>
  | <a href="#M"><strong>M</strong></a>
  | <a href="#O"><strong>O</strong></a>
@@ -369,7 +370,7 @@
 <h2 id="A">A</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="client-sdk.html#prescient_sdk.client.PrescientClient.auth_credentials">auth_credentials (PrescientClient property)</a>
+      <li><a href="client-sdk.html#prescient_sdk.client.PrescientClient.auth">auth (PrescientClient attribute)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -389,8 +390,6 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="ingest-resources.html#prescient_sdk.ingest_resources.BatchResource">BatchResource (class in prescient_sdk.ingest_resources)</a>
 </li>
-      <li><a href="client-sdk.html#prescient_sdk.client.PrescientClient.bucket_credentials">bucket_credentials (PrescientClient property)</a>
-</li>
   </ul></td>
 </tr></table>
 
@@ -407,14 +406,14 @@
         <li><a href="ingest-resources.html#prescient_sdk.ingest_resources.IngestResource.create">(IngestResource class method)</a>
 </li>
       </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="ingest-client.html#prescient_sdk.ingest_client.IngestClient.create_batch">create_batch() (IngestClient method)</a>
 
       <ul>
         <li><a href="ingest-resources.html#prescient_sdk.ingest_resources.IngestResource.create_batch">(IngestResource method)</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="ingest-client.html#prescient_sdk.ingest_client.IngestClient.create_ingestion">create_ingestion() (IngestClient method)</a>
 </li>
       <li><a href="ingest-models.html#prescient_sdk.ingest_models.Batch.created">created (Batch attribute)</a>
@@ -423,8 +422,6 @@
         <li><a href="ingest-resources.html#prescient_sdk.ingest_resources.BatchResource.created">(BatchResource property)</a>
 </li>
       </ul></li>
-      <li><a href="client-sdk.html#prescient_sdk.client.PrescientClient.credentials_expired">credentials_expired (PrescientClient property)</a>
-</li>
   </ul></td>
 </tr></table>
 
@@ -483,6 +480,8 @@
 </li>
       <li><a href="ingest-client.html#prescient_sdk.ingest_client.IngestClient.get_batch_output_files">get_batch_output_files() (IngestClient method)</a>
 </li>
+      <li><a href="ingest-client.html#prescient_sdk.ingest_client.IngestClient.get_batch_stac_items">get_batch_stac_items() (IngestClient method)</a>
+</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="ingest-client.html#prescient_sdk.ingest_client.IngestClient.get_ingestion">get_ingestion() (IngestClient method)</a>
@@ -493,18 +492,16 @@
 </li>
       <li><a href="ingest-client.html#prescient_sdk.ingest_client.IngestClient.get_ingestion_output_files">get_ingestion_output_files() (IngestClient method)</a>
 </li>
+      <li><a href="ingest-client.html#prescient_sdk.ingest_client.IngestClient.get_ingestion_stac_items">get_ingestion_stac_items() (IngestClient method)</a>
+</li>
   </ul></td>
 </tr></table>
 
 <h2 id="H">H</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="ingest-client.html#prescient_sdk.ingest_client.IngestClient.headers">headers (IngestClient property)</a>
-
-      <ul>
-        <li><a href="client-sdk.html#prescient_sdk.client.PrescientClient.headers">(PrescientClient property)</a>
+      <li><a href="client-sdk.html#prescient_sdk.client.PrescientClient.headers">headers (PrescientClient property)</a>
 </li>
-      </ul></li>
   </ul></td>
 </tr></table>
 
@@ -546,10 +543,20 @@
   </ul></td>
 </tr></table>
 
+<h2 id="K">K</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="config.html#prescient_sdk.config.Settings.keycloak_url">keycloak_url (Settings property)</a>
+</li>
+  </ul></td>
+</tr></table>
+
 <h2 id="L">L</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="ingest-models.html#prescient_sdk.ingest_models.InputFile.last_modified">last_modified (InputFile attribute)</a>
+</li>
+      <li><a href="ingest-resources.html#prescient_sdk.ingest_resources.IngestResource.list_all">list_all() (IngestResource class method)</a>
 </li>
       <li><a href="ingest-client.html#prescient_sdk.ingest_client.IngestClient.list_batches">list_batches() (IngestClient method)</a>
 
@@ -559,6 +566,8 @@
       </ul></li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="ingest-client.html#prescient_sdk.ingest_client.IngestClient.list_ingestions">list_ingestions() (IngestClient method)</a>
+</li>
       <li><a href="ingest-resources.html#prescient_sdk.ingest_resources.LiveStatus">LiveStatus (class in prescient_sdk.ingest_resources)</a>
 </li>
       <li><a href="ingest-models.html#prescient_sdk.ingest_models.Error.location">location (Error attribute)</a>
@@ -627,28 +636,16 @@
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="ingest-models.html#prescient_sdk.ingest_models.InputFile.path">path (InputFile attribute)</a>
+
+      <ul>
+        <li><a href="ingest-models.html#prescient_sdk.ingest_models.OutputFile.path">(OutputFile attribute)</a>
 </li>
+      </ul></li>
       <li><a href="config.html#prescient_sdk.config.Settings.prescient_api_key">prescient_api_key (Settings attribute)</a>
-</li>
-      <li><a href="config.html#prescient_sdk.config.Settings.prescient_auth_provider">prescient_auth_provider (Settings attribute)</a>
-</li>
-      <li><a href="config.html#prescient_sdk.config.Settings.prescient_auth_token_path">prescient_auth_token_path (Settings attribute)</a>
 </li>
       <li><a href="config.html#prescient_sdk.config.Settings.prescient_auth_url">prescient_auth_url (Settings attribute)</a>
 </li>
-      <li><a href="config.html#prescient_sdk.config.Settings.prescient_aws_region">prescient_aws_region (Settings attribute)</a>
-</li>
-      <li><a href="config.html#prescient_sdk.config.Settings.prescient_aws_role">prescient_aws_role (Settings attribute)</a>
-</li>
-      <li><a href="config.html#prescient_sdk.config.Settings.prescient_client_id">prescient_client_id (Settings attribute)</a>
-</li>
       <li><a href="config.html#prescient_sdk.config.Settings.prescient_endpoint_url">prescient_endpoint_url (Settings attribute)</a>
-</li>
-      <li><a href="config.html#prescient_sdk.config.Settings.prescient_google_client_secret">prescient_google_client_secret (Settings attribute)</a>
-</li>
-      <li><a href="config.html#prescient_sdk.config.Settings.prescient_google_redirect_port">prescient_google_redirect_port (Settings attribute)</a>
-</li>
-      <li><a href="config.html#prescient_sdk.config.Settings.prescient_ingest_endpoint_url">prescient_ingest_endpoint_url (Settings attribute)</a>
 </li>
       <li>
     prescient_sdk.client
@@ -657,8 +654,6 @@
         <li><a href="client-sdk.html#module-prescient_sdk.client">module</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li>
     prescient_sdk.config
 
@@ -666,6 +661,8 @@
         <li><a href="config.html#module-prescient_sdk.config">module</a>
 </li>
       </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li>
     prescient_sdk.ingest_client
 
@@ -694,13 +691,7 @@
         <li><a href="upload.html#module-prescient_sdk.upload">module</a>
 </li>
       </ul></li>
-      <li><a href="config.html#prescient_sdk.config.Settings.prescient_tenant_id">prescient_tenant_id (Settings attribute)</a>
-</li>
-      <li><a href="config.html#prescient_sdk.config.Settings.prescient_upload_bucket">prescient_upload_bucket (Settings attribute)</a>
-</li>
-      <li><a href="config.html#prescient_sdk.config.Settings.prescient_upload_prefix">prescient_upload_prefix (Settings property)</a>
-</li>
-      <li><a href="config.html#prescient_sdk.config.Settings.prescient_upload_role">prescient_upload_role (Settings attribute)</a>
+      <li><a href="client-sdk.html#prescient_sdk.client.PrescientAuthError">PrescientAuthError</a>
 </li>
       <li><a href="client-sdk.html#prescient_sdk.client.PrescientClient">PrescientClient (class in prescient_sdk.client)</a>
 </li>
@@ -710,6 +701,8 @@
 <h2 id="R">R</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="config.html#prescient_sdk.config.Settings.realm">realm (Settings property)</a>
+</li>
       <li><a href="ingest-resources.html#prescient_sdk.ingest_resources._IngestResource.refresh">refresh() (_IngestResource method)</a>
 
       <ul>
@@ -720,7 +713,9 @@
       </ul></li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="client-sdk.html#prescient_sdk.client.PrescientClient.refresh_credentials">refresh_credentials() (PrescientClient method)</a>
+      <li><a href="client-sdk.html#prescient_sdk.client.PrescientClient.request_modifier">request_modifier() (PrescientClient method)</a>
+</li>
+      <li><a href="client-sdk.html#prescient_sdk.client.PrescientAuthError.retry_after">retry_after (PrescientAuthError attribute)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -728,7 +723,9 @@
 <h2 id="S">S</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="client-sdk.html#prescient_sdk.client.PrescientClient.session">session (PrescientClient property)</a>
+      <li><a href="client-sdk.html#prescient_sdk.client.PrescientClient.session">session (PrescientClient attribute)</a>
+</li>
+      <li><a href="client-sdk.html#prescient_sdk.client.PrescientClient.settings">settings (PrescientClient attribute)</a>
 </li>
       <li><a href="ingest-models.html#prescient_sdk.ingest_models.Error.severity">severity (Error attribute)</a>
 </li>
@@ -740,14 +737,16 @@
         <li><a href="ingest-resources.html#prescient_sdk.ingest_resources.IngestResource.spec">(IngestResource property)</a>
 </li>
       </ul></li>
-      <li><a href="client-sdk.html#prescient_sdk.client.PrescientClient.stac_catalog_url">stac_catalog_url (PrescientClient property)</a>
-</li>
       <li><a href="ingest-models.html#prescient_sdk.ingest_models.InputFile.stac_item_id">stac_item_id (InputFile attribute)</a>
 
       <ul>
         <li><a href="ingest-models.html#prescient_sdk.ingest_models.OutputFile.stac_item_id">(OutputFile attribute)</a>
 </li>
+        <li><a href="ingest-models.html#prescient_sdk.ingest_models.StacItem.stac_item_id">(StacItem attribute)</a>
+</li>
       </ul></li>
+      <li><a href="client-sdk.html#prescient_sdk.client.PrescientClient.stac_url">stac_url (PrescientClient property)</a>
+</li>
       <li><a href="ingest-models.html#prescient_sdk.ingest_models.Error.stack_trace">stack_trace (Error attribute)</a>
 </li>
       <li><a href="ingest-resources.html#prescient_sdk.ingest_resources.BatchResource.start">start() (BatchResource method)</a>
@@ -783,6 +782,8 @@
 </li>
         <li><a href="ingest-models.html#prescient_sdk.ingest_models.OutputFile.status">(OutputFile attribute)</a>
 </li>
+        <li><a href="ingest-models.html#prescient_sdk.ingest_models.StacItem.status">(StacItem attribute)</a>
+</li>
       </ul></li>
   </ul></td>
 </tr></table>
@@ -804,15 +805,11 @@
 <h2 id="U">U</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="upload.html#prescient_sdk.upload.upload">upload() (in module prescient_sdk.upload)</a>
-</li>
-      <li><a href="client-sdk.html#prescient_sdk.client.PrescientClient.upload_bucket_credentials">upload_bucket_credentials (PrescientClient property)</a>
+      <li><a href="upload.html#prescient_sdk.upload.upload_source_files">upload_source_files() (in module prescient_sdk.upload)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="client-sdk.html#prescient_sdk.client.PrescientClient.upload_session">upload_session (PrescientClient property)</a>
-</li>
-      <li><a href="upload.html#prescient_sdk.upload.upload_source_files">upload_source_files() (in module prescient_sdk.upload)</a>
+      <li><a href="upload.html#prescient_sdk.upload.Uploader">Uploader (in module prescient_sdk.upload)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -820,8 +817,6 @@
 <h2 id="W">W</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="ingest-client.html#prescient_sdk.ingest_client.IngestClient.wait_for_status">wait_for_status() (IngestClient method)</a>
-</li>
       <li><a href="ingest-resources.html#prescient_sdk.ingest_resources.BatchResource.wait_until_done">wait_until_done() (BatchResource method)</a>
 
       <ul>

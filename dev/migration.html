@@ -1,0 +1,733 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="./" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Migrate to version 1.0 &#8212; Prescient SDK</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="_static/togglebutton.css?v=9c3e77be" />
+    <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="_static/mystnb.11b39860a7a0cbfd473a3ad8a317855267ff0bd372690045ca344a6b62be495e.css" />
+    <link rel="stylesheet" type="text/css" href="_static/sphinx-thebe.css?v=4fa983c6" />
+    <link rel="stylesheet" type="text/css" href="_static/autodoc_pydantic.css" />
+    <link rel="stylesheet" type="text/css" href="_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="_static/documentation_options.js?v=9eb32ce0"></script>
+    <script src="_static/doctools.js?v=9a2dae69"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="_static/copybutton.js?v=f281be69"></script>
+    <script src="_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
+    <script>let toggleHintShow = 'Click to show';</script>
+    <script>let toggleHintHide = 'Click to hide';</script>
+    <script>let toggleOpenOnPrint = 'true';</script>
+    <script src="_static/togglebutton.js?v=b8b12719"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script src="_static/design-tabs.js?v=f930bc37"></script>
+    <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"; const thebe_selector = ".thebe,.cell"; const thebe_selector_input = "pre"; const thebe_selector_output = ".output, .cell_output"</script>
+    <script async="async" src="_static/sphinx-thebe.js?v=c100c467"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"; const thebe_selector = ".thebe,.cell"; const thebe_selector_input = "pre"; const thebe_selector_output = ".output, .cell_output"</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'migration';</script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Search the STAC catalog and read data" href="examples/stac_search.html" />
+    <link rel="prev" title="Configure the client" href="examples/configuration.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search this book..."
+         aria-label="Search this book..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="_static/PE-1.png" class="logo__image only-light" alt="Prescient SDK - Home"/>
+    <img src="_static/PE-1.png" class="logo__image only-dark pst-js-only" alt="Prescient SDK - Home"/>
+  
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        
+        <ul class="nav bd-sidenav bd-sidenav__home-link">
+            <li class="toctree-l1">
+                <a class="reference internal" href="index.html">
+                    Prescient SDK
+                </a>
+            </li>
+        </ul>
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="examples/configuration.html">Configure the client</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">Migrate to version 1.0</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="examples/stac_search.html">STAC Search</a></li>
+<li class="toctree-l1"><a class="reference internal" href="examples/ingest.html">Ingest</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">SDK Reference</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="client-sdk.html">Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ingest-client.html">Ingest Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ingest-resources.html">Ingest Resources</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ingest-models.html">Ingest Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="upload.html">Upload</a></li>
+<li class="toctree-l1"><a class="reference internal" href="config.html">Config</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/sparkgeo/prescient-sdk" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/sparkgeo/prescient-sdk/issues/new?title=Issue%20on%20page%20%2Fmigration.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="_sources/migration.md" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.md</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button pst-navbar-icon"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button>
+
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+<button class="sidebar-toggle secondary-toggle btn btn-sm pst-navbar-icon" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>Migrate to version 1.0</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#before-you-start">Before you start</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#create-an-api-key">Create an API key</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#update-your-settings">Update your settings</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#update-your-code">Update your code</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescientclient">PrescientClient</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#read-data">Read data</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upload">Upload</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ingestclient">IngestClient</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ingestion-specs">Ingestion specs</a></li>
+</ul>
+</li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section class="tex2jax_ignore mathjax_ignore" id="migrate-to-version-1-0">
+<h1>Migrate to version 1.0<a class="headerlink" href="#migrate-to-version-1-0" title="Link to this heading">#</a></h1>
+<p>Version 1.0 of the Prescient SDK works with the multi-tenant Prescient platform. You sign in with an API key for your Organization. Microsoft and Google sign-in, AWS credentials and the S3 upload are removed.</p>
+<p>Version 1.0 needs Python 3.11 or later.</p>
+<section id="before-you-start">
+<h2>Before you start<a class="headerlink" href="#before-you-start" title="Link to this heading">#</a></h2>
+<p>You need:</p>
+<ul class="simple">
+<li><p>The URL of your Organization host, for example <code class="docutils literal notranslate"><span class="pre">https://&lt;org&gt;.&lt;env&gt;.prescient.earth</span></code>.</p></li>
+<li><p>A user account in your Organization.</p></li>
+</ul>
+</section>
+<section id="create-an-api-key">
+<h2>Create an API key<a class="headerlink" href="#create-an-api-key" title="Link to this heading">#</a></h2>
+<ol class="arabic simple">
+<li><p>Open the Keycloak Account Console of your Organization:
+<code class="docutils literal notranslate"><span class="pre">https://keycloak.prescient.earth/realms/&lt;org&gt;/account</span></code>.
+For a staging Organization, use <code class="docutils literal notranslate"><span class="pre">https://keycloak.staging.prescient.earth/realms/&lt;org&gt;/account</span></code>.
+<code class="docutils literal notranslate"><span class="pre">&lt;org&gt;</span></code> is the first part of your Organization host name.</p></li>
+<li><p>Sign in with your Organization user account.</p></li>
+<li><p>In the sidebar, click <strong>API Keys</strong>.</p></li>
+<li><p>Create a key. You can set an expiry date.</p></li>
+<li><p>Copy the key. It starts with <code class="docutils literal notranslate"><span class="pre">pk_</span></code>. The console shows the key only once.</p></li>
+</ol>
+<p>Keep the key secret. Do not put it in a notebook or commit it to a repository. Put it in an environment variable or in a <code class="docutils literal notranslate"><span class="pre">config.env</span></code> file that is not under version control.</p>
+<p>If the key expires or you revoke it, the SDK raises <code class="docutils literal notranslate"><span class="pre">PrescientAuthError</span></code>. Create a new key.</p>
+</section>
+<section id="update-your-settings">
+<h2>Update your settings<a class="headerlink" href="#update-your-settings" title="Link to this heading">#</a></h2>
+<p>Version 1.0 has three settings:</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Setting</p></th>
+<th class="head"><p>Required</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">prescient_endpoint_url</span></code></p></td>
+<td><p>Yes</p></td>
+<td><p>Your Organization host, for example <code class="docutils literal notranslate"><span class="pre">https://&lt;org&gt;.&lt;env&gt;.prescient.earth</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">prescient_api_key</span></code></p></td>
+<td><p>Yes</p></td>
+<td><p>Your API key (<code class="docutils literal notranslate"><span class="pre">pk_...</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">prescient_auth_url</span></code></p></td>
+<td><p>No</p></td>
+<td><p>The Keycloak base URL. If you do not set it, the SDK uses <code class="docutils literal notranslate"><span class="pre">https://keycloak.staging.prescient.earth</span></code> for a host that contains <code class="docutils literal notranslate"><span class="pre">staging</span></code>, and <code class="docutils literal notranslate"><span class="pre">https://keycloak.prescient.earth</span></code> for all other hosts</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>If your environment or <code class="docutils literal notranslate"><span class="pre">config.env</span></code> file contains a setting from an earlier version, the SDK raises a <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> that names the setting. Remove each setting in this table:</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Earlier setting</p></th>
+<th class="head"><p>Version 1.0</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">prescient_auth_provider</span></code></p></td>
+<td><p>Removed. The API key is the only way to sign in</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">prescient_client_id</span></code></p></td>
+<td><p>Removed</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">prescient_tenant_id</span></code></p></td>
+<td><p>Removed</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">prescient_google_client_secret</span></code></p></td>
+<td><p>Removed</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">prescient_google_redirect_port</span></code></p></td>
+<td><p>Removed</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">prescient_aws_role</span></code></p></td>
+<td><p>Removed. You read data with the access token, not AWS credentials</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">prescient_aws_region</span></code></p></td>
+<td><p>Removed</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">prescient_upload_role</span></code></p></td>
+<td><p>Removed. Upload is not available in 1.0</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">prescient_upload_bucket</span></code></p></td>
+<td><p>Removed. Upload is not available in 1.0</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">prescient_auth_token_path</span></code></p></td>
+<td><p>Removed</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">prescient_ingest_endpoint_url</span></code></p></td>
+<td><p>Removed. The Ingest API is always at <code class="docutils literal notranslate"><span class="pre">&lt;prescient_endpoint_url&gt;/ingest/</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">prescient_auth_url</span></code></p></td>
+<td><p>Changed meaning. It was the OAuth token endpoint. Now it is the Keycloak base URL, for example <code class="docutils literal notranslate"><span class="pre">https://keycloak.prescient.earth</span></code>. Remove it unless you use a Keycloak server at a different URL</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>A <code class="docutils literal notranslate"><span class="pre">config.env</span></code> file for version 1.0:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">PRESCIENT_ENDPOINT_URL</span><span class="o">=</span><span class="s2">&quot;https://&lt;org&gt;.&lt;env&gt;.prescient.earth&quot;</span>
+<span class="n">PRESCIENT_API_KEY</span><span class="o">=</span><span class="s2">&quot;pk_...&quot;</span>
+</pre></div>
+</div>
+</section>
+<section id="update-your-code">
+<h2>Update your code<a class="headerlink" href="#update-your-code" title="Link to this heading">#</a></h2>
+<p>You can import the public names from the package root, for example <code class="docutils literal notranslate"><span class="pre">from</span> <span class="pre">prescient_sdk</span> <span class="pre">import</span> <span class="pre">PrescientClient,</span> <span class="pre">IngestClient</span></code>. The module paths also still work.</p>
+<section id="prescientclient">
+<h3>PrescientClient<a class="headerlink" href="#prescientclient" title="Link to this heading">#</a></h3>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Earlier API</p></th>
+<th class="head"><p>Version 1.0</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">client.stac_catalog_url</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">client.stac_url</span></code>. It is <code class="docutils literal notranslate"><span class="pre">&lt;prescient_endpoint_url&gt;/stac</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">client.headers</span></code></p></td>
+<td><p>Still exists. It returns <code class="docutils literal notranslate"><span class="pre">{&quot;Authorization&quot;:</span> <span class="pre">&quot;Bearer</span> <span class="pre">&lt;token&gt;&quot;}</span></code> with a fresh token each time you read it</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">client.session</span></code> (a <code class="docutils literal notranslate"><span class="pre">boto3.Session</span></code>)</p></td>
+<td><p>Removed. <code class="docutils literal notranslate"><span class="pre">client.session</span></code> is now a <code class="docutils literal notranslate"><span class="pre">requests.Session</span></code> that sends the access token</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">client.bucket_credentials</span></code></p></td>
+<td><p>Removed</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">client.upload_session</span></code></p></td>
+<td><p>Removed</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">client.auth_credentials</span></code>, <code class="docutils literal notranslate"><span class="pre">client.credentials_expired</span></code>, <code class="docutils literal notranslate"><span class="pre">client.refresh_credentials()</span></code></p></td>
+<td><p>Removed. The client exchanges the API key for a new token when the current token is about to expire</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">prescient_sdk.upload.upload()</span></code></p></td>
+<td><p>Removed. Upload is not available in 1.0</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>New in version 1.0:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">client.request_modifier</span></code>: pass it to pystac-client, for example <code class="docutils literal notranslate"><span class="pre">Client.open(client.stac_url,</span> <span class="pre">request_modifier=client.request_modifier)</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">client.auth</span></code>: a <code class="docutils literal notranslate"><span class="pre">requests</span></code> auth object for other libraries.</p></li>
+</ul>
+</section>
+<section id="read-data">
+<h3>Read data<a class="headerlink" href="#read-data" title="Link to this heading">#</a></h3>
+<p>STAC asset links point at the platform file proxy over HTTPS. To read data, send the access token in an <code class="docutils literal notranslate"><span class="pre">Authorization</span></code> header. You do not need AWS credentials. See the <a class="reference internal" href="examples/stac_search.html"><span class="std std-doc">STAC search example</span></a>.</p>
+</section>
+<section id="upload">
+<h3>Upload<a class="headerlink" href="#upload" title="Link to this heading">#</a></h3>
+<p>Upload is not available in version 1.0. A version 1.x release will add an uploader for the platform file proxy. Until then, <code class="docutils literal notranslate"><span class="pre">IngestSpec.with_uploaded_sources</span></code> needs an <code class="docutils literal notranslate"><span class="pre">uploader</span></code> function that you supply.</p>
+</section>
+<section id="ingestclient">
+<h3>IngestClient<a class="headerlink" href="#ingestclient" title="Link to this heading">#</a></h3>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Earlier API</p></th>
+<th class="head"><p>Version 1.0</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">IngestClient(prescient_client=...,</span> <span class="pre">env_file=...,</span> <span class="pre">settings=...,</span> <span class="pre">debug=...,</span> <span class="pre">log_file=...)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">IngestClient(client=None,</span> <span class="pre">organization=None)</span></code>. Pass a <code class="docutils literal notranslate"><span class="pre">PrescientClient</span></code> as <code class="docutils literal notranslate"><span class="pre">client</span></code>. If you do not, the SDK makes one from your environment and <code class="docutils literal notranslate"><span class="pre">config.env</span></code>. Only a super admin sets <code class="docutils literal notranslate"><span class="pre">organization</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ingest_client.headers</span></code></p></td>
+<td><p>Removed. Every request uses <code class="docutils literal notranslate"><span class="pre">client.session</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ingest_client.wait_for_status(...)</span></code></p></td>
+<td><p>Removed. Use <code class="docutils literal notranslate"><span class="pre">IngestResource</span></code> or <code class="docutils literal notranslate"><span class="pre">BatchResource</span></code>, and call <code class="docutils literal notranslate"><span class="pre">wait_until_ready()</span></code> or <code class="docutils literal notranslate"><span class="pre">wait_until_done()</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Status.INCOMPLETE</span></code></p></td>
+<td><p>Removed. A finished ingestion or batch is <code class="docutils literal notranslate"><span class="pre">DONE</span></code> or <code class="docutils literal notranslate"><span class="pre">FAILED</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>HTTP errors as <code class="docutils literal notranslate"><span class="pre">requests.HTTPError</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">IngestAPIError</span></code>, a subclass of <code class="docutils literal notranslate"><span class="pre">requests.HTTPError</span></code>. <code class="docutils literal notranslate"><span class="pre">IngestSpecError</span></code> for a rejected spec (400) and <code class="docutils literal notranslate"><span class="pre">CollectionOwnershipError</span></code> for a collection that another Organization owns (409)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="ingestion-specs">
+<h3>Ingestion specs<a class="headerlink" href="#ingestion-specs" title="Link to this heading">#</a></h3>
+<p>The Ingest API accepts only version 2 specs:</p>
+<ul class="simple">
+<li><p>Set <code class="docutils literal notranslate"><span class="pre">version:</span> <span class="pre">&quot;2.0.0&quot;</span></code>. Quote the value in YAML.</p></li>
+<li><p>Remove the <code class="docutils literal notranslate"><span class="pre">user</span></code> field. The Organization comes from your API key.</p></li>
+<li><p>A location <code class="docutils literal notranslate"><span class="pre">path</span></code> with no scheme, for example <code class="docutils literal notranslate"><span class="pre">lidar/2026</span></code>, is a path in your Organization bucket.</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">IngestSpec.problems()</span></code> lists the problems that the SDK can find before you submit a spec. See the <a class="reference internal" href="examples/ingest.html"><span class="std std-doc">ingest example</span></a>.</p>
+</section>
+</section>
+</section>
+
+    <script type="text/x-thebe-config">
+    {
+        requestKernel: true,
+        binderOptions: {
+            repo: "binder-examples/jupyter-stacks-datascience",
+            ref: "master",
+        },
+        codeMirrorConfig: {
+            theme: "abcdef",
+            mode: "python"
+        },
+        kernelOptions: {
+            name: "python3",
+            path: "./."
+        },
+        predefinedOutput: true
+    }
+    </script>
+    <script>kernelName = 'python3'</script>
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="examples/configuration.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Configure the client</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="examples/stac_search.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Search the STAC catalog and read data</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item"><div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#before-you-start">Before you start</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#create-an-api-key">Create an API key</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#update-your-settings">Update your settings</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#update-your-code">Update your code</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prescientclient">PrescientClient</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#read-data">Read data</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upload">Upload</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ingestclient">IngestClient</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ingestion-specs">Ingestion specs</a></li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Sparkgeo Consulting Inc
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2023.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

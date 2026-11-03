@@ -171,12 +171,12 @@
         <p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../examples/configuration.html">Handling Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/configuration.html">Configure the client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../migration.html">Migrate to version 1.0</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Examples</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="../../examples/stac_search.html">STAC Search</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../examples/upload.html">Upload</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../examples/ingest.html">Ingest</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">SDK Reference</span></p>
@@ -334,30 +334,36 @@
                 <article class="bd-article">
                   
   <h1>Source code for prescient_sdk.upload</h1><div class="highlight"><pre>
-<span></span><span class="sd">&quot;&quot;&quot;Upload files to bucket.&quot;&quot;&quot;</span>
+<span></span><span class="sd">&quot;&quot;&quot;Select local files for upload and hand each one to a caller-supplied uploader.</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+<span class="sd">The SDK does not ship an uploader. The caller passes an :data:`Uploader` that</span>
+<span class="sd">writes one file to one destination, so the transport (for example a fileproxy</span>
+<span class="sd">upload) can change without changing file selection.</span>
+<span class="sd">&quot;&quot;&quot;</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Iterator</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Iterator</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span><span class="p">,</span> <span class="n">PurePath</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Optional</span>
-
-<span class="kn">import</span><span class="w"> </span><span class="nn">boto3</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">botocore.exceptions</span>
-
-<span class="kn">from</span><span class="w"> </span><span class="nn">prescient_sdk.client</span><span class="w"> </span><span class="kn">import</span> <span class="n">PrescientClient</span>
-
-<span class="n">FileList</span> <span class="o">=</span> <span class="nb">list</span><span class="p">[</span><span class="n">PurePath</span><span class="p">]</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="n">Uploader</span> <span class="o">=</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">Path</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span> <span class="kc">None</span><span class="p">]</span>
+<span class="sd">&quot;&quot;&quot;Upload one local file to one destination.</span>
+
+<span class="sd">Called as ``uploader(local_file, destination)``. ``local_file`` is the path of</span>
+<span class="sd">an existing local file. ``destination`` is the full destination string: the</span>
+<span class="sd">caller&#39;s destination prefix followed by the file&#39;s forward-slash path relative</span>
+<span class="sd">to the source directory (for example ``&quot;&lt;prefix&gt;/&lt;uuid&gt;/nested/a.tif&quot;``). The</span>
+<span class="sd">uploader decides how to write it, and whether to skip or overwrite a file that</span>
+<span class="sd">already exists. It raises to stop the upload.</span>
+<span class="sd">&quot;&quot;&quot;</span>
 
 
 <div class="viewcode-block" id="iter_files">
 <a class="viewcode-back" href="../../upload.html#prescient_sdk.upload.iter_files">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">iter_files</span><span class="p">(</span><span class="n">input_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">exclude</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="n">Path</span><span class="p">]:</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">iter_files</span><span class="p">(</span><span class="n">input_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">exclude</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="n">Path</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Recursively yield files under ``input_dir``, skipping directories.</span>
 
 <span class="sd">    Args:</span>
@@ -383,78 +389,13 @@
 
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">_upload</span><span class="p">(</span>
-    <span class="n">file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">bucket</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">session</span><span class="p">:</span> <span class="n">boto3</span><span class="o">.</span><span class="n">Session</span><span class="p">,</span> <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-    <span class="n">s3</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">client</span><span class="p">(</span><span class="s2">&quot;s3&quot;</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">overwrite</span><span class="p">:</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Pre-flight head_object on s3://</span><span class="si">%s</span><span class="s2">/</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">bucket</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">_</span> <span class="o">=</span> <span class="n">s3</span><span class="o">.</span><span class="n">head_object</span><span class="p">(</span><span class="n">Bucket</span><span class="o">=</span><span class="n">bucket</span><span class="p">,</span> <span class="n">Key</span><span class="o">=</span><span class="n">key</span><span class="p">)</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-                <span class="s2">&quot;skipping file </span><span class="si">%s</span><span class="s2"> as it already exists at s3://</span><span class="si">%s</span><span class="s2">/</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">file</span><span class="p">,</span> <span class="n">bucket</span><span class="p">,</span> <span class="n">key</span>
-            <span class="p">)</span>
-            <span class="k">return</span>
-        <span class="k">except</span> <span class="n">botocore</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">ClientError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-            <span class="k">if</span> <span class="s2">&quot;Not Found&quot;</span> <span class="ow">in</span> <span class="n">e</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
-                <span class="k">pass</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="n">e</span>
-
-    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;uploading file </span><span class="si">%s</span><span class="s2"> to s3://</span><span class="si">%s</span><span class="s2">/</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">file</span><span class="p">,</span> <span class="n">bucket</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
-    <span class="n">s3</span><span class="o">.</span><span class="n">upload_file</span><span class="p">(</span><span class="n">Filename</span><span class="o">=</span><span class="n">file</span><span class="p">,</span> <span class="n">Bucket</span><span class="o">=</span><span class="n">bucket</span><span class="p">,</span> <span class="n">Key</span><span class="o">=</span><span class="n">key</span><span class="p">)</span>
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_make_s3_key</span><span class="p">(</span><span class="n">file</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">root</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Compute an S3 key for `file` relative to the `root` directory, including</span>
-<span class="sd">    the root directory name itself as the top-level folder.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        file (Path): The full path to the file being uploaded.</span>
-<span class="sd">        root (Path): The root input directory passed to `upload`.</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        str: The normalized S3 key.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">root_name</span> <span class="o">=</span> <span class="n">root</span><span class="o">.</span><span class="n">name</span> <span class="ow">or</span> <span class="n">root</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span><span class="o">.</span><span class="n">name</span>
-    <span class="n">relative_part</span> <span class="o">=</span> <span class="n">file</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span><span class="n">root</span><span class="p">)</span><span class="o">.</span><span class="n">as_posix</span><span class="p">()</span>
-    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">root_name</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">relative_part</span><span class="si">}</span><span class="s2">&quot;</span>
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_split_s3_uri</span><span class="p">(</span><span class="n">uri</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Split an ``s3://bucket/key/prefix`` URI into ``(bucket, key_prefix)``.</span>
-
-<span class="sd">    The returned key prefix is normalized to end with ``/`` (unless empty) so</span>
-<span class="sd">    it can be concatenated directly with a relative path to form an object key.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        uri (str): An ``s3://`` URI.</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        tuple[str, str]: The bucket name and the (possibly empty) key prefix.</span>
-
-<span class="sd">    Raises:</span>
-<span class="sd">        ValueError: If ``uri`` is not an ``s3://`` URI or has no bucket.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">uri</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;s3://&quot;</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Destination must be an s3:// URI, got </span><span class="si">{</span><span class="n">uri</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="n">bucket</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">key_prefix</span> <span class="o">=</span> <span class="n">uri</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="s2">&quot;s3://&quot;</span><span class="p">)</span> <span class="p">:]</span><span class="o">.</span><span class="n">partition</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">bucket</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Destination s3:// URI is missing a bucket: </span><span class="si">{</span><span class="n">uri</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">key_prefix</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">key_prefix</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">):</span>
-        <span class="n">key_prefix</span> <span class="o">+=</span> <span class="s2">&quot;/&quot;</span>
-    <span class="k">return</span> <span class="n">bucket</span><span class="p">,</span> <span class="n">key_prefix</span>
-
-
 <span class="k">def</span><span class="w"> </span><span class="nf">_relative_posix</span><span class="p">(</span><span class="n">file</span><span class="p">:</span> <span class="n">PurePath</span><span class="p">,</span> <span class="n">root</span><span class="p">:</span> <span class="n">PurePath</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Return ``file``&#39;s path relative to ``root`` using forward slashes.</span>
 
-<span class="sd">    ``as_posix`` normalizes separators so S3 keys and pattern matching are</span>
+<span class="sd">    ``as_posix`` normalizes separators so destinations and pattern matching are</span>
 <span class="sd">    identical on Windows and POSIX — e.g. a Windows ``nested\\image.tif``</span>
-<span class="sd">    becomes ``nested/image.tif``. S3 keys always use ``/``, so the local OS</span>
-<span class="sd">    separator must never leak into a key.</span>
+<span class="sd">    becomes ``nested/image.tif``. The local OS separator must never leak into a</span>
+<span class="sd">    destination.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        file (PurePath): The file path, under ``root``.</span>
@@ -472,55 +413,47 @@
     <span class="n">local_dir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">,</span>
     <span class="n">dest_prefix</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">pattern</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">session</span><span class="p">:</span> <span class="n">boto3</span><span class="o">.</span><span class="n">Session</span><span class="p">,</span>
-    <span class="n">on_file</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span> <span class="kc">None</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">uploader</span><span class="p">:</span> <span class="n">Uploader</span><span class="p">,</span>
+    <span class="n">on_file</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span> <span class="kc">None</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Upload the files under ``local_dir`` that a source file set&#39;s pattern selects.</span>
 
 <span class="sd">    Only files whose path *relative to* ``local_dir`` matches ``pattern`` are</span>
-<span class="sd">    uploaded, and each is written to ``dest_prefix`` + that same relative path —</span>
+<span class="sd">    uploaded, and each is sent to ``dest_prefix`` + that same relative path —</span>
 <span class="sd">    verbatim, with no directory-name segment injected. This preserves every</span>
 <span class="sd">    file&#39;s path relative to its location, so the spec&#39;s ``pattern`` still matches</span>
-<span class="sd">    after the files move to S3 (the Ingest API strips the location prefix and</span>
-<span class="sd">    applies ``re.match`` to the remaining relative path).</span>
+<span class="sd">    after the files move (the Ingest API strips the location prefix and applies</span>
+<span class="sd">    ``re.match`` to the remaining relative path).</span>
 
 <span class="sd">    ``pattern`` is applied with ``re.match`` (anchored at the start of the</span>
 <span class="sd">    relative path), matching the Ingest API&#39;s own file selection.</span>
 
 <span class="sd">    Example::</span>
 
-<span class="sd">        session = prescient_client.upload_session</span>
-<span class="sd">        upload_source_files(</span>
-<span class="sd">            &quot;/data/scenes&quot;,</span>
-<span class="sd">            &quot;s3://uploads/user-uploads/3f9.../&quot;,</span>
-<span class="sd">            r&quot;.*\\.tif$&quot;,</span>
-<span class="sd">            session,</span>
-<span class="sd">        )</span>
+<span class="sd">        upload_source_files(&quot;/data/scenes&quot;, &quot;&lt;prefix&gt;/3f9.../&quot;, r&quot;.*\\.tif$&quot;, uploader)</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        local_dir (str | os.PathLike): Local directory to scan recursively.</span>
-<span class="sd">        dest_prefix (str): Destination ``s3://bucket/key/prefix/`` URI. Uploaded</span>
-<span class="sd">            keys are ``dest_prefix`` joined with each file&#39;s relative path.</span>
+<span class="sd">        dest_prefix (str): Destination prefix. Each destination is</span>
+<span class="sd">            ``dest_prefix`` joined with a file&#39;s relative path; a ``/`` is</span>
+<span class="sd">            added to the prefix if it does not end with one.</span>
 <span class="sd">        pattern (str): Regex applied (``re.match``) to each file&#39;s posix path</span>
 <span class="sd">            relative to ``local_dir``.</span>
-<span class="sd">        session (boto3.Session): AWS session authorized to write to the bucket</span>
-<span class="sd">            (typically ``PrescientClient.upload_session``).</span>
+<span class="sd">        uploader (Uploader): Called once per selected file with</span>
+<span class="sd">            ``(local_file, destination)``.</span>
 <span class="sd">        on_file (Callable[[int, int, Path], None], optional): Called after each</span>
 <span class="sd">            upload with ``(index, total, path)`` where ``index`` is 1-based.</span>
 <span class="sd">            Useful for progress display. Defaults to None.</span>
-<span class="sd">        overwrite (bool, optional): When False, skip files that already exist at</span>
-<span class="sd">            the destination key. Defaults to True.</span>
 
 <span class="sd">    Raises:</span>
 <span class="sd">        FileNotFoundError: If ``local_dir`` does not exist.</span>
-<span class="sd">        ValueError: If ``dest_prefix`` is not a valid ``s3://`` URI.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">local_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">local_dir</span><span class="p">)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">local_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
         <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="n">local_dir</span><span class="p">)</span>
 
-    <span class="n">bucket</span><span class="p">,</span> <span class="n">key_prefix</span> <span class="o">=</span> <span class="n">_split_s3_uri</span><span class="p">(</span><span class="n">dest_prefix</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">dest_prefix</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">dest_prefix</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">):</span>
+        <span class="n">dest_prefix</span> <span class="o">+=</span> <span class="s2">&quot;/&quot;</span>
     <span class="n">regex</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">pattern</span><span class="p">)</span>
     <span class="n">matched</span> <span class="o">=</span> <span class="p">[</span>
         <span class="n">file</span>
@@ -536,78 +469,11 @@
         <span class="n">dest_prefix</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">file</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">matched</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
-        <span class="n">_upload</span><span class="p">(</span>
-            <span class="n">file</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">file</span><span class="p">),</span>
-            <span class="n">bucket</span><span class="o">=</span><span class="n">bucket</span><span class="p">,</span>
-            <span class="n">key</span><span class="o">=</span><span class="n">key_prefix</span> <span class="o">+</span> <span class="n">_relative_posix</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">local_path</span><span class="p">),</span>
-            <span class="n">session</span><span class="o">=</span><span class="n">session</span><span class="p">,</span>
-            <span class="n">overwrite</span><span class="o">=</span><span class="n">overwrite</span><span class="p">,</span>
-        <span class="p">)</span>
+        <span class="n">destination</span> <span class="o">=</span> <span class="n">dest_prefix</span> <span class="o">+</span> <span class="n">_relative_posix</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">local_path</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;uploading file </span><span class="si">%s</span><span class="s2"> to </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">file</span><span class="p">,</span> <span class="n">destination</span><span class="p">)</span>
+        <span class="n">uploader</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">destination</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">on_file</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">on_file</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">total</span><span class="p">,</span> <span class="n">file</span><span class="p">)</span></div>
-
-
-
-<div class="viewcode-block" id="upload">
-<a class="viewcode-back" href="../../upload.html#prescient_sdk.upload.upload">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">upload</span><span class="p">(</span>
-    <span class="n">input_dir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">,</span>
-    <span class="n">exclude</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">prescient_client</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">PrescientClient</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Upload files from input directory to the location defined by PRESCIENT_UPLOAD_BUCKET</span>
-
-
-<span class="sd">    Args:</span>
-<span class="sd">        input_dir (str | os.PathLike): Input directory containing file(s) to be uploaded.</span>
-<span class="sd">            By default will upload all files contained in input directory. This can be an</span>
-<span class="sd">            absolute or relative path, the final path component will be included as part</span>
-<span class="sd">            of the object key e.g. /path/to/data_dir -&gt; s3://bucket/data_dir/file.txt.</span>
-<span class="sd">            When input_dir is a relative path, this should be relative to the current working</span>
-<span class="sd">            directory used to execute this function.</span>
-<span class="sd">        exclude (Optional[list[str]]): A list of glob patterns to exclude from uploading.</span>
-<span class="sd">            For example ``exclude=[&quot;*.txt&quot;, &quot;*.csv&quot;]`` would skip any matched files that end</span>
-<span class="sd">            with a ``.txt`` or ``.csv`` suffix. If not provided, by default all files will</span>
-<span class="sd">            be uploaded.</span>
-<span class="sd">        prescient_client (Optional[PrescientClient]): A PrescientClient instance. If not provided</span>
-<span class="sd">            a default PrescientClient instance will be created.</span>
-<span class="sd">        overwrite (bool): Whether to overwrite objects if they already exist. If False, upload</span>
-<span class="sd">            is skipped. Useful for continuing an upload that was started previously. Defaults to True.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">overwrite</span><span class="p">:</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;overwrite=</span><span class="si">%s</span><span class="s2">, thus will overwrite any existing objects&quot;</span><span class="p">,</span> <span class="n">overwrite</span><span class="p">)</span>
-    <span class="n">input_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">input_dir</span><span class="p">)</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">input_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
-        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="n">input_dir</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="n">prescient_client</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
-            <span class="s2">&quot;No prescient_client provided; constructing default PrescientClient&quot;</span>
-        <span class="p">)</span>
-        <span class="n">prescient_client</span> <span class="o">=</span> <span class="n">PrescientClient</span><span class="p">()</span>
-
-    <span class="n">bucket</span> <span class="o">=</span> <span class="n">prescient_client</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">prescient_upload_bucket</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">bucket</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-            <span class="s2">&quot;prescient_upload_bucket is not configured; set PRESCIENT_UPLOAD_BUCKET &quot;</span>
-            <span class="s2">&quot;to upload files.&quot;</span>
-        <span class="p">)</span>
-
-    <span class="n">files</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">iter_files</span><span class="p">(</span><span class="n">input_path</span><span class="p">,</span> <span class="n">exclude</span><span class="o">=</span><span class="n">exclude</span><span class="p">))</span>
-    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;found </span><span class="si">%s</span><span class="s2"> files to upload&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">files</span><span class="p">))</span>
-    <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
-        <span class="n">relative_key</span> <span class="o">=</span> <span class="n">_make_s3_key</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">input_path</span><span class="p">)</span>
-
-        <span class="n">_upload</span><span class="p">(</span>
-            <span class="n">file</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">file</span><span class="p">),</span>
-            <span class="n">bucket</span><span class="o">=</span><span class="n">bucket</span><span class="p">,</span>
-            <span class="n">key</span><span class="o">=</span><span class="n">relative_key</span><span class="p">,</span>
-            <span class="n">session</span><span class="o">=</span><span class="n">prescient_client</span><span class="o">.</span><span class="n">upload_session</span><span class="p">,</span>
-            <span class="n">overwrite</span><span class="o">=</span><span class="n">overwrite</span><span class="p">,</span>
-        <span class="p">)</span>
-    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Upload complete: </span><span class="si">%s</span><span class="s2"> files to s3://</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">files</span><span class="p">),</span> <span class="n">bucket</span><span class="p">)</span></div>
 
 </pre></div>
 
