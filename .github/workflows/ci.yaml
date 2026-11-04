@@ -18,10 +18,14 @@ jobs:
     strategy:
       matrix:
         python-version:
-        - "3.9"
         - "3.10"
         - "3.11"
         - "3.12"
+        - "3.13"
+
+    # Override .python-version so each matrix job really runs on its own Python.
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
 
     steps:
     - uses: actions/checkout@v4
