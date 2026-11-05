@@ -171,19 +171,26 @@ class IngestClient:
     def headers(self) -> dict:
         """Default request headers for the Ingest API.
 
-        Returns ``Accept: application/json`` only. ``Content-Type`` is
-        omitted so ``requests`` can set ``multipart/form-data; boundary=...``
-        itself on the upload path in ``create_ingestion``.
+        Returns ``Accept: application/json``. When ``prescient_api_key`` is
+        configured, the key is also sent in the ``api-key`` header, the same
+        as ``PrescientClient.headers`` does for the other Prescient APIs.
+        ``Content-Type`` is omitted so ``requests`` can set
+        ``multipart/form-data; boundary=...`` itself on the upload path in
+        ``create_ingestion``.
 
-        Note: this deliberately does NOT delegate to ``PrescientClient.headers``,
-        because that would trigger an OAuth sign-in via the
-        ``auth_credentials`` property. The Ingest API is reached over a
-        port-forward and does not require a bearer token from the SDK.
+        Note: this deliberately does NOT delegate to ``PrescientClient.headers``.
+        That would set ``Content-Type: application/json``, and without an API
+        key it would trigger an OAuth sign-in via the ``auth_credentials``
+        property. Without an API key, no auth header is sent.
 
         Returns:
             dict: The default headers used on every Ingest API request.
         """
-        return {"Accept": "application/json"}
+        headers = {"Accept": "application/json"}
+        api_key = self._client.settings.prescient_api_key
+        if api_key:
+            headers["api-key"] = api_key
+        return headers
 
     def _url(self, path: str) -> str:
         return urllib.parse.urljoin(self.base_url, path.lstrip("/"))
