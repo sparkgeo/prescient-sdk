@@ -621,3 +621,94 @@ def test_ingestion_spec_is_opaque_dict(
     assert result.spec["user"] == "tester"
     assert result.spec["tasks"]["main"]["type"] == "transform"
     assert result.spec["tasks"]["thumb"]["type"] == "thumbnail"
+
+
+# ---------------------------------------------------------------------------
+# API key auth
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def api_key_ingest_client(
+    monkeypatch: pytest.MonkeyPatch, clear_prescient_env
+) -> IngestClient:
+    monkeypatch.setenv(
+        "PRESCIENT_ENDPOINT_URL", "https://example.server.prescient.earth"
+    )
+    monkeypatch.setenv("PRESCIENT_API_KEY", "test-api-key")
+    return IngestClient()
+
+
+def test_headers_include_api_key_when_configured(api_key_ingest_client: IngestClient):
+    """API-key mode sends the key in the `api-key` header, like PrescientClient."""
+    headers = api_key_ingest_client.headers
+    assert headers["api-key"] == "test-api-key"
+    assert headers["Accept"] == "application/json"
+    assert "Authorization" not in headers
+    assert "Content-Type" not in headers
+
+
+def test_headers_omit_api_key_when_not_configured(ingest_client: IngestClient):
+    """Without an API key, no api-key header is sent."""
+    assert "api-key" not in ingest_client.headers
+
+
+def test_headers_api_key_does_not_trigger_oauth(
+    mocker: MockerFixture, api_key_ingest_client: IngestClient
+):
+    """Building headers in API-key mode never touches the OAuth flow."""
+    msft = mocker.patch(
+        "prescient_sdk.client.PrescientClient._fetch_microsoft_credentials"
+    )
+    google = mocker.patch(
+        "prescient_sdk.client.PrescientClient._fetch_google_credentials"
+    )
+    _ = api_key_ingest_client.headers
+    msft.assert_not_called()
+    google.assert_not_called()
+
+
+def test_create_ingestion_sends_api_key(
+    mocker: MockerFixture, api_key_ingest_client: IngestClient
+):
+    """The multipart upload carries the api-key header and no Content-Type."""
+    request_mock = mocker.patch(
+        "prescient_sdk.ingest_client.requests.request",
+        return_value=_make_response(INGESTION_PAYLOAD),
+    )
+
+    api_key_ingest_client.create_ingestion(b"user: tester\n")
+
+    headers = request_mock.call_args.kwargs["headers"]
+    assert headers["api-key"] == "test-api-key"
+    assert "Content-Type" not in headers
+
+
+def test_get_ingestion_sends_api_key(
+    mocker: MockerFixture, api_key_ingest_client: IngestClient
+):
+    """JSON endpoints carry the api-key header."""
+    request_mock = mocker.patch(
+        "prescient_sdk.ingest_client.requests.request",
+        return_value=_make_response(INGESTION_PAYLOAD),
+    )
+
+    api_key_ingest_client.get_ingestion(42)
+
+    assert request_mock.call_args.kwargs["headers"]["api-key"] == "test-api-key"
+
+
+def test_request_headers_override_api_key(
+    mocker: MockerFixture, api_key_ingest_client: IngestClient
+):
+    """Caller-supplied headers in _request still win over the defaults."""
+    request_mock = mocker.patch(
+        "prescient_sdk.ingest_client.requests.request",
+        return_value=_make_response(INGESTION_PAYLOAD),
+    )
+
+    api_key_ingest_client._request(
+        "GET", "v1/ingestion/42", headers={"api-key": "other-key"}
+    )
+
+    assert request_mock.call_args.kwargs["headers"]["api-key"] == "other-key"
