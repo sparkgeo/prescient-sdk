@@ -171,12 +171,12 @@
         <p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../examples/configuration.html">Configure the client</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../migration.html">Migrate to version 1.0</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/configuration.html">Handling Configuration</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Examples</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="../../examples/stac_search.html">STAC Search</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/upload.html">Upload</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../examples/ingest.html">Ingest</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">SDK Reference</span></p>
@@ -336,112 +336,151 @@
   <h1>Source code for prescient_sdk.ingest_client</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;Client for the Prescient Ingest API.&quot;&quot;&quot;</span>
 
-<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">urllib.parse</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">Protocol</span><span class="p">,</span> <span class="n">TypeVar</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">requests</span>
 
+<span class="kn">from</span><span class="w"> </span><span class="nn">prescient_sdk</span><span class="w"> </span><span class="kn">import</span> <span class="n">_logging</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">prescient_sdk.client</span><span class="w"> </span><span class="kn">import</span> <span class="n">PrescientClient</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">prescient_sdk.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">Settings</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">prescient_sdk.ingest_models</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">TERMINAL_STATUSES</span><span class="p">,</span>
     <span class="n">Batch</span><span class="p">,</span>
     <span class="n">Error</span><span class="p">,</span>
     <span class="n">Ingestion</span><span class="p">,</span>
     <span class="n">InputFile</span><span class="p">,</span>
     <span class="n">OutputFile</span><span class="p">,</span>
-    <span class="n">StacItem</span><span class="p">,</span>
+    <span class="n">Status</span><span class="p">,</span>
 <span class="p">)</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">&quot;prescient_sdk&quot;</span><span class="p">)</span>
 
-<span class="c1"># Seconds to wait for the Ingest API; pass timeout= to a call to override it.</span>
-<span class="n">_REQUEST_TIMEOUT</span> <span class="o">=</span> <span class="mi">30</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">_HasStatus</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
+    <span class="n">status</span><span class="p">:</span> <span class="n">Status</span>
 
 
-<span class="k">class</span><span class="w"> </span><span class="nc">IngestAPIError</span><span class="p">(</span><span class="n">requests</span><span class="o">.</span><span class="n">HTTPError</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;The Ingest API answered with an error status.</span>
+<span class="n">_StatusT</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s2">&quot;_StatusT&quot;</span><span class="p">,</span> <span class="n">bound</span><span class="o">=</span><span class="n">_HasStatus</span><span class="p">)</span>
 
-<span class="sd">    A subclass of ``requests.HTTPError``, so code that catches ``HTTPError``</span>
-<span class="sd">    still catches it.</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_poll_for_status</span><span class="p">(</span>
+    <span class="n">fetcher</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="n">_StatusT</span><span class="p">],</span>
+    <span class="n">target_statuses</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">Status</span><span class="p">],</span>
+    <span class="n">poll_interval</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+    <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_StatusT</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Poll ``fetcher`` until the returned object&#39;s ``status`` is in ``target_statuses``.</span>
+
+<span class="sd">    Shared by :meth:`IngestClient.wait_for_status` and the resource-class</span>
+<span class="sd">    waiters so polling behaviour stays in one place.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        response (requests.Response): The error response.</span>
+<span class="sd">        fetcher (Callable[[], _StatusT]): Callable that returns an object with a</span>
+<span class="sd">            ``status`` attribute. Invoked once per poll iteration.</span>
+<span class="sd">        target_statuses (Iterable[Status]): Statuses that end the wait.</span>
+<span class="sd">        poll_interval (float): Seconds between polls.</span>
+<span class="sd">        timeout (float): Total seconds to wait before raising.</span>
 
-<span class="sd">    Attributes:</span>
-<span class="sd">        status_code (int): The HTTP status code.</span>
-<span class="sd">        detail (str): The server&#39;s error message, from the ``detail`` field of</span>
-<span class="sd">            the JSON body, or the raw body when it is not JSON.</span>
+<span class="sd">    Returns:</span>
+<span class="sd">        _StatusT: The object returned by ``fetcher`` once its ``status`` matches</span>
+<span class="sd">        one of ``target_statuses``.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        TimeoutError: If ``timeout`` elapses before reaching a target status.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">response</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">Response</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">status_code</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">detail</span> <span class="o">=</span> <span class="n">_error_detail</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
-        <span class="n">method</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">method</span> <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">request</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">response</span><span class="o">.</span><span class="n">reason</span><span class="si">}</span><span class="s2"> for </span><span class="si">{</span><span class="n">method</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">response</span><span class="o">.</span><span class="n">url</span><span class="si">}</span><span class="s2">: &quot;</span>
-            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">detail</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
-            <span class="n">response</span><span class="o">=</span><span class="n">response</span><span class="p">,</span>
-        <span class="p">)</span>
-
-
-<span class="k">class</span><span class="w"> </span><span class="nc">IngestSpecError</span><span class="p">(</span><span class="n">IngestAPIError</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;The Ingest API rejected an ingestion spec (400 on create).</span>
-
-<span class="sd">    Raised when the spec is invalid (for example a ``version`` that does not</span>
-<span class="sd">    start with ``2.``, or a ``user`` field), or when an External bucket that a</span>
-<span class="sd">    task writes to is not publicly readable. ``detail`` holds the server&#39;s</span>
-<span class="sd">    reason.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-
-
-<span class="k">class</span><span class="w"> </span><span class="nc">CollectionOwnershipError</span><span class="p">(</span><span class="n">IngestAPIError</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;The spec&#39;s STAC collection belongs to another Organization (409 on create).&quot;&quot;&quot;</span>
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_error_detail</span><span class="p">(</span><span class="n">response</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">Response</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="n">body</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
-    <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">response</span><span class="o">.</span><span class="n">text</span>
-    <span class="n">detail</span> <span class="o">=</span> <span class="n">body</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;detail&quot;</span><span class="p">,</span> <span class="n">body</span><span class="p">)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">body</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="k">else</span> <span class="n">body</span>
-    <span class="k">return</span> <span class="n">detail</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">detail</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">detail</span><span class="p">)</span>
+    <span class="n">targets</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">target_statuses</span><span class="p">)</span>
+    <span class="n">deadline</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span> <span class="o">+</span> <span class="n">timeout</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+        <span class="s2">&quot;Polling for status in </span><span class="si">%s</span><span class="s2"> (timeout=</span><span class="si">%s</span><span class="s2">s, interval=</span><span class="si">%s</span><span class="s2">s)&quot;</span><span class="p">,</span>
+        <span class="nb">sorted</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">value</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">targets</span><span class="p">),</span>
+        <span class="n">timeout</span><span class="p">,</span>
+        <span class="n">poll_interval</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="n">obj</span> <span class="o">=</span> <span class="n">fetcher</span><span class="p">()</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;poll status=</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">obj</span><span class="o">.</span><span class="n">status</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">obj</span><span class="o">.</span><span class="n">status</span> <span class="ow">in</span> <span class="n">targets</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Status reached </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">obj</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">obj</span>
+        <span class="k">if</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span> <span class="o">&gt;=</span> <span class="n">deadline</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TimeoutError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Status </span><span class="si">{</span><span class="n">obj</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">value</span><span class="si">!r}</span><span class="s2"> did not reach &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">value</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">targets</span><span class="p">)</span><span class="si">}</span><span class="s2"> within </span><span class="si">{</span><span class="n">timeout</span><span class="si">}</span><span class="s2">s&quot;</span>
+            <span class="p">)</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">poll_interval</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="IngestClient">
 <a class="viewcode-back" href="../../ingest-client.html#prescient_sdk.ingest_client.IngestClient">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">IngestClient</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Client for the Prescient Ingest API.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Client for interacting with the Prescient Ingest API.</span>
 
-<span class="sd">    Wraps the REST endpoints of the multi-tenant ingestion service and returns</span>
-<span class="sd">    typed pydantic models. Every request goes through ``client.session``, which</span>
-<span class="sd">    sends a fresh bearer token and retries once after a 401.</span>
+<span class="sd">    Wraps the REST endpoints described in the Ingest API OpenAPI spec and</span>
+<span class="sd">    returns typed pydantic models. Auth is delegated to a</span>
+<span class="sd">    :class:`PrescientClient` (constructed automatically if one is not</span>
+<span class="sd">    supplied) so the SDK&#39;s OAuth2 token handling is reused.</span>
 
-<span class="sd">    The base URL is ``&lt;prescient_endpoint_url&gt;/ingest/``.</span>
+<span class="sd">    The base URL is taken from ``Settings.prescient_ingest_endpoint_url``</span>
+<span class="sd">    when set, otherwise falls back to ``Settings.prescient_endpoint_url``.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        client (PrescientClient, optional): The client to send requests with.</span>
-<span class="sd">            When None, a ``PrescientClient()`` is built from the default</span>
-<span class="sd">            settings (environment variables and ``config.env``). Build a</span>
-<span class="sd">            ``PrescientClient`` yourself to use other settings. Defaults to None.</span>
-<span class="sd">        organization (str, optional): The Organization to act in. Only a super</span>
-<span class="sd">            admin, whose token belongs to no Organization, needs it; it is sent</span>
-<span class="sd">            as the ``organization`` query parameter on every request. Anyone</span>
-<span class="sd">            else may only name their own Organization. Defaults to None.</span>
+<span class="sd">        prescient_client (PrescientClient, optional): An existing PrescientClient</span>
+<span class="sd">            to use for auth. When provided, ``env_file`` and ``settings`` must be</span>
+<span class="sd">            omitted. Defaults to None.</span>
+<span class="sd">        env_file (str | Path, optional): Path to a configuration file. Forwarded</span>
+<span class="sd">            to ``PrescientClient`` when ``prescient_client`` is not supplied.</span>
+<span class="sd">            Defaults to None.</span>
+<span class="sd">        settings (Settings, optional): Settings object. Forwarded to</span>
+<span class="sd">            ``PrescientClient`` when ``prescient_client`` is not supplied.</span>
+<span class="sd">            Defaults to None.</span>
+<span class="sd">        debug (bool, optional): When True, emit DEBUG/INFO/WARNING/ERROR logs;</span>
+<span class="sd">            otherwise only WARNING/ERROR. Defaults to False.</span>
+<span class="sd">        log_file (str | Path, optional): Destination for log output. When None</span>
+<span class="sd">            (default), logs go to stdout; when set, logs go to this file.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If ``prescient_client`` is provided alongside ``env_file``</span>
+<span class="sd">            or ``settings``.</span>
+<span class="sd">        ValueError: If both ``env_file`` and ``settings`` are provided.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">client</span><span class="p">:</span> <span class="n">PrescientClient</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">organization</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">prescient_client</span><span class="p">:</span> <span class="n">PrescientClient</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">env_file</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">settings</span><span class="p">:</span> <span class="n">Settings</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">debug</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">log_file</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_client</span> <span class="o">=</span> <span class="n">client</span> <span class="k">if</span> <span class="n">client</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">PrescientClient</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">organization</span> <span class="o">=</span> <span class="n">organization</span>
+        <span class="n">_logging</span><span class="o">.</span><span class="n">configure</span><span class="p">(</span><span class="n">debug</span><span class="p">,</span> <span class="n">log_file</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">prescient_client</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="p">(</span><span class="n">env_file</span> <span class="ow">or</span> <span class="n">settings</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Cannot provide prescient_client alongside env_file or settings&quot;</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="n">env_file</span> <span class="ow">and</span> <span class="n">settings</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Cannot provide both env_file and settings&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">prescient_client</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">env_file</span><span class="p">:</span>
+                <span class="n">prescient_client</span> <span class="o">=</span> <span class="n">PrescientClient</span><span class="p">(</span>
+                    <span class="n">env_file</span><span class="o">=</span><span class="n">env_file</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="n">debug</span><span class="p">,</span> <span class="n">log_file</span><span class="o">=</span><span class="n">log_file</span>
+                <span class="p">)</span>
+            <span class="k">elif</span> <span class="n">settings</span><span class="p">:</span>
+                <span class="n">prescient_client</span> <span class="o">=</span> <span class="n">PrescientClient</span><span class="p">(</span>
+                    <span class="n">settings</span><span class="o">=</span><span class="n">settings</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="n">debug</span><span class="p">,</span> <span class="n">log_file</span><span class="o">=</span><span class="n">log_file</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">prescient_client</span> <span class="o">=</span> <span class="n">PrescientClient</span><span class="p">(</span><span class="n">debug</span><span class="o">=</span><span class="n">debug</span><span class="p">,</span> <span class="n">log_file</span><span class="o">=</span><span class="n">log_file</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_client</span> <span class="o">=</span> <span class="n">prescient_client</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">client</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PrescientClient</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;The :class:`PrescientClient` that requests are sent with.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;The underlying :class:`PrescientClient` used for auth.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            PrescientClient: The wrapped client instance.</span>
@@ -450,36 +489,61 @@
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">base_url</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Base URL for the Ingest API, with a trailing slash.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Base URL for the Ingest API, with a guaranteed trailing slash.</span>
+
+<span class="sd">        Uses ``prescient_ingest_endpoint_url`` when set; otherwise falls back</span>
+<span class="sd">        to ``&lt;prescient_endpoint_url&gt;/ingest/``.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            str: ``&lt;prescient_endpoint_url&gt;/ingest/``.</span>
+<span class="sd">            str: The Ingest API base URL with a trailing slash.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">prescient_endpoint_url</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;/ingest/&quot;</span>
+        <span class="n">override</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">prescient_ingest_endpoint_url</span>
+        <span class="k">if</span> <span class="n">override</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">override</span> <span class="k">if</span> <span class="n">override</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="n">override</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span>
+        <span class="n">base</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">prescient_endpoint_url</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">base</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">):</span>
+            <span class="n">base</span> <span class="o">=</span> <span class="n">base</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span>
+        <span class="k">return</span> <span class="n">urllib</span><span class="o">.</span><span class="n">parse</span><span class="o">.</span><span class="n">urljoin</span><span class="p">(</span><span class="n">base</span><span class="p">,</span> <span class="s2">&quot;ingest/&quot;</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">headers</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Default request headers for the Ingest API.</span>
+
+<span class="sd">        Returns ``Accept: application/json``. When ``prescient_api_key`` is</span>
+<span class="sd">        configured, the key is also sent in the ``api-key`` header, the same</span>
+<span class="sd">        as ``PrescientClient.headers`` does for the other Prescient APIs.</span>
+<span class="sd">        ``Content-Type`` is omitted so ``requests`` can set</span>
+<span class="sd">        ``multipart/form-data; boundary=...`` itself on the upload path in</span>
+<span class="sd">        ``create_ingestion``.</span>
+
+<span class="sd">        Note: this deliberately does NOT delegate to ``PrescientClient.headers``.</span>
+<span class="sd">        That would set ``Content-Type: application/json``, and without an API</span>
+<span class="sd">        key it would trigger an OAuth sign-in via the ``auth_credentials``</span>
+<span class="sd">        property. Without an API key, no auth header is sent.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            dict: The default headers used on every Ingest API request.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">headers</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;Accept&quot;</span><span class="p">:</span> <span class="s2">&quot;application/json&quot;</span><span class="p">}</span>
+        <span class="n">api_key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">prescient_api_key</span>
+        <span class="k">if</span> <span class="n">api_key</span><span class="p">:</span>
+            <span class="n">headers</span><span class="p">[</span><span class="s2">&quot;api-key&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">api_key</span>
+        <span class="k">return</span> <span class="n">headers</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">urllib</span><span class="o">.</span><span class="n">parse</span><span class="o">.</span><span class="n">urljoin</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">base_url</span><span class="p">,</span> <span class="n">path</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">))</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">_request</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span> <span class="n">method</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">requests</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
-        <span class="c1"># No Content-Type: requests sets multipart/form-data with its boundary</span>
-        <span class="c1"># itself when create_ingestion passes files=.</span>
-        <span class="n">headers</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;Accept&quot;</span><span class="p">:</span> <span class="s2">&quot;application/json&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;headers&quot;</span><span class="p">,</span> <span class="p">{})}</span>
-        <span class="n">kwargs</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">&quot;timeout&quot;</span><span class="p">,</span> <span class="n">_REQUEST_TIMEOUT</span><span class="p">)</span>
-        <span class="n">params</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">params</span> <span class="ow">or</span> <span class="p">{})</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">organization</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">params</span><span class="p">[</span><span class="s2">&quot;organization&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">organization</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_request</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">method</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">requests</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
+        <span class="c1"># Allow callers to override or extend headers via kwargs without</span>
+        <span class="c1"># colliding with the default headers= passed below.</span>
+        <span class="n">headers</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">headers</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;headers&quot;</span><span class="p">,</span> <span class="p">{})}</span>
         <span class="n">url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_url</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;_request method=</span><span class="si">%s</span><span class="s2"> path=</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">method</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span>
-        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">request</span><span class="p">(</span>
-            <span class="n">method</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">params</span> <span class="ow">or</span> <span class="kc">None</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
-        <span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="n">method</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
             <span class="s2">&quot;_response method=</span><span class="si">%s</span><span class="s2"> path=</span><span class="si">%s</span><span class="s2"> status=</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">method</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span>
         <span class="p">)</span>
-        <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">&gt;=</span> <span class="mi">400</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">IngestAPIError</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+        <span class="n">response</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">response</span>
 
     <span class="c1"># /v1/ingestion/</span>
@@ -487,77 +551,45 @@
 <div class="viewcode-block" id="IngestClient.create_ingestion">
 <a class="viewcode-back" href="../../ingest-client.html#prescient_sdk.ingest_client.IngestClient.create_ingestion">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">create_ingestion</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">spec_file</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Ingestion</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a new ingestion from a version 2 ingestion spec YAML.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a new ingestion from an ingestion specification YAML.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            spec_file (Path | str | bytes): The YAML spec. A ``Path`` or ``str``</span>
-<span class="sd">                is a file path. ``bytes`` is sent as the file content; encode an</span>
-<span class="sd">                in-memory string with ``.encode(&quot;utf-8&quot;)`` first.</span>
+<span class="sd">            spec_file (Path | str | bytes): The YAML specification. A ``Path``</span>
+<span class="sd">                or ``str`` is treated as a file path and opened in binary mode.</span>
+<span class="sd">                ``bytes`` is posted directly as the file content. Callers with</span>
+<span class="sd">                the spec as an in-memory string should ``.encode(&quot;utf-8&quot;)`` it</span>
+<span class="sd">                first.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            Ingestion: The new ingestion.</span>
-
-<span class="sd">        Raises:</span>
-<span class="sd">            IngestSpecError: If the API rejects the spec (400), for example a</span>
-<span class="sd">                wrong ``version``, a ``user`` field, or an External destination</span>
-<span class="sd">                that is not publicly readable.</span>
-<span class="sd">            CollectionOwnershipError: If the spec&#39;s collection belongs to</span>
-<span class="sd">                another Organization (409).</span>
-<span class="sd">            IngestAPIError: For any other error response, for example 403 when</span>
-<span class="sd">                the caller is not an admin of the Organization.</span>
+<span class="sd">            Ingestion: The newly created ingestion as returned by the API.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">spec_file</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">):</span>
-                <span class="n">files</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;spec_file&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;spec.yaml&quot;</span><span class="p">,</span> <span class="n">spec_file</span><span class="p">,</span> <span class="s2">&quot;application/yaml&quot;</span><span class="p">)}</span>
+        <span class="c1"># Multipart upload: do NOT set Content-Type ourselves — requests</span>
+        <span class="c1"># sets `multipart/form-data; boundary=...` with the right boundary</span>
+        <span class="c1"># parameter once `files=` is provided. `self.headers` deliberately</span>
+        <span class="c1"># omits Content-Type so _request doesn&#39;t override that.</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">spec_file</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">):</span>
+            <span class="n">files</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;spec_file&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;spec.yaml&quot;</span><span class="p">,</span> <span class="n">spec_file</span><span class="p">,</span> <span class="s2">&quot;application/yaml&quot;</span><span class="p">)}</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_request</span><span class="p">(</span><span class="s2">&quot;POST&quot;</span><span class="p">,</span> <span class="s2">&quot;v1/ingestion/&quot;</span><span class="p">,</span> <span class="n">files</span><span class="o">=</span><span class="n">files</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">spec_file</span><span class="p">)</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+                <span class="n">files</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;spec_file&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">fh</span><span class="p">,</span> <span class="s2">&quot;application/yaml&quot;</span><span class="p">)}</span>
                 <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_request</span><span class="p">(</span><span class="s2">&quot;POST&quot;</span><span class="p">,</span> <span class="s2">&quot;v1/ingestion/&quot;</span><span class="p">,</span> <span class="n">files</span><span class="o">=</span><span class="n">files</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">spec_file</span><span class="p">)</span>
-                <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
-                    <span class="n">files</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;spec_file&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">fh</span><span class="p">,</span> <span class="s2">&quot;application/yaml&quot;</span><span class="p">)}</span>
-                    <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_request</span><span class="p">(</span><span class="s2">&quot;POST&quot;</span><span class="p">,</span> <span class="s2">&quot;v1/ingestion/&quot;</span><span class="p">,</span> <span class="n">files</span><span class="o">=</span><span class="n">files</span><span class="p">)</span>
-        <span class="k">except</span> <span class="n">IngestAPIError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">400</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="n">IngestSpecError</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">response</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="kc">None</span>
-            <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">409</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="n">CollectionOwnershipError</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">response</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="kc">None</span>
-            <span class="k">raise</span>
         <span class="n">ingestion</span> <span class="o">=</span> <span class="n">Ingestion</span><span class="o">.</span><span class="n">model_validate</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">())</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Created ingestion id=</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">ingestion</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">ingestion</span></div>
 
 
-<div class="viewcode-block" id="IngestClient.list_ingestions">
-<a class="viewcode-back" href="../../ingest-client.html#prescient_sdk.ingest_client.IngestClient.list_ingestions">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">list_ingestions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">limit</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span> <span class="n">offset</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Ingestion</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;List the Organization&#39;s ingestions, newest first.</span>
-
-<span class="sd">        Each ingestion&#39;s status is its latest batch&#39;s status as last recorded.</span>
-<span class="sd">        Get the ingestion to bring a running batch&#39;s status up to date.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            limit (int, optional): Most ingestions to return, 1 to 1000.</span>
-<span class="sd">                Defaults to 100.</span>
-<span class="sd">            offset (int, optional): Number of ingestions to skip. Defaults to 0.</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            list[Ingestion]: One page of ingestions.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_request</span><span class="p">(</span>
-            <span class="s2">&quot;GET&quot;</span><span class="p">,</span> <span class="s2">&quot;v1/ingestion/&quot;</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;limit&quot;</span><span class="p">:</span> <span class="n">limit</span><span class="p">,</span> <span class="s2">&quot;offset&quot;</span><span class="p">:</span> <span class="n">offset</span><span class="p">}</span>
-        <span class="p">)</span>
-        <span class="k">return</span> <span class="p">[</span><span class="n">Ingestion</span><span class="o">.</span><span class="n">model_validate</span><span class="p">(</span><span class="n">item</span><span class="p">)</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()]</span></div>
-
-
 <div class="viewcode-block" id="IngestClient.get_ingestion">
 <a class="viewcode-back" href="../../ingest-client.html#prescient_sdk.ingest_client.IngestClient.get_ingestion">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">get_ingestion</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ingestion_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Ingestion</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get an ingestion by ID.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get ingestion by ID.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            ingestion_id (int): The ingestion&#39;s server-assigned ID.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            Ingestion: The ingestion.</span>
+<span class="sd">            Ingestion: The current ingestion model as returned by the API.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_request</span><span class="p">(</span><span class="s2">&quot;GET&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;v1/ingestion/</span><span class="si">{</span><span class="n">ingestion_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">Ingestion</span><span class="o">.</span><span class="n">model_validate</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">())</span></div>
@@ -566,16 +598,13 @@
 <div class="viewcode-block" id="IngestClient.start_ingestion">
 <a class="viewcode-back" href="../../ingest-client.html#prescient_sdk.ingest_client.IngestClient.start_ingestion">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">start_ingestion</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ingestion_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Ingestion</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Start ingesting files for the latest batch, which must be ``READY``.</span>
-
-<span class="sd">        If the launch takes longer than the server waits, the ingestion comes</span>
-<span class="sd">        back still ``PLANNING``; poll it for the outcome.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Start ingesting files for the latest batch (must be ``READY``).</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            ingestion_id (int): The ingestion to start.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            Ingestion: The ingestion after starting.</span>
+<span class="sd">            Ingestion: The updated ingestion model after starting.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Starting ingestion id=</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">ingestion_id</span><span class="p">)</span>
         <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_request</span><span class="p">(</span><span class="s2">&quot;POST&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;v1/ingestion/</span><span class="si">{</span><span class="n">ingestion_id</span><span class="si">}</span><span class="s2">/start&quot;</span><span class="p">)</span>
@@ -585,13 +614,13 @@
 <div class="viewcode-block" id="IngestClient.get_ingestion_input_files">
 <a class="viewcode-back" href="../../ingest-client.html#prescient_sdk.ingest_client.IngestClient.get_ingestion_input_files">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">get_ingestion_input_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ingestion_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">InputFile</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;List the input files of an ingestion, across all batches.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;List all input files for an ingestion across all batches.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            ingestion_id (int): The ingestion to query.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            list[InputFile]: Input files across every batch.</span>
+<span class="sd">            list[InputFile]: Input files across every batch in this ingestion.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_request</span><span class="p">(</span><span class="s2">&quot;GET&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;v1/ingestion/</span><span class="si">{</span><span class="n">ingestion_id</span><span class="si">}</span><span class="s2">/input_files&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="p">[</span><span class="n">InputFile</span><span class="o">.</span><span class="n">model_validate</span><span class="p">(</span><span class="n">item</span><span class="p">)</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()]</span></div>
@@ -600,37 +629,22 @@
 <div class="viewcode-block" id="IngestClient.get_ingestion_output_files">
 <a class="viewcode-back" href="../../ingest-client.html#prescient_sdk.ingest_client.IngestClient.get_ingestion_output_files">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">get_ingestion_output_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ingestion_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">OutputFile</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;List the output files of an ingestion, across all batches.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;List all output files for an ingestion across all batches.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            ingestion_id (int): The ingestion to query.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            list[OutputFile]: Output files across every batch.</span>
+<span class="sd">            list[OutputFile]: Output files across every batch in this ingestion.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_request</span><span class="p">(</span><span class="s2">&quot;GET&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;v1/ingestion/</span><span class="si">{</span><span class="n">ingestion_id</span><span class="si">}</span><span class="s2">/output_files&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="p">[</span><span class="n">OutputFile</span><span class="o">.</span><span class="n">model_validate</span><span class="p">(</span><span class="n">item</span><span class="p">)</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()]</span></div>
 
 
-<div class="viewcode-block" id="IngestClient.get_ingestion_stac_items">
-<a class="viewcode-back" href="../../ingest-client.html#prescient_sdk.ingest_client.IngestClient.get_ingestion_stac_items">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">get_ingestion_stac_items</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ingestion_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">StacItem</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;List the STAC items of an ingestion, across all batches.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            ingestion_id (int): The ingestion to query.</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            list[StacItem]: STAC items across every batch.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_request</span><span class="p">(</span><span class="s2">&quot;GET&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;v1/ingestion/</span><span class="si">{</span><span class="n">ingestion_id</span><span class="si">}</span><span class="s2">/stac_items&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="p">[</span><span class="n">StacItem</span><span class="o">.</span><span class="n">model_validate</span><span class="p">(</span><span class="n">item</span><span class="p">)</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()]</span></div>
-
-
 <div class="viewcode-block" id="IngestClient.get_ingestion_errors">
 <a class="viewcode-back" href="../../ingest-client.html#prescient_sdk.ingest_client.IngestClient.get_ingestion_errors">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">get_ingestion_errors</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ingestion_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Error</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;List the errors of an ingestion, across all batches.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get all errors associated with an ingestion across all batches.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            ingestion_id (int): The ingestion to query.</span>
@@ -646,38 +660,29 @@
 
 <div class="viewcode-block" id="IngestClient.list_batches">
 <a class="viewcode-back" href="../../ingest-client.html#prescient_sdk.ingest_client.IngestClient.list_batches">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">list_batches</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span> <span class="n">ingestion_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">limit</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span> <span class="n">offset</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Batch</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;List the batches of an ingestion, newest first.</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">list_batches</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ingestion_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Batch</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;List all batches for an ingestion.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            ingestion_id (int): The parent ingestion ID.</span>
-<span class="sd">            limit (int, optional): Most batches to return, 1 to 1000.</span>
-<span class="sd">                Defaults to 100.</span>
-<span class="sd">            offset (int, optional): Number of batches to skip. Defaults to 0.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            list[Batch]: One page of batches.</span>
+<span class="sd">            list[Batch]: Every batch belonging to this ingestion.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_request</span><span class="p">(</span>
-            <span class="s2">&quot;GET&quot;</span><span class="p">,</span>
-            <span class="sa">f</span><span class="s2">&quot;v1/ingestion/</span><span class="si">{</span><span class="n">ingestion_id</span><span class="si">}</span><span class="s2">/batches&quot;</span><span class="p">,</span>
-            <span class="n">params</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;limit&quot;</span><span class="p">:</span> <span class="n">limit</span><span class="p">,</span> <span class="s2">&quot;offset&quot;</span><span class="p">:</span> <span class="n">offset</span><span class="p">},</span>
-        <span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_request</span><span class="p">(</span><span class="s2">&quot;GET&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;v1/ingestion/</span><span class="si">{</span><span class="n">ingestion_id</span><span class="si">}</span><span class="s2">/batches&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="p">[</span><span class="n">Batch</span><span class="o">.</span><span class="n">model_validate</span><span class="p">(</span><span class="n">item</span><span class="p">)</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()]</span></div>
 
 
 <div class="viewcode-block" id="IngestClient.create_batch">
 <a class="viewcode-back" href="../../ingest-client.html#prescient_sdk.ingest_client.IngestClient.create_batch">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">create_batch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ingestion_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Batch</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a new batch and start scanning for input files.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a new ingestion batch and start scanning for input files.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            ingestion_id (int): The parent ingestion ID.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            Batch: The new batch.</span>
+<span class="sd">            Batch: The newly created batch as returned by the API.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_request</span><span class="p">(</span><span class="s2">&quot;POST&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;v1/ingestion/</span><span class="si">{</span><span class="n">ingestion_id</span><span class="si">}</span><span class="s2">/batches&quot;</span><span class="p">)</span>
         <span class="n">batch</span> <span class="o">=</span> <span class="n">Batch</span><span class="o">.</span><span class="n">model_validate</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">())</span>
@@ -690,14 +695,14 @@
 <div class="viewcode-block" id="IngestClient.get_batch">
 <a class="viewcode-back" href="../../ingest-client.html#prescient_sdk.ingest_client.IngestClient.get_batch">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">get_batch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ingestion_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">batch_number</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Batch</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get one batch by its 1-based batch number.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get information on a single batch by its 1-based batch number.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            ingestion_id (int): The parent ingestion ID.</span>
 <span class="sd">            batch_number (int): 1-based batch number within the ingestion.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            Batch: The batch.</span>
+<span class="sd">            Batch: The current batch model as returned by the API.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_request</span><span class="p">(</span>
             <span class="s2">&quot;GET&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;v1/ingestion/</span><span class="si">{</span><span class="n">ingestion_id</span><span class="si">}</span><span class="s2">/batches/</span><span class="si">{</span><span class="n">batch_number</span><span class="si">}</span><span class="s2">&quot;</span>
@@ -708,17 +713,14 @@
 <div class="viewcode-block" id="IngestClient.start_batch">
 <a class="viewcode-back" href="../../ingest-client.html#prescient_sdk.ingest_client.IngestClient.start_batch">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">start_batch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ingestion_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">batch_number</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Batch</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Start ingesting files for a batch, which must be ``READY``.</span>
-
-<span class="sd">        If the launch takes longer than the server waits, the batch comes back</span>
-<span class="sd">        still ``PLANNING``; poll it for the outcome.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Start ingesting files for a specific batch (must be ``READY``).</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            ingestion_id (int): The parent ingestion ID.</span>
 <span class="sd">            batch_number (int): 1-based batch number within the ingestion.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            Batch: The batch after starting.</span>
+<span class="sd">            Batch: The updated batch model after starting.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Starting batch ingestion=</span><span class="si">%s</span><span class="s2"> batch=</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">ingestion_id</span><span class="p">,</span> <span class="n">batch_number</span><span class="p">)</span>
         <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_request</span><span class="p">(</span>
@@ -732,14 +734,14 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">get_batch_input_files</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">ingestion_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">batch_number</span><span class="p">:</span> <span class="nb">int</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">InputFile</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;List the input files of a batch.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;List input files for a specific batch.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            ingestion_id (int): The parent ingestion ID.</span>
 <span class="sd">            batch_number (int): 1-based batch number within the ingestion.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            list[InputFile]: Input files of this batch.</span>
+<span class="sd">            list[InputFile]: Input files belonging to this batch.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_request</span><span class="p">(</span>
             <span class="s2">&quot;GET&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;v1/ingestion/</span><span class="si">{</span><span class="n">ingestion_id</span><span class="si">}</span><span class="s2">/batches/</span><span class="si">{</span><span class="n">batch_number</span><span class="si">}</span><span class="s2">/input_files&quot;</span>
@@ -752,14 +754,14 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">get_batch_output_files</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">ingestion_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">batch_number</span><span class="p">:</span> <span class="nb">int</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">OutputFile</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;List the output files of a batch.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;List output files for a specific batch.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            ingestion_id (int): The parent ingestion ID.</span>
 <span class="sd">            batch_number (int): 1-based batch number within the ingestion.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            list[OutputFile]: Output files of this batch.</span>
+<span class="sd">            list[OutputFile]: Output files produced by this batch.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_request</span><span class="p">(</span>
             <span class="s2">&quot;GET&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;v1/ingestion/</span><span class="si">{</span><span class="n">ingestion_id</span><span class="si">}</span><span class="s2">/batches/</span><span class="si">{</span><span class="n">batch_number</span><span class="si">}</span><span class="s2">/output_files&quot;</span>
@@ -767,30 +769,10 @@
         <span class="k">return</span> <span class="p">[</span><span class="n">OutputFile</span><span class="o">.</span><span class="n">model_validate</span><span class="p">(</span><span class="n">item</span><span class="p">)</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()]</span></div>
 
 
-<div class="viewcode-block" id="IngestClient.get_batch_stac_items">
-<a class="viewcode-back" href="../../ingest-client.html#prescient_sdk.ingest_client.IngestClient.get_batch_stac_items">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">get_batch_stac_items</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span> <span class="n">ingestion_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">batch_number</span><span class="p">:</span> <span class="nb">int</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">StacItem</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;List the STAC items of a batch.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            ingestion_id (int): The parent ingestion ID.</span>
-<span class="sd">            batch_number (int): 1-based batch number within the ingestion.</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            list[StacItem]: STAC items of this batch.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_request</span><span class="p">(</span>
-            <span class="s2">&quot;GET&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;v1/ingestion/</span><span class="si">{</span><span class="n">ingestion_id</span><span class="si">}</span><span class="s2">/batches/</span><span class="si">{</span><span class="n">batch_number</span><span class="si">}</span><span class="s2">/stac_items&quot;</span>
-        <span class="p">)</span>
-        <span class="k">return</span> <span class="p">[</span><span class="n">StacItem</span><span class="o">.</span><span class="n">model_validate</span><span class="p">(</span><span class="n">item</span><span class="p">)</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()]</span></div>
-
-
 <div class="viewcode-block" id="IngestClient.get_batch_errors">
 <a class="viewcode-back" href="../../ingest-client.html#prescient_sdk.ingest_client.IngestClient.get_batch_errors">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">get_batch_errors</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ingestion_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">batch_number</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Error</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;List the errors of a batch.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get all errors associated with a specific batch.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            ingestion_id (int): The parent ingestion ID.</span>
@@ -805,20 +787,75 @@
         <span class="k">return</span> <span class="p">[</span><span class="n">Error</span><span class="o">.</span><span class="n">model_validate</span><span class="p">(</span><span class="n">item</span><span class="p">)</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()]</span></div>
 
 
-    <span class="c1"># /healthz</span>
+    <span class="c1"># /healthy</span>
 
 <div class="viewcode-block" id="IngestClient.check">
 <a class="viewcode-back" href="../../ingest-client.html#prescient_sdk.ingest_client.IngestClient.check">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return ``True`` when the Ingest API answers 204 to ``/healthz``.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return ``True`` when the Ingest API responds 204 to ``/healthy``.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            bool: True if the health endpoint returned 204, False otherwise.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_url</span><span class="p">(</span><span class="s2">&quot;healthz&quot;</span><span class="p">)</span>
-        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_url</span><span class="p">(</span><span class="s2">&quot;healthy&quot;</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Health check </span><span class="si">%s</span><span class="s2"> -&gt; </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">prescient_ingest_endpoint_url</span>
+            <span class="ow">and</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">!=</span> <span class="mi">204</span>
+        <span class="p">):</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="s2">&quot;Ingest API not available, or PRESCIENT_INGEST_ENDPOINT_URL not set&quot;</span>
+            <span class="p">)</span>
         <span class="k">return</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">204</span></div>
+
+
+    <span class="c1"># Workflow helper</span>
+
+<div class="viewcode-block" id="IngestClient.wait_for_status">
+<a class="viewcode-back" href="../../ingest-client.html#prescient_sdk.ingest_client.IngestClient.wait_for_status">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">wait_for_status</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">ingestion_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">batch_number</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">target_statuses</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">Status</span><span class="p">]</span> <span class="o">=</span> <span class="n">TERMINAL_STATUSES</span><span class="p">,</span>
+        <span class="n">poll_interval</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">5.0</span><span class="p">,</span>
+        <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">300.0</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Ingestion</span> <span class="o">|</span> <span class="n">Batch</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Poll until the ingestion or batch reaches one of ``target_statuses``.</span>
+
+<span class="sd">        Polls :meth:`get_ingestion` (or :meth:`get_batch` when</span>
+<span class="sd">        ``batch_number`` is provided) every ``poll_interval`` seconds until</span>
+<span class="sd">        the returned ``status`` is in ``target_statuses`` or ``timeout``</span>
+<span class="sd">        seconds have elapsed.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            ingestion_id (int): The ingestion to poll.</span>
+<span class="sd">            batch_number (int, optional): If given, poll the specific batch</span>
+<span class="sd">                rather than the top-level ingestion. Defaults to None.</span>
+<span class="sd">            target_statuses (Iterable[Status], optional): Statuses that end</span>
+<span class="sd">                the wait. Defaults to the terminal/decision states ``READY``,</span>
+<span class="sd">                ``DONE``, ``FAILED``, and ``INCOMPLETE``.</span>
+<span class="sd">            poll_interval (float, optional): Seconds between polls. Defaults</span>
+<span class="sd">                to 5.0.</span>
+<span class="sd">            timeout (float, optional): Total seconds to wait before raising.</span>
+<span class="sd">                Defaults to 300.0.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Ingestion | Batch: The ingestion or batch once it reaches a</span>
+<span class="sd">            target status.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            TimeoutError: If ``timeout`` elapses before reaching a target</span>
+<span class="sd">                status.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">fetcher</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Ingestion</span> <span class="o">|</span> <span class="n">Batch</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">batch_number</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_ingestion</span><span class="p">(</span><span class="n">ingestion_id</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_batch</span><span class="p">(</span><span class="n">ingestion_id</span><span class="p">,</span> <span class="n">batch_number</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">_poll_for_status</span><span class="p">(</span><span class="n">fetcher</span><span class="p">,</span> <span class="n">target_statuses</span><span class="p">,</span> <span class="n">poll_interval</span><span class="p">,</span> <span class="n">timeout</span><span class="p">)</span></div>
 </div>
 
 </pre></div>

@@ -171,12 +171,12 @@
         <p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../examples/configuration.html">Configure the client</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../migration.html">Migrate to version 1.0</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/configuration.html">Handling Configuration</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Examples</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="../../examples/stac_search.html">STAC Search</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/upload.html">Upload</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../examples/ingest.html">Ingest</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">SDK Reference</span></p>
@@ -345,11 +345,16 @@
 <span class="sd">:class:`LiveStatus` — display lifecycle lives there, not on the resource.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
+<span class="c1"># `from __future__ import annotations` defers annotation evaluation so the</span>
+<span class="c1"># PEP 604 `X | Y` union syntax used below works on Python 3.9. Remove this</span>
+<span class="c1"># import once Python 3.9 support is dropped.</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
 <span class="kn">import</span><span class="w"> </span><span class="nn">io</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">Protocol</span><span class="p">,</span> <span class="n">TypeVar</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Iterable</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">rich.console</span><span class="w"> </span><span class="kn">import</span> <span class="n">Console</span><span class="p">,</span> <span class="n">Group</span><span class="p">,</span> <span class="n">RenderableType</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">rich.live</span><span class="w"> </span><span class="kn">import</span> <span class="n">Live</span>
@@ -358,7 +363,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">rich.text</span><span class="w"> </span><span class="kn">import</span> <span class="n">Text</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">prescient_sdk</span><span class="w"> </span><span class="kn">import</span> <span class="n">ingest_models</span> <span class="k">as</span> <span class="n">models</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">prescient_sdk.ingest_client</span><span class="w"> </span><span class="kn">import</span> <span class="n">IngestClient</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">prescient_sdk.ingest_client</span><span class="w"> </span><span class="kn">import</span> <span class="n">IngestClient</span><span class="p">,</span> <span class="n">_poll_for_status</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">prescient_sdk.ingest_spec</span><span class="w"> </span><span class="kn">import</span> <span class="n">IngestSpec</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">prescient_sdk.ingest_models</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">DONE_STATUSES</span><span class="p">,</span>
@@ -373,57 +378,6 @@
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">&quot;prescient_sdk&quot;</span><span class="p">)</span>
 
 
-<span class="k">class</span><span class="w"> </span><span class="nc">_HasStatus</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
-    <span class="n">status</span><span class="p">:</span> <span class="n">Status</span>
-
-
-<span class="n">_StatusT</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s2">&quot;_StatusT&quot;</span><span class="p">,</span> <span class="n">bound</span><span class="o">=</span><span class="n">_HasStatus</span><span class="p">)</span>
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_poll_for_status</span><span class="p">(</span>
-    <span class="n">fetcher</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="n">_StatusT</span><span class="p">],</span>
-    <span class="n">target_statuses</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">Status</span><span class="p">],</span>
-    <span class="n">poll_interval</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
-    <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_StatusT</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Poll ``fetcher`` until the returned object&#39;s ``status`` is in ``target_statuses``.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        fetcher (Callable[[], _StatusT]): Callable that returns an object with a</span>
-<span class="sd">            ``status`` attribute. Invoked once per poll iteration.</span>
-<span class="sd">        target_statuses (Iterable[Status]): Statuses that end the wait.</span>
-<span class="sd">        poll_interval (float): Seconds between polls.</span>
-<span class="sd">        timeout (float): Total seconds to wait before raising.</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        _StatusT: The object returned by ``fetcher`` once its ``status`` matches</span>
-<span class="sd">        one of ``target_statuses``.</span>
-
-<span class="sd">    Raises:</span>
-<span class="sd">        TimeoutError: If ``timeout`` elapses before reaching a target status.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">targets</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">target_statuses</span><span class="p">)</span>
-    <span class="n">deadline</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span> <span class="o">+</span> <span class="n">timeout</span>
-    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
-        <span class="s2">&quot;Polling for status in </span><span class="si">%s</span><span class="s2"> (timeout=</span><span class="si">%s</span><span class="s2">s, interval=</span><span class="si">%s</span><span class="s2">s)&quot;</span><span class="p">,</span>
-        <span class="nb">sorted</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">value</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">targets</span><span class="p">),</span>
-        <span class="n">timeout</span><span class="p">,</span>
-        <span class="n">poll_interval</span><span class="p">,</span>
-    <span class="p">)</span>
-    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
-        <span class="n">obj</span> <span class="o">=</span> <span class="n">fetcher</span><span class="p">()</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;poll status=</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">obj</span><span class="o">.</span><span class="n">status</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">obj</span><span class="o">.</span><span class="n">status</span> <span class="ow">in</span> <span class="n">targets</span><span class="p">:</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Status reached </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">obj</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
-            <span class="k">return</span> <span class="n">obj</span>
-        <span class="k">if</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span> <span class="o">&gt;=</span> <span class="n">deadline</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">TimeoutError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Status </span><span class="si">{</span><span class="n">obj</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">value</span><span class="si">!r}</span><span class="s2"> did not reach &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">value</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">targets</span><span class="p">)</span><span class="si">}</span><span class="s2"> within </span><span class="si">{</span><span class="n">timeout</span><span class="si">}</span><span class="s2">s&quot;</span>
-            <span class="p">)</span>
-        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">poll_interval</span><span class="p">)</span>
-
-
 <span class="n">STATUS_STYLES</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="n">Status</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
     <span class="n">Status</span><span class="o">.</span><span class="n">SCANNING</span><span class="p">:</span> <span class="s2">&quot;yellow&quot;</span><span class="p">,</span>
     <span class="n">Status</span><span class="o">.</span><span class="n">READY</span><span class="p">:</span> <span class="s2">&quot;bold green&quot;</span><span class="p">,</span>
@@ -431,6 +385,7 @@
     <span class="n">Status</span><span class="o">.</span><span class="n">INGESTING</span><span class="p">:</span> <span class="s2">&quot;bold cyan&quot;</span><span class="p">,</span>
     <span class="n">Status</span><span class="o">.</span><span class="n">DONE</span><span class="p">:</span> <span class="s2">&quot;bold green&quot;</span><span class="p">,</span>
     <span class="n">Status</span><span class="o">.</span><span class="n">FAILED</span><span class="p">:</span> <span class="s2">&quot;bold red&quot;</span><span class="p">,</span>
+    <span class="n">Status</span><span class="o">.</span><span class="n">INCOMPLETE</span><span class="p">:</span> <span class="s2">&quot;bold yellow&quot;</span><span class="p">,</span>
 <span class="p">}</span>
 
 <span class="n">SEVERITY_STYLES</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="n">ErrorSeverity</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
@@ -622,7 +577,7 @@
 <span class="sd">    (attach to an existing one). Wrap in :class:`LiveStatus` for a live</span>
 <span class="sd">    progress display::</span>
 
-<span class="sd">        ing = IngestResource.create(client, IngestSpec.from_file(&quot;spec.yaml&quot;))</span>
+<span class="sd">        ing = IngestResource.create(client, spec=&quot;spec.yaml&quot;)</span>
 <span class="sd">        with LiveStatus(ing):</span>
 <span class="sd">            ing.wait_until_ready()</span>
 <span class="sd">            if not ing.errors():</span>
@@ -644,30 +599,32 @@
 <span class="sd">        Args:</span>
 <span class="sd">            client (IngestClient): Client used for the API call and subsequent</span>
 <span class="sd">                state transitions.</span>
-<span class="sd">            spec (IngestSpec): The version 2 spec to submit. It is serialized</span>
-<span class="sd">                to YAML and submitted only after :meth:`IngestSpec.problems`</span>
-<span class="sd">                finds nothing: a ``version`` starting with ``2.``, no ``user``</span>
-<span class="sd">                field, and no location that is a local directory.</span>
+<span class="sd">            spec (IngestSpec): The specification to submit.</span>
+<span class="sd">                A :class:`~prescient_sdk.ingest_spec.IngestSpec` is serialized to</span>
+<span class="sd">                YAML and submitted, but only after checking that every location</span>
+<span class="sd">                is an ``s3://`` path — the Ingest API cannot read local paths.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            IngestResource: A resource wrapping the newly created ingestion.</span>
 
 <span class="sd">        Raises:</span>
-<span class="sd">            ValueError: If ``spec`` is not an :class:`IngestSpec`, or has</span>
-<span class="sd">                problems. Upload local sources first (see</span>
-<span class="sd">                ``IngestSpec.with_uploaded_sources``).</span>
-<span class="sd">            IngestSpecError: If the Ingest API rejects the spec (400).</span>
-<span class="sd">            CollectionOwnershipError: If the spec&#39;s collection belongs to</span>
-<span class="sd">                another Organization (409).</span>
+<span class="sd">            ValueError: If ``spec`` is an :class:`IngestSpec` with one or more</span>
+<span class="sd">                locations still pointing at a local (non-``s3://``) path. Upload</span>
+<span class="sd">                those sources first (see ``IngestSpec.with_uploaded_sources``).</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">spec</span><span class="p">,</span> <span class="n">IngestSpec</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">spec</span><span class="p">,</span> <span class="n">invalid_type</span><span class="p">)</span> <span class="k">for</span> <span class="n">invalid_type</span> <span class="ow">in</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">)):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Expected IngestSpec, got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">spec</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
-        <span class="n">problems</span> <span class="o">=</span> <span class="n">spec</span><span class="o">.</span><span class="n">problems</span><span class="p">()</span>
-        <span class="k">if</span> <span class="n">problems</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Cannot create an ingestion: &quot;</span> <span class="o">+</span> <span class="s2">&quot;; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">problems</span><span class="p">))</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">spec</span><span class="p">,</span> <span class="n">IngestSpec</span><span class="p">):</span>
+            <span class="n">local</span> <span class="o">=</span> <span class="n">spec</span><span class="o">.</span><span class="n">local_locations</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">local</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;Cannot create an ingestion: these locations have non-s3:// &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;paths and must be uploaded first: </span><span class="si">{</span><span class="n">local</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="p">)</span>
+            <span class="n">spec</span> <span class="o">=</span> <span class="n">spec</span><span class="o">.</span><span class="n">to_bytes</span><span class="p">()</span>
 
-        <span class="n">ingestion</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">create_ingestion</span><span class="p">(</span><span class="n">spec</span><span class="o">.</span><span class="n">to_bytes</span><span class="p">())</span>
+        <span class="n">ingestion</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">create_ingestion</span><span class="p">(</span><span class="n">spec</span><span class="p">)</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;IngestResource created id=</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">ingestion</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
         <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">ingestion</span><span class="p">)</span></div>
 
@@ -687,27 +644,6 @@
 <span class="sd">            IngestResource: A resource wrapping the existing ingestion.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">client</span><span class="o">.</span><span class="n">get_ingestion</span><span class="p">(</span><span class="nb">id</span><span class="p">))</span></div>
-
-
-<div class="viewcode-block" id="IngestResource.list_all">
-<a class="viewcode-back" href="../../ingest-resources.html#prescient_sdk.ingest_resources.IngestResource.list_all">[docs]</a>
-    <span class="nd">@classmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">list_all</span><span class="p">(</span>
-        <span class="bp">cls</span><span class="p">,</span> <span class="n">client</span><span class="p">:</span> <span class="n">IngestClient</span><span class="p">,</span> <span class="n">limit</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span> <span class="n">offset</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="s2">&quot;IngestResource&quot;</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;List the Organization&#39;s ingestions, newest first, and wrap each one.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            client (IngestClient): Client used for the API call and subsequent</span>
-<span class="sd">                state transitions.</span>
-<span class="sd">            limit (int, optional): Most ingestions to return, 1 to 1000.</span>
-<span class="sd">                Defaults to 100.</span>
-<span class="sd">            offset (int, optional): Number of ingestions to skip. Defaults to 0.</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            list[IngestResource]: One resource per ingestion in the page.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="p">[</span><span class="bp">cls</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">m</span><span class="p">)</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">client</span><span class="o">.</span><span class="n">list_ingestions</span><span class="p">(</span><span class="n">limit</span><span class="p">,</span> <span class="n">offset</span><span class="p">)]</span></div>
 
 
     <span class="c1"># -- Identity / state ------------------------------------------------</span>
@@ -795,9 +731,7 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">wait_until_ready</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">poll_interval</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">5.0</span><span class="p">,</span> <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">300.0</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;IngestResource&quot;</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Block until scanning ends: ``READY``, ``FAILED``, or ``DONE``.</span>
-
-<span class="sd">        A scan that finds no input files ends ``DONE``.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Block until the ingestion enters a ``READY`` (or terminal) state.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            poll_interval (float, optional): Seconds between polls. Defaults</span>
@@ -820,7 +754,7 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">wait_until_done</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">poll_interval</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">10.0</span><span class="p">,</span> <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">3600.0</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;IngestResource&quot;</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Block until the ingestion reaches ``DONE`` or ``FAILED``.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Block until the ingestion reaches ``DONE``, ``FAILED``, or ``INCOMPLETE``.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            poll_interval (float, optional): Seconds between polls. Defaults</span>
@@ -853,20 +787,14 @@
 
 <div class="viewcode-block" id="IngestResource.list_batches">
 <a class="viewcode-back" href="../../ingest-resources.html#prescient_sdk.ingest_resources.IngestResource.list_batches">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">list_batches</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">limit</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span> <span class="n">offset</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="s2">&quot;BatchResource&quot;</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return ``BatchResource`` wrappers for this ingestion&#39;s batches, newest first.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            limit (int, optional): Most batches to return, 1 to 1000.</span>
-<span class="sd">                Defaults to 100.</span>
-<span class="sd">            offset (int, optional): Number of batches to skip. Defaults to 0.</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">list_batches</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="s2">&quot;BatchResource&quot;</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return ``BatchResource`` wrappers for every batch under this ingestion.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            list[BatchResource]: One resource per batch in the page.</span>
+<span class="sd">            list[BatchResource]: One resource per batch in this ingestion.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="p">[</span>
-            <span class="n">BatchResource</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="p">,</span> <span class="n">m</span><span class="p">)</span>
-            <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">list_batches</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">limit</span><span class="p">,</span> <span class="n">offset</span><span class="p">)</span>
+            <span class="n">BatchResource</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="p">,</span> <span class="n">m</span><span class="p">)</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">list_batches</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
         <span class="p">]</span></div>
 
 
@@ -897,10 +825,12 @@
         <span class="n">spec_table</span> <span class="o">=</span> <span class="n">Table</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="n">padding</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
         <span class="n">spec_table</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="n">style</span><span class="o">=</span><span class="s2">&quot;dim&quot;</span><span class="p">)</span>
         <span class="n">spec_table</span><span class="o">.</span><span class="n">add_column</span><span class="p">()</span>
-        <span class="n">spec_table</span><span class="o">.</span><span class="n">add_row</span><span class="p">(</span><span class="s2">&quot;Name&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">spec</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">&quot;—&quot;</span><span class="p">))</span>
+        <span class="n">spec_table</span><span class="o">.</span><span class="n">add_row</span><span class="p">(</span><span class="s2">&quot;User&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">spec</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;—&quot;</span><span class="p">)))</span>
         <span class="n">spec_table</span><span class="o">.</span><span class="n">add_row</span><span class="p">(</span><span class="s2">&quot;Tasks&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">spec</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;tasks&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{})))</span>
         <span class="n">spec_table</span><span class="o">.</span><span class="n">add_row</span><span class="p">(</span><span class="s2">&quot;Locations&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">spec</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;locations&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{})))</span>
-        <span class="n">spec_table</span><span class="o">.</span><span class="n">add_row</span><span class="p">(</span><span class="s2">&quot;Source file sets&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">spec</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;source_files&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{})))</span>
+        <span class="n">spec_table</span><span class="o">.</span><span class="n">add_row</span><span class="p">(</span>
+            <span class="s2">&quot;Source file sets&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">spec</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;source_file_sets&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{}))</span>
+        <span class="p">)</span>
 
         <span class="n">renderables</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">RenderableType</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">header</span><span class="p">,</span> <span class="n">spec_table</span><span class="p">]</span>
         <span class="n">errs_panel</span> <span class="o">=</span> <span class="n">_errors_panel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_errors</span><span class="p">)</span>
@@ -1085,9 +1015,7 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">wait_until_ready</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">poll_interval</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">5.0</span><span class="p">,</span> <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">300.0</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;BatchResource&quot;</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Block until scanning ends: ``READY``, ``FAILED``, or ``DONE``.</span>
-
-<span class="sd">        A scan that finds no input files ends ``DONE``.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Block until the batch enters a ``READY`` (or terminal) state.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            poll_interval (float, optional): Seconds between polls. Defaults</span>
@@ -1110,7 +1038,7 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">wait_until_done</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">poll_interval</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">10.0</span><span class="p">,</span> <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">3600.0</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;BatchResource&quot;</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Block until the batch reaches ``DONE`` or ``FAILED``.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Block until the batch reaches ``DONE``, ``FAILED``, or ``INCOMPLETE``.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            poll_interval (float, optional): Seconds between polls. Defaults</span>
@@ -1182,7 +1110,7 @@
 <span class="sd">    finalizes on ``__exit__``. The resource itself remains fully usable</span>
 <span class="sd">    outside the block (without the live display)::</span>
 
-<span class="sd">        ing = IngestResource.create(client, IngestSpec.from_file(&quot;spec.yaml&quot;))</span>
+<span class="sd">        ing = IngestResource.create(client, spec=&quot;spec.yaml&quot;)</span>
 <span class="sd">        with LiveStatus(ing):</span>
 <span class="sd">            ing.wait_until_ready()</span>
 <span class="sd">            if not ing.errors():</span>

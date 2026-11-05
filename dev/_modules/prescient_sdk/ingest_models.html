@@ -171,12 +171,12 @@
         <p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../examples/configuration.html">Configure the client</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../migration.html">Migrate to version 1.0</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/configuration.html">Handling Configuration</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Examples</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="../../examples/stac_search.html">STAC Search</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/upload.html">Upload</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../examples/ingest.html">Ingest</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">SDK Reference</span></p>
@@ -336,16 +336,23 @@
   <h1>Source code for prescient_sdk.ingest_models</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;Pydantic models for the Prescient Ingest API.</span>
 
-<span class="sd">These mirror the response schemas of the multi-tenant (MT) ingestion service</span>
-<span class="sd">(``prescient.ingestion.schemas`` in prescient-platform-services) and are</span>
-<span class="sd">returned by :class:`prescient_sdk.ingest_client.IngestClient`.</span>
+<span class="sd">These mirror the schemas defined in the Ingest API OpenAPI specification</span>
+<span class="sd">and are returned by :class:`prescient_sdk.ingest_client.IngestClient`.</span>
 <span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">enum</span><span class="w"> </span><span class="kn">import</span> <span class="n">Enum</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Optional</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">uuid</span><span class="w"> </span><span class="kn">import</span> <span class="n">UUID</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseModel</span>
+
+<span class="c1"># NOTE: Model fields below use Optional[X] rather than `X | None` because</span>
+<span class="c1"># Pydantic evaluates annotations at class-creation time and PEP 604 union</span>
+<span class="c1"># syntax requires Python 3.10+. Switch to `X | None` once Python 3.9 support</span>
+<span class="c1"># is dropped.</span>
 
 
 <div class="viewcode-block" id="Status">
@@ -358,7 +365,8 @@
     <span class="n">PLANNING</span> <span class="o">=</span> <span class="s2">&quot;PLANNING&quot;</span>
     <span class="n">INGESTING</span> <span class="o">=</span> <span class="s2">&quot;INGESTING&quot;</span>
     <span class="n">DONE</span> <span class="o">=</span> <span class="s2">&quot;DONE&quot;</span>
-    <span class="n">FAILED</span> <span class="o">=</span> <span class="s2">&quot;FAILED&quot;</span></div>
+    <span class="n">FAILED</span> <span class="o">=</span> <span class="s2">&quot;FAILED&quot;</span>
+    <span class="n">INCOMPLETE</span> <span class="o">=</span> <span class="s2">&quot;INCOMPLETE&quot;</span></div>
 
 
 
@@ -396,29 +404,18 @@
     <span class="n">location</span><span class="p">:</span> <span class="nb">str</span>
     <span class="n">path</span><span class="p">:</span> <span class="nb">str</span>
     <span class="n">last_modified</span><span class="p">:</span> <span class="n">datetime</span>
-    <span class="n">stac_item_id</span><span class="p">:</span> <span class="nb">str</span>
-    <span class="n">source_file_set</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span></div>
+    <span class="n">stac_item_id</span><span class="p">:</span> <span class="n">UUID</span>
+    <span class="n">source_file_set</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span></div>
 
 
 
 <div class="viewcode-block" id="OutputFile">
 <a class="viewcode-back" href="../../ingest-models.html#prescient_sdk.ingest_models.OutputFile">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">OutputFile</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;A file produced by an ingestion task for one STAC item.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A STAC item produced by an ingestion task.&quot;&quot;&quot;</span>
 
-    <span class="n">stac_item_id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">stac_item_id</span><span class="p">:</span> <span class="n">UUID</span>
     <span class="n">task_name</span><span class="p">:</span> <span class="nb">str</span>
-    <span class="n">status</span><span class="p">:</span> <span class="n">FileStatus</span>
-    <span class="n">path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span></div>
-
-
-
-<div class="viewcode-block" id="StacItem">
-<a class="viewcode-back" href="../../ingest-models.html#prescient_sdk.ingest_models.StacItem">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">StacItem</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;A STAC item an ingestion writes, and whether it has been written.&quot;&quot;&quot;</span>
-
-    <span class="n">stac_item_id</span><span class="p">:</span> <span class="nb">str</span>
     <span class="n">status</span><span class="p">:</span> <span class="n">FileStatus</span></div>
 
 
@@ -443,8 +440,8 @@
     <span class="n">ingestion_id</span><span class="p">:</span> <span class="nb">int</span>
     <span class="n">batch_number</span><span class="p">:</span> <span class="nb">int</span>
     <span class="n">created</span><span class="p">:</span> <span class="n">datetime</span>
-    <span class="n">started</span><span class="p">:</span> <span class="n">datetime</span> <span class="o">|</span> <span class="kc">None</span>
-    <span class="n">finalized</span><span class="p">:</span> <span class="n">datetime</span> <span class="o">|</span> <span class="kc">None</span>
+    <span class="n">started</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">datetime</span><span class="p">]</span>
+    <span class="n">finalized</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">datetime</span><span class="p">]</span>
     <span class="n">status</span><span class="p">:</span> <span class="n">Status</span></div>
 
 
@@ -458,22 +455,28 @@
     <span class="n">time_occurred</span><span class="p">:</span> <span class="n">datetime</span>
     <span class="n">description</span><span class="p">:</span> <span class="nb">str</span>
     <span class="n">ingestion_id</span><span class="p">:</span> <span class="nb">int</span>
-    <span class="n">location</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">task</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">input_file</span><span class="p">:</span> <span class="n">InputFile</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">stack_trace</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span></div>
+    <span class="n">location</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+    <span class="n">task</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+    <span class="n">input_file</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">InputFile</span><span class="p">]</span>
+    <span class="n">stack_trace</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span></div>
 
 
 
-<span class="c1"># Targets for &quot;wait until the create/scan phase resolves&quot;: anything that</span>
-<span class="c1"># ends SCANNING. A scan that finds no input files goes straight to DONE.</span>
-<span class="n">READY_STATUSES</span><span class="p">:</span> <span class="nb">frozenset</span><span class="p">[</span><span class="n">Status</span><span class="p">]</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">(</span>
-    <span class="p">{</span><span class="n">Status</span><span class="o">.</span><span class="n">READY</span><span class="p">,</span> <span class="n">Status</span><span class="o">.</span><span class="n">DONE</span><span class="p">,</span> <span class="n">Status</span><span class="o">.</span><span class="n">FAILED</span><span class="p">}</span>
+<span class="n">TERMINAL_STATUSES</span><span class="p">:</span> <span class="nb">frozenset</span><span class="p">[</span><span class="n">Status</span><span class="p">]</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">(</span>
+    <span class="p">{</span><span class="n">Status</span><span class="o">.</span><span class="n">READY</span><span class="p">,</span> <span class="n">Status</span><span class="o">.</span><span class="n">DONE</span><span class="p">,</span> <span class="n">Status</span><span class="o">.</span><span class="n">FAILED</span><span class="p">,</span> <span class="n">Status</span><span class="o">.</span><span class="n">INCOMPLETE</span><span class="p">}</span>
 <span class="p">)</span>
 
-<span class="c1"># Targets for &quot;wait until ingestion finishes&quot;: READY is no longer a stop</span>
+<span class="c1"># Targets for &quot;wait until the create/scan phase resolves&quot; — anything that</span>
+<span class="c1"># ends SCANNING/PLANNING.</span>
+<span class="n">READY_STATUSES</span><span class="p">:</span> <span class="nb">frozenset</span><span class="p">[</span><span class="n">Status</span><span class="p">]</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">(</span>
+    <span class="p">{</span><span class="n">Status</span><span class="o">.</span><span class="n">READY</span><span class="p">,</span> <span class="n">Status</span><span class="o">.</span><span class="n">FAILED</span><span class="p">,</span> <span class="n">Status</span><span class="o">.</span><span class="n">INCOMPLETE</span><span class="p">}</span>
+<span class="p">)</span>
+
+<span class="c1"># Targets for &quot;wait until ingestion finishes&quot; — READY is no longer a stop</span>
 <span class="c1"># condition once ingestion has been started.</span>
-<span class="n">DONE_STATUSES</span><span class="p">:</span> <span class="nb">frozenset</span><span class="p">[</span><span class="n">Status</span><span class="p">]</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">({</span><span class="n">Status</span><span class="o">.</span><span class="n">DONE</span><span class="p">,</span> <span class="n">Status</span><span class="o">.</span><span class="n">FAILED</span><span class="p">})</span>
+<span class="n">DONE_STATUSES</span><span class="p">:</span> <span class="nb">frozenset</span><span class="p">[</span><span class="n">Status</span><span class="p">]</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">(</span>
+    <span class="p">{</span><span class="n">Status</span><span class="o">.</span><span class="n">DONE</span><span class="p">,</span> <span class="n">Status</span><span class="o">.</span><span class="n">FAILED</span><span class="p">,</span> <span class="n">Status</span><span class="o">.</span><span class="n">INCOMPLETE</span><span class="p">}</span>
+<span class="p">)</span>
 </pre></div>
 
                 </article>
