@@ -1,0 +1,23 @@
+version: 2
+updates:
+  # Python dependencies in uv.lock. Minor and patch bumps land as one weekly PR;
+  # major bumps still open individually so they get their own review.
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      python-minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Actions used in .github/workflows.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
