@@ -168,3 +168,5 @@ config.yaml
 
 # vscode
 .vscode/
+# roborev snapshots
+/.roborev/
