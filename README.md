@@ -4,7 +4,7 @@ A Python SDK for the Prescient platform. Use it to search your Organization's ST
 
 Documentation: https://sparkgeo.github.io/prescient-sdk/
 
-If you used a version before 1.0, read [Migrate to version 1.0](https://sparkgeo.github.io/prescient-sdk/migration.html). Version 1.0 removes the earlier sign-in settings and the S3 upload.
+If you used a version before 1.0, read [Migrate to version 1.0](https://sparkgeo.github.io/prescient-sdk/migration.html). Version 1.0 removes the earlier sign-in settings and replaces the S3 upload.
 
 ## Install
 
@@ -57,7 +57,7 @@ Asset links point at the platform over HTTPS. To read an asset, send the header 
 
 ## Run an ingestion
 
-You must be an admin of your Organization. The input files must already be in storage: version 1.0 cannot upload files.
+You must be an admin of your Organization. The input files must be in your Organization bucket or in an External bucket.
 
 ```python
 from prescient_sdk import IngestClient, IngestResource, IngestSpec
@@ -74,6 +74,21 @@ if ing.status is Status.READY and not problems:
 ```
 
 See the [ingest example](https://sparkgeo.github.io/prescient-sdk/examples/ingest.html).
+
+## Upload local files
+
+You need the ingest permission in your Organization. `upload` sends the files in a local directory to an Upload location in your Organization bucket and returns the location. Use the location as a location `path` in an ingestion spec.
+
+```python
+from prescient_sdk import PrescientClient, upload
+
+client = PrescientClient()
+location = upload(client, "/data/rasters", "rasters/2026", pattern=r".*\.tif$")
+```
+
+A location is 1 to 4 `/`-separated parts of lower-case letters, digits, `.`, `_` and `-`. If you do not give one, the platform creates one. Files that already exist in the location are skipped, so you can run an interrupted upload again to send the rest. Pass `overwrite=True` to replace them.
+
+If a spec points a location at a local directory, `spec.with_uploaded_sources(["<source file set>"], client=client)` uploads the files that the source file set selects and returns a new spec that points at the Upload location.
 
 ## Local development
 

@@ -20,11 +20,9 @@ would reject, so callers can refuse to submit it.
 
 import copy
 import logging
-import posixpath
 import re
 from pathlib import Path
 from typing import Any
-from uuid import uuid4
 
 import yaml
 from rich.progress import (
@@ -35,19 +33,17 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 
-from prescient_sdk.upload import Uploader, upload_source_files
+from prescient_sdk.client import PrescientClient
+from prescient_sdk.upload import upload
 
 logger = logging.getLogger("prescient_sdk")
 
 SPEC_VERSION_PREFIX = "2."
 
-_URL_SCHEME = re.compile(r"[A-Za-z][A-Za-z0-9+.-]*://")
 _REGIONAL_HTTPS_URL = re.compile(
     r"https://[a-z0-9.-]+\.s3\.[a-z0-9-]+\.amazonaws\.com(/.*)?"
 )
 _WINDOWS_DRIVE = re.compile(r"[A-Za-z]:[\\/]")
-# The Ingest API adds these areas to an Organization bucket path itself.
-_ORGANIZATION_BUCKET_AREAS = ("uploads", "assets")
 
 
 def _is_external(path: str) -> bool:
@@ -68,24 +64,6 @@ def _is_local(path: str) -> bool:
         or _WINDOWS_DRIVE.match(path) is not None
         or ".." in path.replace("\\", "/").split("/")
     )
-
-
-def _organization_bucket_path_problem(path: str) -> str | None:
-    """Why the Ingest API would reject ``path`` as an Organization bucket path.
-
-    Mirrors the service's checks: no leading ``/``, no ``..`` segment, and no
-    leading ``uploads/`` or ``assets/``, which the platform adds itself.
-
-    Returns:
-        str | None: The reason, or None when the path is acceptable.
-    """
-    if path.startswith("/"):
-        return "must not start with /"
-    if ".." in path.split("/"):
-        return 'must not contain a ".." segment'
-    if posixpath.normpath(path).split("/")[0] in _ORGANIZATION_BUCKET_AREAS:
-        return 'must not start with "uploads/" or "assets/": the platform adds them'
-    return None
 
 
 class IngestSpec:
@@ -265,88 +243,63 @@ class IngestSpec:
         self,
         source_file_sets: list[str],
         *,
-        uploader: Uploader,
-        dest_prefix: str,
+        client: PrescientClient,
+        location: str | None = None,
+        overwrite: bool = False,
         console: Any = None,
     ) -> "IngestSpec":
         """Upload local sources and return a new :class:`IngestSpec` that points at them.
 
-        For each named source file set, this sends the local files its
-        ``pattern`` selects to ``uploader`` (via
-        :func:`prescient_sdk.upload.upload_source_files`) and rewrites that
-        set's location ``path`` to the destination prefix the files were
-        uploaded under.
+        All the named source file sets must use the same local location. For
+        each set, this uploads the local files its ``pattern`` selects to one
+        Upload location (see :func:`prescient_sdk.upload.upload`), then
+        rewrites the location ``path`` to that Upload location. The Ingest API
+        reads a path with no scheme under ``uploads/`` in the Organization
+        bucket. To stage sets from different local locations, call this once
+        per location.
 
-        A single ``uuid4`` destination is computed per *distinct* location
-        (``{dest_prefix}/{uuid4}/``), so several sets that reference the same
-        location share one destination and that location's ``path`` is
-        rewritten exactly once. A file matched by two staged sets sharing a
-        location is uploaded once per set.
+        Without ``overwrite``, files that already exist in the Upload location
+        are skipped, so you can call this again with the same ``location`` to
+        finish an interrupted upload.
 
         The original :class:`IngestSpec` is left untouched — staging returns a
         new instance.
-
-        The SDK does not ship an uploader. The caller supplies one, and the
-        destination prefix it writes under. ``dest_prefix`` is usually a path in
-        the Organization bucket, such as ``sdk-uploads``. The Ingest API reads
-        an Organization bucket source location under ``uploads/``, so the
-        uploader must write each ``destination`` under ``uploads/`` in the
-        Organization bucket. An ``s3://`` prefix names an External bucket, which
-        the uploader writes to directly.
 
         Example::
 
             spec = IngestSpec.from_file("spec.yaml")
             ready = spec.with_uploaded_sources(
-                ["image_files", "thumbnail_files"],
-                uploader=my_uploader,
-                dest_prefix="sdk-uploads",
+                ["image_files", "thumbnail_files"], client=client
             )
-            ing = IngestResource.create(client, ready)
+            ing = IngestResource.create(ingest_client, ready)
 
         Args:
             source_file_sets (list[str]): Names of the ``source_files`` entries
                 to stage.
-            uploader (Uploader): Called as ``uploader(local_file, destination)``
-                for each selected file. See :data:`prescient_sdk.upload.Uploader`.
-            dest_prefix (str): Prefix that staged locations are rewritten to,
-                with one ``uuid4`` segment per location appended: an
-                Organization bucket path (no scheme, not starting with ``/``,
-                ``uploads/`` or ``assets/``) or an ``s3://`` URL.
+            client (PrescientClient): The signed-in client that uploads.
+            location (str, optional): The Upload location to write to. When
+                omitted, the platform creates a new one.
+            overwrite (bool): Replace files that already exist in the Upload
+                location. Defaults to False.
             console: Optional Rich ``Console`` to render upload progress to;
                 defaults to Rich's standard console.
 
         Returns:
-            IngestSpec: A new spec whose staged locations point at
-            ``{dest_prefix}/{uuid4}/``.
+            IngestSpec: A new spec whose staged location points at the Upload
+            location.
 
         Raises:
-            ValueError: If ``dest_prefix`` is empty or not a valid location
-                path, a named set or its location is missing, or a referenced
-                location is already an External bucket URL.
+            ValueError: If a named set or its location is missing, the
+                location is already an External bucket URL, or the sets use
+                more than one location.
         """
-        if not dest_prefix:
-            raise ValueError("dest_prefix must not be empty")
-        if not dest_prefix.startswith("s3://"):
-            if _URL_SCHEME.match(dest_prefix):
-                raise ValueError(
-                    f"dest_prefix {dest_prefix!r} must be an Organization bucket "
-                    "path or an s3:// URL"
-                )
-            problem = _organization_bucket_path_problem(dest_prefix)
-            if problem:
-                raise ValueError(f"dest_prefix {dest_prefix!r} {problem}")
-        dest_root = dest_prefix.rstrip("/")
-
         spec = copy.deepcopy(self._spec)
         locations = spec.get("locations", {})
         file_sets = spec.get("source_files", {})
 
         # Resolve and validate every named set up front so a bad name fails
-        # before any files are uploaded, and compute one destination prefix per
-        # distinct location.
-        location_dest: dict[str, str] = {}
-        resolved: list[tuple[str, str, str, str]] = []
+        # before any files are uploaded.
+        resolved: list[tuple[str, str, str]] = []
         for set_name in source_file_sets:
             if set_name not in file_sets:
                 raise ValueError(f"source file set {set_name!r} not found in spec")
@@ -362,17 +315,20 @@ class IngestSpec:
                     f"location {location_name!r} is already an External bucket "
                     f"URL ({raw_path!r}); nothing to stage"
                 )
-            local_path = (
-                raw_path[len("file://") :]
-                if raw_path.startswith("file://")
-                else raw_path
-            )
-
-            if location_name not in location_dest:
-                location_dest[location_name] = f"{dest_root}/{uuid4()}/"
-
             pattern = (file_sets[set_name] or {}).get("pattern", ".*")
-            resolved.append((set_name, location_name, local_path, pattern))
+            resolved.append((set_name, location_name, pattern))
+
+        location_names = {location_name for _, location_name, _ in resolved}
+        if not location_names:
+            return IngestSpec(spec)
+        if len(location_names) > 1:
+            raise ValueError(
+                f"source file sets {source_file_sets} use more than one location "
+                f"({sorted(location_names)}); stage each location in a separate call"
+            )
+        location_name = location_names.pop()
+        raw_path = str((locations[location_name] or {}).get("path", ""))
+        local_path = raw_path.removeprefix("file://")
 
         with Progress(
             TextColumn("[progress.description]{task.description}"),
@@ -381,20 +337,24 @@ class IngestSpec:
             TimeElapsedColumn(),
             console=console,
         ) as progress:
-            for set_name, location_name, local_path, pattern in resolved:
-                dest_prefix = location_dest[location_name]
+            for set_name, _, pattern in resolved:
                 task_id = progress.add_task(f"staging {set_name}", total=None)
 
                 def on_file(index, total, path, task_id=task_id):
                     progress.update(task_id, total=total, completed=index)
 
-                upload_source_files(
-                    local_path, dest_prefix, pattern, uploader, on_file=on_file
+                # Later sets write to the location the first one returned.
+                location = upload(
+                    client,
+                    local_path,
+                    location,
+                    pattern=pattern,
+                    overwrite=overwrite,
+                    on_file=on_file,
                 )
 
-        for location_name, dest_prefix in location_dest.items():
-            if locations[location_name] is None:
-                locations[location_name] = {}
-            locations[location_name]["path"] = dest_prefix
+        if locations[location_name] is None:
+            locations[location_name] = {}
+        locations[location_name]["path"] = location
 
         return IngestSpec(spec)
