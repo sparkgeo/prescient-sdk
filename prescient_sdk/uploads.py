@@ -249,5 +249,10 @@ def _upload_multipart(s3, file: Path, size: int, bucket: str, key: str, conditio
         except BaseException:
             # Don't send the parts still queued; S3 bills stored parts until aborted.
             pool.shutdown(cancel_futures=True)
-            s3.abort_multipart_upload(Bucket=bucket, Key=key, UploadId=upload_id)
+            try:
+                s3.abort_multipart_upload(Bucket=bucket, Key=key, UploadId=upload_id)
+            except ClientError as error:
+                # Already gone: keep the original error, which may be a 412 skip.
+                if error.response["Error"]["Code"] != "NoSuchUpload":
+                    raise
             raise

@@ -1,5 +1,6 @@
 """Tests for the IngestSpec value object."""
 
+import copy
 import io
 import textwrap
 from types import SimpleNamespace
@@ -262,6 +263,15 @@ def test_with_uploaded_sources_multiple_locations_raises(upload_mock, quiet_cons
     upload_mock.assert_not_called()
 
 
+@pytest.mark.parametrize("path", ["", "file://"])
+def test_with_uploaded_sources_empty_path_raises(upload_mock, quiet_console, path):
+    spec_dict = copy.deepcopy(LOCAL_SPEC)
+    spec_dict["locations"]["source_location"]["path"] = path
+    with pytest.raises(ValueError, match="has no path"):
+        stage(IngestSpec.from_dict(spec_dict), ["images"], quiet_console)
+    upload_mock.assert_not_called()
+
+
 def test_with_uploaded_sources_is_immutable(upload_mock, quiet_console):
     spec = IngestSpec.from_dict(LOCAL_SPEC)
     staged = stage(spec, ["images"], quiet_console)
@@ -330,7 +340,7 @@ def test_with_uploaded_sources_uploads_each_file(mocker, tmp_path, quiet_console
     )
 
     mocker.patch(
-        "prescient_sdk.upload._issue_credentials",
+        "prescient_sdk.uploads._issue_credentials",
         return_value={
             "location": "01jz-generated",
             "bucket": "org-bucket",
@@ -338,7 +348,7 @@ def test_with_uploaded_sources_uploads_each_file(mocker, tmp_path, quiet_console
         },
     )
     s3 = mocker.Mock()
-    mocker.patch("prescient_sdk.upload._s3_client", return_value=s3)
+    mocker.patch("prescient_sdk.uploads._s3_client", return_value=s3)
 
     spec = IngestSpec.from_file(spec_file)
     ready = spec.with_uploaded_sources(

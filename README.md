@@ -88,6 +88,8 @@ location = upload(client, "/data/rasters", "rasters/2026", pattern=r".*\.tif$")
 
 A location is 1 to 4 `/`-separated parts of lower-case letters, digits, `.`, `_` and `-`. If you do not give one, the platform creates one. Files that already exist in the location are skipped, so you can run an interrupted upload again to send the rest. Pass `overwrite=True` to replace them.
 
+To resume, run the upload again with the same location. If you did not give one and the upload fails, the created location is only in the SDK's INFO log, and a new call creates another location. So give a location for any upload you may need to resume.
+
 If a spec points a location at a local directory, `spec.with_uploaded_sources(["<source file set>"], client=client)` uploads the files that the source file set selects and returns a new spec that points at the Upload location.
 
 ## Local development

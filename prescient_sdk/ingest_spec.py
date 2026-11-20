@@ -34,7 +34,7 @@ from rich.progress import (
 )
 
 from prescient_sdk.client import PrescientClient
-from prescient_sdk.upload import upload
+from prescient_sdk.uploads import upload
 
 logger = logging.getLogger("prescient_sdk")
 
@@ -252,7 +252,7 @@ class IngestSpec:
 
         All the named source file sets must use the same local location. For
         each set, this uploads the local files its ``pattern`` selects to one
-        Upload location (see :func:`prescient_sdk.upload.upload`), then
+        Upload location (see :func:`prescient_sdk.uploads.upload`), then
         rewrites the location ``path`` to that Upload location. The Ingest API
         reads a path with no scheme under ``uploads/`` in the Organization
         bucket. To stage sets from different local locations, call this once
@@ -314,6 +314,11 @@ class IngestSpec:
                 raise ValueError(
                     f"location {location_name!r} is already an External bucket "
                     f"URL ({raw_path!r}); nothing to stage"
+                )
+            if not raw_path.removeprefix("file://"):
+                # An empty path would upload the working directory.
+                raise ValueError(
+                    f"location {location_name!r} has no path; nothing to stage"
                 )
             pattern = (file_sets[set_name] or {}).get("pattern", ".*")
             resolved.append((set_name, location_name, pattern))

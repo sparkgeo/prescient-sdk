@@ -16,7 +16,7 @@ from botocore.exceptions import ClientError
 from botocore.stub import ANY, Stubber
 
 from prescient_sdk.client import PrescientClient
-from prescient_sdk.upload import (
+from prescient_sdk.uploads import (
     _relative_posix,
     _s3_client,
     _upload_file,
@@ -102,7 +102,7 @@ def s3():
 def s3_mock(mocker):
     """An S3 client mock that records every PutObject, patched into upload()."""
     mock = mocker.Mock()
-    mocker.patch("prescient_sdk.upload._s3_client", return_value=mock)
+    mocker.patch("prescient_sdk.uploads._s3_client", return_value=mock)
     return mock
 
 
@@ -166,7 +166,7 @@ def test_upload_without_location_returns_generated_one(
     mocker, tmp_path, prescient_client, fileproxy, s3_mock
 ):
     _make_tree(tmp_path, ["a.tif"])
-    s3_client = mocker.patch("prescient_sdk.upload._s3_client", return_value=s3_mock)
+    s3_client = mocker.patch("prescient_sdk.uploads._s3_client", return_value=s3_mock)
 
     location = upload(prescient_client, tmp_path, overwrite=True)
 
@@ -244,9 +244,9 @@ def test_upload_counts_skipped_files(
     caplog, mocker, tmp_path, prescient_client, fileproxy, s3_mock
 ):
     _make_tree(tmp_path, ["a.tif", "b.tif", "c.tif"])
-    mocker.patch("prescient_sdk.upload._upload_file", side_effect=[True, False, False])
+    mocker.patch("prescient_sdk.uploads._upload_file", side_effect=[True, False, False])
 
-    with caplog.at_level("INFO", logger="prescient_sdk.upload"):
+    with caplog.at_level("INFO", logger="prescient_sdk.uploads"):
         upload(prescient_client, tmp_path, "scenes")
 
     assert "uploaded 1 and skipped 2 existing file(s)" in caplog.text
@@ -356,7 +356,7 @@ def test_other_s3_error_raises(s3, small_file):
 
 @pytest.fixture
 def multipart_s3(mocker):
-    mocker.patch("prescient_sdk.upload._PART_SIZE", 4)
+    mocker.patch("prescient_sdk.uploads._PART_SIZE", 4)
     s3 = mocker.Mock()
     s3.create_multipart_upload.return_value = {"UploadId": "up-1"}
     s3.upload_part.side_effect = lambda **kw: {"ETag": f"e{kw['PartNumber']}"}
@@ -398,7 +398,7 @@ def test_large_file_multipart_with_overwrite_is_unconditional(multipart_s3, smal
 def test_large_file_grows_part_size_to_stay_under_part_limit(
     mocker, multipart_s3, small_file
 ):
-    mocker.patch("prescient_sdk.upload._MAX_PARTS", 2)
+    mocker.patch("prescient_sdk.uploads._MAX_PARTS", 2)
 
     _upload_file(multipart_s3, small_file, BUCKET, "k", False)
 
@@ -430,6 +430,19 @@ def test_large_existing_file_412_on_complete_is_skipped_and_aborted(
     multipart_s3.abort_multipart_upload.assert_called_once_with(
         Bucket=BUCKET, Key="k", UploadId="up-1"
     )
+
+
+def test_large_file_412_is_still_skipped_when_the_upload_is_already_gone(
+    multipart_s3, small_file
+):
+    multipart_s3.complete_multipart_upload.side_effect = ClientError(
+        {"Error": {"Code": "PreconditionFailed"}}, "CompleteMultipartUpload"
+    )
+    multipart_s3.abort_multipart_upload.side_effect = ClientError(
+        {"Error": {"Code": "NoSuchUpload"}}, "AbortMultipartUpload"
+    )
+
+    assert _upload_file(multipart_s3, small_file, BUCKET, "k", False) is False
 
 
 # ---------------------------------------------------------------------------

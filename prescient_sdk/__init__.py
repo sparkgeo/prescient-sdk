@@ -8,7 +8,7 @@ from prescient_sdk.ingest_client import (
 )
 from prescient_sdk.ingest_resources import BatchResource, IngestResource, LiveStatus
 from prescient_sdk.ingest_spec import IngestSpec
-from prescient_sdk.upload import upload
+from prescient_sdk.uploads import upload
 
 __all__ = [
     "BatchResource",
