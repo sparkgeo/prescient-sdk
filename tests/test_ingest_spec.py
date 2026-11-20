@@ -1,5 +1,6 @@
 """Tests for the IngestSpec value object."""
 
+import copy
 import io
 import textwrap
 from types import SimpleNamespace
@@ -47,14 +48,8 @@ def quiet_console():
 
 @pytest.fixture
 def upload_mock(mocker):
-    return mocker.patch("prescient_sdk.ingest_spec.upload_source_files")
-
-
-@pytest.fixture
-def uuid_mock(mocker):
     return mocker.patch(
-        "prescient_sdk.ingest_spec.uuid4",
-        side_effect=["uuid-1", "uuid-2", "uuid-3"],
+        "prescient_sdk.ingest_spec.upload", return_value="01jz-generated"
     )
 
 
@@ -198,79 +193,86 @@ def test_problems_reports_what_the_api_rejects(spec, expected):
     assert expected in problems[0]
 
 
-DEST = "sdk-uploads"
-
-
-def fake_uploader(local_file, destination):
-    raise AssertionError("upload_source_files is patched; uploader must not run")
+CLIENT = object()
 
 
 def stage(spec, sets, console, **kwargs):
-    kwargs.setdefault("uploader", fake_uploader)
-    kwargs.setdefault("dest_prefix", DEST)
-    return spec.with_uploaded_sources(sets, console=console, **kwargs)
+    return spec.with_uploaded_sources(sets, client=CLIENT, console=console, **kwargs)
 
 
-def test_with_uploaded_sources_stages_set(upload_mock, uuid_mock, quiet_console):
+def test_with_uploaded_sources_stages_set(upload_mock, quiet_console):
     spec = IngestSpec.from_dict(LOCAL_SPEC)
     staged = stage(spec, ["images"], quiet_console)
 
     upload_mock.assert_called_once()
     args, kwargs = upload_mock.call_args
-    local_dir, dest_prefix, pattern, uploader = args
-    assert local_dir == "/data/scenes"
-    assert dest_prefix == "sdk-uploads/uuid-1/"
-    assert pattern == r".*\.tif$"
-    assert uploader is fake_uploader
+    assert args == (CLIENT, "/data/scenes", None)
+    assert kwargs["pattern"] == r".*\.tif$"
+    assert kwargs["overwrite"] is False
     assert callable(kwargs["on_file"])
 
-    assert staged.spec["locations"]["source_location"]["path"] == "sdk-uploads/uuid-1/"
+    # A path with no scheme: the Ingest API reads it under uploads/.
+    assert staged.spec["locations"]["source_location"]["path"] == "01jz-generated"
 
 
-def test_with_uploaded_sources_shared_location_one_prefix(
-    upload_mock, uuid_mock, quiet_console
+def test_with_uploaded_sources_passes_location_and_overwrite(
+    upload_mock, quiet_console
+):
+    upload_mock.return_value = "scenes/2026"
+    spec = IngestSpec.from_dict(LOCAL_SPEC)
+    staged = stage(
+        spec, ["images"], quiet_console, location="scenes/2026", overwrite=True
+    )
+
+    assert upload_mock.call_args.args[2] == "scenes/2026"
+    assert upload_mock.call_args.kwargs["overwrite"] is True
+    assert staged.spec["locations"]["source_location"]["path"] == "scenes/2026"
+
+
+def test_with_uploaded_sources_shared_location_one_upload_location(
+    upload_mock, quiet_console
 ):
     spec = IngestSpec.from_dict(LOCAL_SPEC)
     staged = stage(spec, ["images", "thumbs"], quiet_console)
 
-    # Both sets reference source_location: one uuid, one rewrite, two uploads.
-    assert uuid_mock.call_count == 1
-    assert upload_mock.call_count == 2
-    dests = {call.args[1] for call in upload_mock.call_args_list}
-    assert dests == {"sdk-uploads/uuid-1/"}
-    assert staged.spec["locations"]["source_location"]["path"] == "sdk-uploads/uuid-1/"
+    # Both sets reference source_location: the second set writes to the
+    # location the first one returned.
+    first, second = upload_mock.call_args_list
+    assert first.args[2] is None
+    assert second.args[2] == "01jz-generated"
+    assert {first.kwargs["pattern"], second.kwargs["pattern"]} == {
+        r".*\.tif$",
+        r".*\.png$",
+    }
+    assert staged.spec["locations"]["source_location"]["path"] == "01jz-generated"
 
 
-def test_with_uploaded_sources_distinct_locations_distinct_prefixes(
-    upload_mock, uuid_mock, quiet_console
-):
+def test_with_uploaded_sources_strips_file_scheme(upload_mock, quiet_console):
     spec = IngestSpec.from_dict(LOCAL_SPEC)
-    staged = stage(spec, ["images", "props"], quiet_console)
+    staged = stage(spec, ["props"], quiet_console)
 
-    assert uuid_mock.call_count == 2
-    assert staged.spec["locations"]["source_location"]["path"] == "sdk-uploads/uuid-1/"
-    # file:// scheme is stripped before upload.
-    props_call = next(
-        c for c in upload_mock.call_args_list if c.args[0] == "/data/props"
-    )
-    assert props_call.args[1] == "sdk-uploads/uuid-2/"
-    assert staged.spec["locations"]["props_location"]["path"] == "sdk-uploads/uuid-2/"
+    assert upload_mock.call_args.args[1] == "/data/props"
+    assert staged.spec["locations"]["props_location"]["path"] == "01jz-generated"
+    assert staged.local_locations() == ["source_location"]
 
 
-def test_with_uploaded_sources_trailing_slash_in_prefix(
-    upload_mock, uuid_mock, quiet_console
-):
+def test_with_uploaded_sources_multiple_locations_raises(upload_mock, quiet_console):
     spec = IngestSpec.from_dict(LOCAL_SPEC)
-    staged = stage(spec, ["images"], quiet_console, dest_prefix="s3://b/user-uploads/")
-    assert upload_mock.call_args.args[1] == "s3://b/user-uploads/uuid-1/"
-    assert (
-        staged.spec["locations"]["source_location"]["path"]
-        == "s3://b/user-uploads/uuid-1/"
-    )
-    assert staged.local_locations() == ["props_location"]
+    with pytest.raises(ValueError, match="separate call"):
+        stage(spec, ["images", "props"], quiet_console)
+    upload_mock.assert_not_called()
 
 
-def test_with_uploaded_sources_is_immutable(upload_mock, uuid_mock, quiet_console):
+@pytest.mark.parametrize("path", ["", "file://"])
+def test_with_uploaded_sources_empty_path_raises(upload_mock, quiet_console, path):
+    spec_dict = copy.deepcopy(LOCAL_SPEC)
+    spec_dict["locations"]["source_location"]["path"] = path
+    with pytest.raises(ValueError, match="has no path"):
+        stage(IngestSpec.from_dict(spec_dict), ["images"], quiet_console)
+    upload_mock.assert_not_called()
+
+
+def test_with_uploaded_sources_is_immutable(upload_mock, quiet_console):
     spec = IngestSpec.from_dict(LOCAL_SPEC)
     staged = stage(spec, ["images"], quiet_console)
 
@@ -301,45 +303,7 @@ def test_with_uploaded_sources_already_external_raises(upload_mock, quiet_consol
     upload_mock.assert_not_called()
 
 
-@pytest.mark.parametrize(
-    "dest_prefix,match",
-    [
-        ("/abs/path", "must not start with /"),
-        ("a/../b", '".." segment'),
-        ("uploads/sdk", 'must not start with "uploads/" or "assets/"'),
-        ("./assets/sdk", 'must not start with "uploads/" or "assets/"'),
-        ("gs://bucket/x", "Organization bucket path or an s3:// URL"),
-    ],
-)
-def test_with_uploaded_sources_rejects_invalid_dest_prefix(
-    upload_mock, quiet_console, dest_prefix, match
-):
-    spec = IngestSpec.from_dict(LOCAL_SPEC)
-    with pytest.raises(ValueError, match=match):
-        stage(spec, ["images"], quiet_console, dest_prefix=dest_prefix)
-    upload_mock.assert_not_called()
-
-
-def test_with_uploaded_sources_to_org_bucket_passes_problems(
-    upload_mock, uuid_mock, quiet_console
-):
-    spec = IngestSpec.from_dict(LOCAL_SPEC)
-    staged = stage(spec, ["images", "props"], quiet_console)
-    assert staged.spec["locations"]["source_location"]["path"] == "sdk-uploads/uuid-1/"
-    assert staged.local_locations() == []
-    assert staged.problems() == []
-
-
-def test_with_uploaded_sources_requires_dest_prefix(upload_mock, quiet_console):
-    spec = IngestSpec.from_dict(LOCAL_SPEC)
-    with pytest.raises(ValueError, match="dest_prefix"):
-        stage(spec, ["images"], quiet_console, dest_prefix="")
-    upload_mock.assert_not_called()
-
-
-def test_with_uploaded_sources_validates_before_uploading(
-    upload_mock, uuid_mock, quiet_console
-):
+def test_with_uploaded_sources_validates_before_uploading(upload_mock, quiet_console):
     # A bad name after a good one must not leave a partial upload.
     spec = IngestSpec.from_dict(LOCAL_SPEC)
     with pytest.raises(ValueError):
@@ -347,10 +311,8 @@ def test_with_uploaded_sources_validates_before_uploading(
     upload_mock.assert_not_called()
 
 
-def test_with_uploaded_sources_calls_uploader_per_file(
-    mocker, tmp_path, uuid_mock, quiet_console
-):
-    """from_file -> with_uploaded_sources -> create, with a fake uploader."""
+def test_with_uploaded_sources_uploads_each_file(mocker, tmp_path, quiet_console):
+    """from_file -> with_uploaded_sources -> create, with fileproxy and S3 mocked."""
     from prescient_sdk.ingest_resources import IngestResource
 
     scenes = tmp_path / "scenes"
@@ -377,29 +339,30 @@ def test_with_uploaded_sources_calls_uploader_per_file(
         )
     )
 
-    uploaded: list[tuple] = []
-
-    def uploader(local_file, destination):
-        uploaded.append((local_file, destination))
+    mocker.patch(
+        "prescient_sdk.uploads._issue_credentials",
+        return_value={
+            "location": "01jz-generated",
+            "bucket": "org-bucket",
+            "prefix": "uploads/01jz-generated/",
+        },
+    )
+    s3 = mocker.Mock()
+    mocker.patch("prescient_sdk.uploads._s3_client", return_value=s3)
 
     spec = IngestSpec.from_file(spec_file)
     ready = spec.with_uploaded_sources(
-        ["images"],
-        uploader=uploader,
-        dest_prefix="s3://upload-bucket/uploads",
-        console=quiet_console,
+        ["images"], client=mocker.Mock(), console=quiet_console
     )
 
-    # One call per pattern-matched file, relative paths kept under the uuid prefix.
-    assert sorted(uploaded) == [
-        (scenes / "a.tif", "s3://upload-bucket/uploads/uuid-1/a.tif"),
-        (scenes / "nested" / "b.tif", "s3://upload-bucket/uploads/uuid-1/nested/b.tif"),
+    # One write per pattern-matched file, relative paths kept under the prefix.
+    assert sorted(c.kwargs["Key"] for c in s3.put_object.call_args_list) == [
+        "uploads/01jz-generated/a.tif",
+        "uploads/01jz-generated/nested/b.tif",
     ]
-    assert (
-        ready.spec["locations"]["source_location"]["path"]
-        == "s3://upload-bucket/uploads/uuid-1/"
-    )
+    assert ready.spec["locations"]["source_location"]["path"] == "01jz-generated"
     assert ready.local_locations() == []
+    assert ready.problems() == []
     # The original spec still points at the local directory.
     assert spec.spec["locations"]["source_location"]["path"] == str(scenes)
 

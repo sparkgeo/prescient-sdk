@@ -16,6 +16,7 @@ PUBLIC_NAMES = {
     "PrescientAuthError": "prescient_sdk.client",
     "PrescientClient": "prescient_sdk.client",
     "Settings": "prescient_sdk.config",
+    "upload": "prescient_sdk.uploads",
 }
 
 
