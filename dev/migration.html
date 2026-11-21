@@ -186,7 +186,7 @@
 <li class="toctree-l1"><a class="reference internal" href="ingest-client.html">Ingest Client</a></li>
 <li class="toctree-l1"><a class="reference internal" href="ingest-resources.html">Ingest Resources</a></li>
 <li class="toctree-l1"><a class="reference internal" href="ingest-models.html">Ingest Models</a></li>
-<li class="toctree-l1"><a class="reference internal" href="upload.html">Upload</a></li>
+<li class="toctree-l1"><a class="reference internal" href="uploads.html">Upload</a></li>
 <li class="toctree-l1"><a class="reference internal" href="config.html">Config</a></li>
 </ul>
 
@@ -404,7 +404,7 @@
                   
   <section class="tex2jax_ignore mathjax_ignore" id="migrate-to-version-1-0">
 <h1>Migrate to version 1.0<a class="headerlink" href="#migrate-to-version-1-0" title="Link to this heading">#</a></h1>
-<p>Version 1.0 of the Prescient SDK works with the multi-tenant Prescient platform. You sign in with an API key for your Organization. Microsoft and Google sign-in, AWS credentials and the S3 upload are removed.</p>
+<p>Version 1.0 of the Prescient SDK works with the multi-tenant Prescient platform. You sign in with an API key for your Organization. Microsoft and Google sign-in and AWS credentials are removed, and upload works in a new way.</p>
 <p>Version 1.0 needs Python 3.11 or later.</p>
 <section id="before-you-start">
 <h2>Before you start<a class="headerlink" href="#before-you-start" title="Link to this heading">#</a></h2>
@@ -485,10 +485,10 @@ For a staging Organization, use <code class="docutils literal notranslate"><span
 <td><p>Removed</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">prescient_upload_role</span></code></p></td>
-<td><p>Removed. Upload is not available in 1.0</p></td>
+<td><p>Removed. The platform issues upload credentials</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">prescient_upload_bucket</span></code></p></td>
-<td><p>Removed. Upload is not available in 1.0</p></td>
+<td><p>Removed. Files go to your Organization bucket</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">prescient_auth_token_path</span></code></p></td>
 <td><p>Removed</p></td>
@@ -538,8 +538,8 @@ For a staging Organization, use <code class="docutils literal notranslate"><span
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">client.auth_credentials</span></code>, <code class="docutils literal notranslate"><span class="pre">client.credentials_expired</span></code>, <code class="docutils literal notranslate"><span class="pre">client.refresh_credentials()</span></code></p></td>
 <td><p>Removed. The client exchanges the API key for a new token when the current token is about to expire</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">prescient_sdk.upload.upload()</span></code></p></td>
-<td><p>Removed. Upload is not available in 1.0</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">prescient_sdk.upload.upload(input_dir,</span> <span class="pre">exclude,</span> <span class="pre">prescient_client,</span> <span class="pre">overwrite)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">upload(client,</span> <span class="pre">local_dir,</span> <span class="pre">location=None,</span> <span class="pre">*,</span> <span class="pre">pattern=None,</span> <span class="pre">overwrite=False)</span></code>. See Upload below</p></td>
 </tr>
 </tbody>
 </table>
@@ -556,7 +556,15 @@ For a staging Organization, use <code class="docutils literal notranslate"><span
 </section>
 <section id="upload">
 <h3>Upload<a class="headerlink" href="#upload" title="Link to this heading">#</a></h3>
-<p>Upload is not available in version 1.0. A version 1.x release will add an uploader for the platform file proxy. Until then, <code class="docutils literal notranslate"><span class="pre">IngestSpec.with_uploaded_sources</span></code> needs an <code class="docutils literal notranslate"><span class="pre">uploader</span></code> function that you supply.</p>
+<p><code class="docutils literal notranslate"><span class="pre">upload(client,</span> <span class="pre">local_dir)</span></code> sends the files in <code class="docutils literal notranslate"><span class="pre">local_dir</span></code> to an Upload location in your Organization bucket and returns the location. Use the location as a location <code class="docutils literal notranslate"><span class="pre">path</span></code> in an ingestion spec. The platform issues short-lived credentials that can only write to that location, so you need no AWS settings. You need the ingest permission in your Organization.</p>
+<p>Changes from the earlier <code class="docutils literal notranslate"><span class="pre">upload()</span></code>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">client</span></code> is the first argument and is required.</p></li>
+<li><p>The files go to <code class="docutils literal notranslate"><span class="pre">uploads/&lt;location&gt;/&lt;path</span> <span class="pre">relative</span> <span class="pre">to</span> <span class="pre">local_dir&gt;</span></code>. The name of <code class="docutils literal notranslate"><span class="pre">local_dir</span></code> is not part of the key.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pattern</span></code> is a regular expression that selects files by their path relative to <code class="docutils literal notranslate"><span class="pre">local_dir</span></code>, as the Ingest API does. It replaces the <code class="docutils literal notranslate"><span class="pre">exclude</span></code> glob patterns.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">overwrite</span></code> is <code class="docutils literal notranslate"><span class="pre">False</span></code> by default. A file that already exists is skipped, so you can run an interrupted upload again with the same <code class="docutils literal notranslate"><span class="pre">location</span></code> to send the rest.</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">IngestSpec.with_uploaded_sources(source_file_sets,</span> <span class="pre">client=client)</span></code> uploads the files that the named source file sets select and returns a new spec whose location <code class="docutils literal notranslate"><span class="pre">path</span></code> is the Upload location. The sets must use the same location.</p>
 </section>
 <section id="ingestclient">
 <h3>IngestClient<a class="headerlink" href="#ingestclient" title="Link to this heading">#</a></h3>

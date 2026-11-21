@@ -1,6 +1,6 @@
 # Migrate to version 1.0
 
-Version 1.0 of the Prescient SDK works with the multi-tenant Prescient platform. You sign in with an API key for your Organization. Microsoft and Google sign-in, AWS credentials and the S3 upload are removed.
+Version 1.0 of the Prescient SDK works with the multi-tenant Prescient platform. You sign in with an API key for your Organization. Microsoft and Google sign-in and AWS credentials are removed, and upload works in a new way.
 
 Version 1.0 needs Python 3.11 or later.
 
@@ -47,8 +47,8 @@ If your environment or `config.env` file contains a setting from an earlier vers
 | `prescient_google_redirect_port` | Removed |
 | `prescient_aws_role` | Removed. You read data with the access token, not AWS credentials |
 | `prescient_aws_region` | Removed |
-| `prescient_upload_role` | Removed. Upload is not available in 1.0 |
-| `prescient_upload_bucket` | Removed. Upload is not available in 1.0 |
+| `prescient_upload_role` | Removed. The platform issues upload credentials |
+| `prescient_upload_bucket` | Removed. Files go to your Organization bucket |
 | `prescient_auth_token_path` | Removed |
 | `prescient_ingest_endpoint_url` | Removed. The Ingest API is always at `<prescient_endpoint_url>/ingest/` |
 | `prescient_auth_url` | Changed meaning. It was the OAuth token endpoint. Now it is the Keycloak base URL, for example `https://keycloak.prescient.earth`. Remove it unless you use a Keycloak server at a different URL |
@@ -74,7 +74,7 @@ You can import the public names from the package root, for example `from prescie
 | `client.bucket_credentials` | Removed |
 | `client.upload_session` | Removed |
 | `client.auth_credentials`, `client.credentials_expired`, `client.refresh_credentials()` | Removed. The client exchanges the API key for a new token when the current token is about to expire |
-| `prescient_sdk.upload.upload()` | Removed. Upload is not available in 1.0 |
+| `prescient_sdk.upload.upload(input_dir, exclude, prescient_client, overwrite)` | `upload(client, local_dir, location=None, *, pattern=None, overwrite=False)`. See Upload below |
 
 New in version 1.0:
 
@@ -87,7 +87,16 @@ STAC asset links point at the platform file proxy over HTTPS. To read data, send
 
 ### Upload
 
-Upload is not available in version 1.0. A version 1.x release will add an uploader for the platform file proxy. Until then, `IngestSpec.with_uploaded_sources` needs an `uploader` function that you supply.
+`upload(client, local_dir)` sends the files in `local_dir` to an Upload location in your Organization bucket and returns the location. Use the location as a location `path` in an ingestion spec. The platform issues short-lived credentials that can only write to that location, so you need no AWS settings. You need the ingest permission in your Organization.
+
+Changes from the earlier `upload()`:
+
+- `client` is the first argument and is required.
+- The files go to `uploads/<location>/<path relative to local_dir>`. The name of `local_dir` is not part of the key.
+- `pattern` is a regular expression that selects files by their path relative to `local_dir`, as the Ingest API does. It replaces the `exclude` glob patterns.
+- `overwrite` is `False` by default. A file that already exists is skipped, so you can run an interrupted upload again with the same `location` to send the rest.
+
+`IngestSpec.with_uploaded_sources(source_file_sets, client=client)` uploads the files that the named source file sets select and returns a new spec whose location `path` is the Upload location. The sets must use the same location.
 
 ### IngestClient
 
